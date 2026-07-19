@@ -21,9 +21,12 @@
 - **Next:** Phase 6 — native surfaces (Glance widget, share target, app shortcuts, `gsd://`
   route hardening — the scheme + oauth-callback are registered; §6.4's task/quadrant/view routes
   are not yet). Then Phase 7 — Play readiness.
-- **User smoke needed for Phase 5:** a real sign-in on a device (Google/Apple/GitHub) to exercise
-  the Custom Tab → bounce → callback → exchange path and a two-device sync round-trip. Everything
-  below the network is fixture-tested; the live hop needs real provider credentials.
+- **Phase 5 live-verified on a Pixel 10a (2026-07-19):** Google sign-in through the Custom Tab →
+  bounce → callback → exchange path works, and push/pull round-trips against the live backend.
+  Two live-only bugs were found and fixed in the process: the missing INTERNET permission
+  (hidden by a swallowed exception) and the wire push omitting `owner` / carrying `id:""` in
+  PATCH bodies (server 400s read from the queue's lastError). Apple/GitHub sign-in and a
+  two-device round-trip remain untested but share the verified path.
 - **Phase 5 deferrals:** onboarding's final-page sign-in buttons (Settings is the sign-in surface
   for now); expanded-width palette dialog styling; Chrome JS-redirect user-gesture caveat on the
   GET bounce path (fix is server-side 302 if it bites).
