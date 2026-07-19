@@ -61,7 +61,7 @@ fun GsdNavHost(
             )
         }
         composable("archive") {
-            PlaceholderScreen(R.string.browse_placeholder_title, R.string.browse_placeholder_body)
+            dev.vinny.gsd.browse.ArchiveScreen(container = container)
         }
         composable(Destination.DASHBOARD.route) {
             PlaceholderScreen(R.string.dashboard_placeholder_title, R.string.dashboard_placeholder_body)
