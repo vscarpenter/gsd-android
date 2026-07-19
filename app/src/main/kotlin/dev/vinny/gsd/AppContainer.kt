@@ -8,6 +8,7 @@ import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SmartViewStore
 import dev.vinny.gsd.store.TaskStore
 import java.time.Clock
+import kotlinx.coroutines.flow.first
 
 private val Context.dataStore by preferencesDataStore(name = "gsd_prefs")
 
@@ -60,6 +61,10 @@ class AppContainer(context: Context) {
         syncCoordinator = dev.vinny.gsd.sync.SyncCoordinator(
             context, syncEngine, authManager, tokenStore, db, syncLocal, sseClient, scope,
         )
+        syncCoordinator.lastOwnerId = { prefs.lastOwnerId.first() }
+        syncCoordinator.onOwnerConfirmed = { result ->
+            prefs.setLastOwner(result.record.id, result.record.email)
+        }
         syncCoordinator.start()
     }
 

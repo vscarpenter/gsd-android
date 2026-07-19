@@ -95,6 +95,22 @@ fun MatrixScreen(
                 onToggleShowCompleted = { scope.launch { container.prefs.setShowCompleted(!showCompleted) } },
                 onSearch = { paletteVisible = true },
                 onToggleSelectMode = viewModel::toggleSelectionMode,
+                syncChip = {
+                    val signedIn by container.syncCoordinator.signedIn.collectAsStateWithLifecycle()
+                    val syncing by container.syncCoordinator.syncing.collectAsStateWithLifecycle()
+                    val pending by container.syncCoordinator.pendingCount
+                        .collectAsStateWithLifecycle(initialValue = 0)
+                    val failedItems by container.syncCoordinator.failedCount
+                        .collectAsStateWithLifecycle(initialValue = 0)
+                    SyncStatusChip(
+                        SyncChipState(
+                            signedIn = signedIn,
+                            syncing = syncing,
+                            pending = pending,
+                            failed = failedItems,
+                        ),
+                    )
+                },
             )
             CaptureBarContent(
                 state = captureState,

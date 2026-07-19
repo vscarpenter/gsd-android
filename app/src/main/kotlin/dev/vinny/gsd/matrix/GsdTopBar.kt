@@ -36,6 +36,7 @@ fun GsdTopBar(
     onSearch: () -> Unit,
     modifier: Modifier = Modifier,
     onToggleSelectMode: (() -> Unit)? = null,
+    syncChip: (@Composable () -> Unit)? = null,
 ) {
     val gsd = LocalGsdColors.current
     Row(
@@ -52,6 +53,7 @@ fun GsdTopBar(
             color = gsd.ink2,
             modifier = Modifier.weight(1f),
         )
+        syncChip?.invoke()
         IconButton(onClick = onSearch) {
             Icon(
                 Icons.Outlined.Search,

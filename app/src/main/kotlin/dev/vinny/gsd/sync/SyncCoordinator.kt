@@ -161,15 +161,75 @@ class SyncCoordinator(
         }
     }
 
+    /** Set when a sign-in resolves to a different owner with local tasks present (spec §8.21). */
+    val switchPrompt = MutableStateFlow<AuthResult?>(null)
+
+    var lastOwnerId: suspend () -> String? = { null }
+    var onOwnerConfirmed: suspend (AuthResult) -> Unit = {}
+
     suspend fun completeOAuthCallback(uri: String): AuthResult {
         val result = auth.completeOAuth(uri)
+        val previous = lastOwnerId()
+        val hasLocalTasks = local.activeTasks().isNotEmpty()
+        if (previous != null && previous != result.record.id && hasLocalTasks) {
+            switchPrompt.value = result // decision deferred to the UI
+        } else {
+            confirmOwner(result, eraseLocalFirst = false)
+        }
+        return result
+    }
+
+    /** "Keep my tasks" (merge — the queue seed-uploads) or "Start fresh" (§8.21). */
+    suspend fun confirmOwner(result: AuthResult, eraseLocalFirst: Boolean) {
+        if (eraseLocalFirst) dev.vinny.gsd.store.LocalErase.eraseAll(db)
+        onOwnerConfirmed(result)
+        switchPrompt.value = null
         _signedIn.value = true
         requestSync(true)
-        return result
+    }
+
+    /** Cancel on the switch prompt signs back out (spec §8.21). */
+    suspend fun cancelSwitch() {
+        switchPrompt.value = null
+        signOut()
     }
 
     suspend fun signOut() {
         auth.signOut()
         _signedIn.value = false
+    }
+
+    /**
+     * Erase every remote record (spec §9.8): fresh index, DELETE each with the
+     * ~100 ms throttle, clear the queue only after ALL deletes succeed. A dead
+     * session throws so callers refuse to wipe local data on a false success.
+     */
+    suspend fun eraseRemote(remote: SyncRemote) {
+        if (!_signedIn.value) return // signed-out is a silent no-op
+        auth.ensureFreshToken()
+        if (auth.currentUserId() == null) throw PocketBaseApi.Unauthorized(401)
+        var page = 1
+        val recordIds = mutableListOf<String>()
+        while (true) {
+            val result = remote.listTasks(page, "1970-01-01 00:00:00.000Z")
+            recordIds += result.items.map { it.id }
+            if (result.page >= result.totalPages) break
+            page = result.page + 1
+        }
+        recordIds.forEach { recordId ->
+            remote.deleteTask(recordId)
+            delay(100)
+        }
+        db.syncQueueDao().clear()
+    }
+
+    /** §8.21 order: remote records first, then the user record, then the token. */
+    suspend fun deleteAccount(remote: SyncRemote, api: PocketBaseApi, eraseLocal: Boolean) {
+        val userId = auth.currentUserId() ?: throw PocketBaseApi.Unauthorized(401)
+        eraseRemote(remote)
+        api.deleteUser(userId)
+        auth.signOut()
+        _signedIn.value = false
+        if (eraseLocal) dev.vinny.gsd.store.LocalErase.eraseAll(db)
     }
 }

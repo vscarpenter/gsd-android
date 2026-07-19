@@ -17,6 +17,18 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
         val theme = stringPreferencesKey("theme")
         val hasOnboarded = booleanPreferencesKey("hasOnboarded")
         val fetchShareTitles = booleanPreferencesKey("fetchShareTitles")
+        val lastOwnerId = stringPreferencesKey("lastOwnerId")
+        val lastOwnerEmail = stringPreferencesKey("lastOwnerEmail")
+    }
+
+    val lastOwnerId: Flow<String?> = dataStore.data.map { it[Keys.lastOwnerId] }
+    val lastOwnerEmail: Flow<String?> = dataStore.data.map { it[Keys.lastOwnerEmail] }
+
+    suspend fun setLastOwner(id: String?, email: String?) {
+        dataStore.edit { prefs ->
+            if (id == null) prefs.remove(Keys.lastOwnerId) else prefs[Keys.lastOwnerId] = id
+            if (email == null) prefs.remove(Keys.lastOwnerEmail) else prefs[Keys.lastOwnerEmail] = email
+        }
     }
 
     val showCompleted: Flow<Boolean> = dataStore.data.map { it[Keys.showCompleted] ?: true }

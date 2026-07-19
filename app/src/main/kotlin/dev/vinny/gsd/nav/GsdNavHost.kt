@@ -64,7 +64,11 @@ fun GsdNavHost(
             dev.vinny.gsd.settings.SettingsScreen(
                 container = container,
                 onOpenHelp = { navController.navigate("help") },
+                onOpenSyncHistory = { navController.navigate("sync-history") },
             )
+        }
+        composable("sync-history") {
+            dev.vinny.gsd.settings.SyncHistoryScreen(container = container)
         }
         composable("help") {
             val gsd = LocalGsdColors.current

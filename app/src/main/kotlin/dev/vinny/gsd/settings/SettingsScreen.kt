@@ -48,9 +48,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** The local settings surface (spec §8.17; Account joins in Phase 5, Notifications in Phase 4). */
+/** The settings surface (spec §8.17). */
 @Composable
-fun SettingsScreen(container: AppContainer, onOpenHelp: () -> Unit, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    container: AppContainer,
+    onOpenHelp: () -> Unit,
+    modifier: Modifier = Modifier,
+    onOpenSyncHistory: () -> Unit = {},
+) {
     val gsd = LocalGsdColors.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -109,6 +114,8 @@ fun SettingsScreen(container: AppContainer, onOpenHelp: () -> Unit, modifier: Mo
             scope.launch { container.prefs.setFetchShareTitles(it) }
         }
         Text(stringResource(R.string.settings_fetch_titles_footer), style = GsdType.metadata, color = gsd.ink3)
+
+        AccountGroup(container, onOpenHistory = onOpenSyncHistory)
 
         GroupLabel(R.string.settings_archive)
         ToggleRow(R.string.settings_auto_archive, archiveSettings?.enabled ?: false) { enabled ->
@@ -203,7 +210,17 @@ fun SettingsScreen(container: AppContainer, onOpenHelp: () -> Unit, modifier: Mo
                 TextButton(
                     onClick = {
                         eraseOpen = false
-                        scope.launch { LocalErase.eraseAll(container.db) }
+                        scope.launch {
+                            // Signed in = erase everywhere: remote first, local only after
+                            // remote success (spec §8.16, §9.8)
+                            if (container.syncCoordinator.signedIn.value) {
+                                val remoteWipe = runCatching {
+                                    container.syncCoordinator.eraseRemote(container.api)
+                                }
+                                if (remoteWipe.isFailure) return@launch
+                            }
+                            LocalErase.eraseAll(container.db)
+                        }
                     },
                     enabled = confirmText == "RESET",
                 ) { Text(stringResource(R.string.erase_confirm), color = gsd.alert) }

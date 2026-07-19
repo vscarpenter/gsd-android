@@ -25,6 +25,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -96,6 +97,34 @@ class MainActivity : ComponentActivity() {
                 ThemePref.DARK -> true
             }
             GsdTheme(darkTheme = darkTheme) {
+                val switchPrompt by container.syncCoordinator.switchPrompt.collectAsStateWithLifecycle()
+                switchPrompt?.let { pendingAuth ->
+                    val scope = rememberCoroutineScope()
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { scope.launch { container.syncCoordinator.cancelSwitch() } },
+                        title = { Text(stringResource(R.string.switch_title)) },
+                        text = { Text(stringResource(R.string.switch_body)) },
+                        confirmButton = {
+                            androidx.compose.foundation.layout.Column {
+                                androidx.compose.material3.TextButton(onClick = {
+                                    scope.launch {
+                                        container.syncCoordinator.confirmOwner(pendingAuth, eraseLocalFirst = false)
+                                    }
+                                }) { Text(stringResource(R.string.switch_keep)) }
+                                androidx.compose.material3.TextButton(onClick = {
+                                    scope.launch {
+                                        container.syncCoordinator.confirmOwner(pendingAuth, eraseLocalFirst = true)
+                                    }
+                                }) { Text(stringResource(R.string.switch_fresh)) }
+                            }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(onClick = {
+                                scope.launch { container.syncCoordinator.cancelSwitch() }
+                            }) { Text(stringResource(R.string.dialog_cancel)) }
+                        },
+                    )
+                }
                 val hasOnboarded by container.prefs.hasOnboarded.collectAsStateWithLifecycle(initialValue = true)
                 if (!hasOnboarded) {
                     val scope = rememberCoroutineScope()
