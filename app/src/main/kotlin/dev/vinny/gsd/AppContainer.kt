@@ -78,6 +78,8 @@ class PaletteController {
     val openRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
     val newTaskRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
     val openTaskRequests = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    /** §6.4 deep link held until the nav host consumes it — cold-start safe. */
+    val pendingRoute = kotlinx.coroutines.flow.MutableStateFlow<dev.vinny.gsd.nav.GsdRoute?>(null)
 
     fun requestOpen() {
         openRequests.value++

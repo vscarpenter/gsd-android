@@ -79,10 +79,17 @@ fun MatrixScreen(
     LaunchedEffect(Unit) {
         container.palette.newTaskRequests.collect { if (it > 0) editorViewModel.openNew(null) }
     }
+    val appContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
         container.palette.openTaskRequests.collect { taskId ->
             if (taskId != null) {
-                editorViewModel.openExisting(taskId)
+                editorViewModel.openExisting(taskId, onMissing = {
+                    android.widget.Toast.makeText(
+                        appContext,
+                        appContext.getString(R.string.task_not_found),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                })
                 container.palette.openTaskRequests.value = null
             }
         }

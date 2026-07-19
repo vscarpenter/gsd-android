@@ -57,6 +57,10 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra(dev.vinny.gsd.notifications.ReminderScheduler.EXTRA_TASK_ID)
             ?.let { container.palette.requestOpenTask(it) }
         val data = intent.data
+        if (data?.scheme == "gsd" && data.host != "oauth-callback") {
+            dev.vinny.gsd.nav.GsdRoute.parse(data.toString())
+                ?.let { container.palette.pendingRoute.value = it }
+        }
         if (data?.scheme == "gsd" && data.host == "oauth-callback") {
             lifecycleScope.launch {
                 try {
@@ -141,6 +145,32 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val backStack by navController.currentBackStackEntryAsState()
                 val currentRoute = backStack?.destination?.route
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    container.palette.pendingRoute.collect { route ->
+                        if (route == null) return@collect
+                        when (route) {
+                            is dev.vinny.gsd.nav.GsdRoute.Capture -> {
+                                navController.navigate(Destination.MATRIX.route)
+                                container.palette.requestNewTask()
+                            }
+                            is dev.vinny.gsd.nav.GsdRoute.Focus,
+                            is dev.vinny.gsd.nav.GsdRoute.QuadrantLink,
+                            -> navController.navigate(Destination.MATRIX.route)
+                            is dev.vinny.gsd.nav.GsdRoute.TaskLink -> {
+                                navController.navigate(Destination.MATRIX.route)
+                                container.palette.requestOpenTask(route.id)
+                            }
+                            is dev.vinny.gsd.nav.GsdRoute.SmartViewLink ->
+                                navController.navigate("browse/view/${route.id}")
+                            is dev.vinny.gsd.nav.GsdRoute.Dashboard ->
+                                navController.navigate(Destination.DASHBOARD.route)
+                            is dev.vinny.gsd.nav.GsdRoute.Settings ->
+                                navController.navigate(Destination.SETTINGS.route)
+                            is dev.vinny.gsd.nav.GsdRoute.Archive -> navController.navigate("archive")
+                        }
+                        container.palette.pendingRoute.value = null
+                    }
+                }
                 // Window size classes per spec §6: <600 compact, <840 medium, else expanded
                 val widthDp = LocalConfiguration.current.screenWidthDp
                 val navigate: (Destination) -> Unit = { destination ->

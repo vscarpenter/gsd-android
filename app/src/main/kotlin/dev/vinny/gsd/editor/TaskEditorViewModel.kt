@@ -42,11 +42,12 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
         )
     }
 
-    fun openExisting(id: String) {
+    fun openExisting(id: String, onMissing: () -> Unit = {}) {
         isNew = false
         viewModelScope.launch {
             original = store.get(id)
             _draft.value = original
+            if (original == null) onMissing() // friendly not-found, never a blank screen (§6.4)
         }
     }
 
