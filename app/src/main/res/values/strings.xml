@@ -10,6 +10,14 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="matrix_empty_q1">No fires right now.</string>
+    <string name="matrix_empty_q2">Nothing scheduled yet.</string>
+    <string name="matrix_empty_q3">Nothing to hand off.</string>
+    <string name="matrix_empty_q4">Nothing to drop.</string>
+    <string name="matrix_empty_all">Capture your first task</string>
+    <string name="cd_mark_complete">Mark complete</string>
+    <string name="cd_mark_incomplete">Mark incomplete</string>
+    <string name="cd_task_options">Task options</string>
     <string name="browse_placeholder_title">Nothing here yet</string>
     <string name="browse_placeholder_body">Smart views and the archive arrive in a later phase.</string>
     <string name="dashboard_placeholder_title">No stats yet</string>
