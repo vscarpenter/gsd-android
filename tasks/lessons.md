@@ -1,0 +1,7 @@
+# Lessons
+
+- **AGP 9.x has built-in Kotlin:** applying `org.jetbrains.kotlin.android` is a hard error. Android modules get Kotlin from AGP itself; `kotlin { jvmToolchain(17) }` still configures the toolchain, and the Compose compiler plugin (`org.jetbrains.kotlin.plugin.compose`) is still applied explicitly. Pure-JVM modules keep `org.jetbrains.kotlin.jvm` as before.
+- **KSP dropped Kotlin-coupled versions:** releases are now standalone (`2.3.x`), Kotlin-version-independent. Don't look for `"<kotlin>-<ksp>"` tags anymore.
+- **Stale cmdline-tools can't see new SDK packages** ("SDK XML version 4" warning → "package contains no system images"). Fix: `sdkmanager --install "cmdline-tools;latest"` and use the freshly installed copy (it lands in `latest-2` if `latest` is in use).
+- **A system-image directory can exist but be broken** (metadata only, no `system.img`). `avdmanager` then reports "contains no system images". Check directory size, reinstall the image.
+- **Compose `FontVariation` API needs `@OptIn(ExperimentalTextApi::class)`** (file-level opt-in) for variable-font weight settings.
