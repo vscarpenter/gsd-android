@@ -2,6 +2,7 @@ package dev.vinny.gsd.matrix
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +33,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.capture.CaptureBarContent
+import dev.vinny.gsd.capture.CaptureViewModel
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
@@ -39,13 +42,25 @@ import dev.vinny.gsd.theme.LocalGsdColors
 @Composable
 fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val viewModel: MatrixViewModel = viewModel { MatrixViewModel(container.store, container.prefs) }
+    val captureViewModel: CaptureViewModel = viewModel { CaptureViewModel(container.store) }
     val sections by viewModel.sections.collectAsStateWithLifecycle()
-    MatrixList(
-        sections = sections,
-        onToggleComplete = viewModel::toggleCompleted,
-        onOpen = { /* editor arrives in plan Task 13 */ },
-        modifier = modifier,
-    )
+    val captureState by captureViewModel.state.collectAsStateWithLifecycle()
+    Column(modifier = modifier.fillMaxSize()) {
+        CaptureBarContent(
+            state = captureState,
+            onTextChange = captureViewModel::onTextChange,
+            onCycleOverride = captureViewModel::cycleOverride,
+            onSubmit = { captureViewModel.submit(onError = {}) },
+            onDetails = { /* editor arrives in plan Task 13 */ },
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+        )
+        MatrixList(
+            sections = sections,
+            onToggleComplete = viewModel::toggleCompleted,
+            onOpen = { /* editor arrives in plan Task 13 */ },
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 /** Compact-width matrix: a vertical stack of quadrant sections (spec §6.1). */

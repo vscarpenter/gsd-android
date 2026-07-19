@@ -18,6 +18,10 @@
     <string name="cd_mark_complete">Mark complete</string>
     <string name="cd_mark_incomplete">Mark incomplete</string>
     <string name="cd_task_options">Task options</string>
+    <string name="capture_placeholder">Capture a task…  (!!  *  #tag)</string>
+    <string name="capture_auto">Auto</string>
+    <string name="capture_details">Details</string>
+    <string name="cd_capture_quadrant_chip">Quadrant override</string>
     <string name="browse_placeholder_title">Nothing here yet</string>
     <string name="browse_placeholder_body">Smart views and the archive arrive in a later phase.</string>
     <string name="dashboard_placeholder_title">No stats yet</string>
