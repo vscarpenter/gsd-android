@@ -86,6 +86,7 @@ fun MatrixScreen(
                 showCompleted = showCompleted,
                 onToggleShowCompleted = { scope.launch { container.prefs.setShowCompleted(!showCompleted) } },
                 onSearch = { paletteVisible = true },
+                onToggleSelectMode = viewModel::toggleSelectionMode,
             )
             CaptureBarContent(
                 state = captureState,
@@ -104,7 +105,16 @@ fun MatrixScreen(
                 }
             }
             val context = androidx.compose.ui.platform.LocalContext.current
-            val rowActions: (dev.vinny.gsd.model.Task) -> TaskRowActions = { task ->
+            val selectionMode by viewModel.selectionMode.collectAsStateWithLifecycle()
+            val selection by viewModel.selection.collectAsStateWithLifecycle()
+            val rowActions: (dev.vinny.gsd.model.Task) -> TaskRowActions = if (selectionMode) {
+                { task ->
+                    TaskRowActions(
+                        onEdit = { viewModel.toggleSelected(task.id) },
+                        onToggleComplete = { viewModel.toggleSelected(task.id) },
+                    )
+                }
+            } else { task ->
                 TaskRowActions(
                     onEdit = { editorViewModel.openExisting(task.id) },
                     onToggleComplete = { onToggle(task) },
@@ -121,6 +131,17 @@ fun MatrixScreen(
                     },
                     onMoveTo = { quadrant -> viewModel.moveToQuadrant(task.id, quadrant) },
                     onDelete = { viewModel.delete(task.id) },
+                )
+            }
+            if (selectionMode && selection.isNotEmpty()) {
+                val selectedTags = sections.flatMap { it.tasks }
+                    .filter { it.id in selection }
+                    .flatMap { it.tags }
+                    .distinct()
+                BulkActionBar(
+                    selectedCount = selection.size,
+                    selectionTags = selectedTags,
+                    onRun = viewModel::runBulk,
                 )
             }
             if (expanded) {
@@ -155,6 +176,16 @@ fun MatrixScreen(
     val accessibilityOn = remember(view) {
         (view.context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE)
             as? android.view.accessibility.AccessibilityManager)?.isEnabled == true
+    }
+    val lastBulk by viewModel.lastBulkResult.collectAsStateWithLifecycle()
+    val bulkLabel = lastBulk?.let {
+        if (it.failed > 0) stringResource(R.string.bulk_result_failed, it.succeeded, it.failed)
+        else stringResource(R.string.bulk_result, it.succeeded)
+    }
+    LaunchedEffect(lastBulk) {
+        if (lastBulk == null || bulkLabel == null) return@LaunchedEffect
+        snackbarHost.showSnackbar(bulkLabel)
+        viewModel.clearBulkResult()
     }
     LaunchedEffect(lastDeleted) {
         if (lastDeleted == null || deletedLabel == null) return@LaunchedEffect

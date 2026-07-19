@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -34,6 +35,7 @@ fun GsdTopBar(
     onToggleShowCompleted: () -> Unit,
     onSearch: () -> Unit,
     modifier: Modifier = Modifier,
+    onToggleSelectMode: (() -> Unit)? = null,
 ) {
     val gsd = LocalGsdColors.current
     Row(
@@ -65,6 +67,15 @@ fun GsdTopBar(
                 ),
                 tint = gsd.ink2,
             )
+        }
+        if (onToggleSelectMode != null) {
+            IconButton(onClick = onToggleSelectMode) {
+                Icon(
+                    Icons.Outlined.Checklist,
+                    contentDescription = stringResource(R.string.cd_select_mode),
+                    tint = gsd.ink2,
+                )
+            }
         }
     }
 }

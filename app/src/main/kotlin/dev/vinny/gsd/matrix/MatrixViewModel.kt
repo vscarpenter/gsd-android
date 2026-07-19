@@ -97,4 +97,35 @@ class MatrixViewModel(private val store: TaskStore, prefs: GsdPrefs) : ViewModel
             if (TimeTracking.runningEntry(current) != null) store.stopTimer(id) else store.startTimer(id)
         }
     }
+
+    // --- Multi-select + bulk (spec §8.11) ---
+    private val _selectionMode = MutableStateFlow(false)
+    val selectionMode: StateFlow<Boolean> = _selectionMode.asStateFlow()
+
+    private val _selection = MutableStateFlow<Set<String>>(emptySet())
+    val selection: StateFlow<Set<String>> = _selection.asStateFlow()
+
+    private val _lastBulkResult = MutableStateFlow<BulkResult?>(null)
+    val lastBulkResult: StateFlow<BulkResult?> = _lastBulkResult.asStateFlow()
+
+    fun toggleSelectionMode() {
+        _selectionMode.value = !_selectionMode.value
+        if (!_selectionMode.value) _selection.value = emptySet()
+    }
+
+    fun toggleSelected(id: String) {
+        _selection.value = if (id in _selection.value) _selection.value - id else _selection.value + id
+    }
+
+    fun runBulk(op: BulkOp) {
+        viewModelScope.launch {
+            _lastBulkResult.value = BulkActions.apply(store, _selection.value, op)
+            _selection.value = emptySet()
+            _selectionMode.value = false
+        }
+    }
+
+    fun clearBulkResult() {
+        _lastBulkResult.value = null
+    }
 }
