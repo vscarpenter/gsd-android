@@ -1636,6 +1636,66 @@ class TaskEditorTest {
 ## Deviations & lessons
 Log tactical deviations in `tasks/implementation-notes.md` as they happen; contract drift (any change to spec behavior) stops work for spec re-approval per coding-standards.
 
+# PHASE 2 — task-level plan (planned 2026-07-19, executed in-session)
+
+> Format note: tighter than the Phase 0–1 plan (interfaces + test surface, not full code) because
+> the planner and executor are the same session; spec sections are the behavior contract.
+
+### Task 2.1: Due-date presets — `core/model/.../DuePreset.kt` + test
+`enum class DuePreset { NONE, TODAY, THIS_WEEK, NEXT_WEEK }` + `fun resolve(preset, today: LocalDate): LocalDate?` per §8.10: TODAY→today; THIS_WEEK→Friday of current week, Sat/Sun→*next* Friday; NEXT_WEEK→Monday strictly after today. Tests: each preset from a Wednesday; THIS_WEEK from Sat and Sun; NEXT_WEEK from Sunday and Monday.
+
+### Task 2.2: Recurrence engine — `core/model/.../RecurrenceEngine.kt` + test
+`fun nextDueDate(prior: Instant, recurrence, zone): Instant` (+1d / +7d / +1 calendar month with month-end clamp, preserving local time-of-day) and `fun spawnNext(completed: Task, now: Instant): Task?` — null for NONE; else new task: fresh 21-char id, `createdAt = updatedAt = now`, `completed=false`, `completedAt=null`, subtasks reset incomplete (fresh subtask ids NOT required — same ids, completed=false), `parentTaskId = completed.parentTaskId ?: completed.id` (single-level), reminder state reset (`notificationSent=false`, `lastNotificationAt=null`, `snoozedUntil=null`), `timeEntries=[]`? — **No**: §8.5 says the new instance carries the recurrence forward; time entries belong to the completed original; new instance starts with empty `timeEntries` and `timeSpent` derived. dueDate advanced from prior due (none → none). Tests: daily/weekly/monthly; Jan 31 → Feb 28 (2026) and Feb 29 (2028); lineage chains stay single-level; subtask reset; no-due-date spawn.
+
+### Task 2.3: Dependency graph — `core/model/.../DependencyGraph.kt` + test
+`object DependencyGraph` over `List<Task>`: `wouldCreateCycle(tasks, taskId, candidateDependencyId): Boolean` (BFS from candidate; reject if taskId reachable; self-reference always true), `uncompletedBlockers(tasks, task): List<Task>`, `isBlocked(tasks, task)`, `blocking(tasks, task): List<Task>` (reverse edges), `readySet(tasks): Set<String>` (incomplete, no uncompleted blocker). Tests: direct cycle, transitive cycle (A→B→C, add C→A), self-reference, diamond no-cycle, ready excludes blocked-by-incomplete only.
+
+### Task 2.4: Time tracking — `core/model/.../TimeTracking.kt` + test
+`fun startEntry(task, now, id): Task` (throws `TimerAlreadyRunning` if an entry has null endedAt), `fun stopEntry(task, now): Task` (sets endedAt on the running entry; no-op-throw `NoRunningTimer` if none), `fun runningEntry(task): TimeEntry?`, `fun formatMinutes(totalMinutes: Int): String` ("< 1m" for 0, "45m", "2h 5m", "2h"). Tests: second start rejected, stop computes floor minutes via existing `timeSpent`, formatting table.
+
+### Task 2.5: Store depth ops — `core/store/.../TaskStore.kt` + instrumented tests
+`setCompleted` gains recurrence: completing a task with recurrence ≠ NONE inserts the spawned instance **in the same transaction** (both rows enqueue CREATE/UPDATE before visibility). New: `suspend fun snooze(id, until: Instant?)` (validated, clamped), `suspend fun startTimer(id, now)`, `suspend fun stopTimer(id)` — all through `update()`. Tests: complete-recurring creates sibling with lineage + queue rows (UPDATE for original, CREATE for instance); uncomplete does not re-spawn; snooze caps at 365d; timer start/stop round-trip; second start throws.
+
+### Task 2.6: Editor depth — `editor/TaskEditorSheet.kt` + sections + UI tests
+§8.3 order: **Due date** (toggle + Material date picker + §8.10 preset chips) → **Reminder** (visible only with due date: None/At time/5/15/30m/1h/2h/1d → `notifyBefore`; data-only until Phase 4) → **Repeat** (Never/Daily/Weekly/Monthly segmented) → **Subtasks** (add field, toggle, swipe-delete, drag-reorder-by-buttons up/down for now) → **Estimate** (minutes field + "Tracked Xm of Ym", over-estimate in `alert`) → **Snooze** (six §8.7 presets + clear, shows current state) → **Dependencies** (searchable picker; entries that would cycle are disabled with explanation; lists blockers/blocked). Editing dueDate/notifyBefore resets reminder state per §8.3 (notificationSent=false, lastNotificationAt/snoozedUntil cleared). UI tests: preset chip sets date; repeat selection persists; subtask add+toggle; dependency cycle option disabled; estimate over-track renders alert color (semantics tag).
+
+### Task 2.7: Card surfaces + context menu — `matrix/TaskCard.kt`, `matrix/TaskContextMenu.kt` + tests
+Card metadata row completes §5.6: blocked (`lock` + count), blocking (`arrow_circle`? use `ArrowCircleRight` + count), running timer (pulsing dot + live `HH:MM:SS`, static under reduced motion, ticking only while visible), tracked total (`schedule` icon + formatted), snoozed (`bedtime` + remaining). Long-press → `DropdownMenu`: Edit, Complete/Uncomplete, Start/Stop timer, Snooze ▸ six presets, Duplicate (fresh ids for task+subtasks, incomplete, no time entries), Share (plain-text §8.18), Move to ▸ quadrants, Delete. Trailing swipe now reveals quick-snooze (1 h) + delete. Tests: menu opens with items; duplicate produces new id + reset subtasks (VM/store instrumented); share text format (JVM: `ShareText.render(task)`).
+**Phase 2 exit:** full gate green; tag `v0.2.0-phase2`.
+
+# PHASE 3 — task-level plan
+
+### Task 3.1: FilterCriteria + built-ins — `core/model/.../FilterCriteria.kt`, `SmartViews.kt` + tests
+`@Serializable data class FilterCriteria(quadrants: List<String> = [], status: Status = ALL, tags: List<String> = [], dueDateRange: DateRange? = null, overdue/dueToday/dueThisWeek/noDueDate/recentlyAdded/recentlyCompleted/readyToWork: Boolean = false, recurrence: List<Recurrence> = [], searchQuery: String = "")` — camelCase-Codable (§7.9). `fun FilterCriteria.matches(task, allTasks, now, zone): Boolean` — ANDed; substring search across title/description/tags/**subtask titles**, case-insensitive. `object BuiltInSmartViews { val all: List<SmartView> }` — nine §8.13 entries with exact IDs/criteria; `data class SmartView(id, name, icon, criteria, isBuiltIn, createdAt, updatedAt)`. Tests: one per criterion + combination AND + the nine built-ins' membership on a fixture task set.
+
+### Task 3.2: Archive ops — `core/store/.../ArchiveStore.kt` + DAO + instrumented tests
+`ArchivedTaskDao` (insert/all/byId/delete/search). `class ArchiveStore(db, clock)`: `archive(id)` (completed tasks only → move row to archived_tasks + `archivedAt=now`, enqueue sync DELETE per §8.12), `restore(id)` (move back, stamp updatedAt, enqueue CREATE), `deletePermanently(id)` (confirmed at UI), `sweep(archiveAfterDays): Int` (completedAt older than N days), settings via `archive_settings` row. Deletion reconciliation never touches archive (Phase 5 concern — documented). Tests: archive moves row + enqueues DELETE; restore re-creates + enqueues; sweep respects threshold; incomplete tasks refuse archive.
+
+### Task 3.3: Smart-view store — `core/store/.../SmartViewStore.kt` + DAO + instrumented tests
+Seeds the nine built-ins on first open (fixed ids, isBuiltIn=true, criteria JSON via kotlinx). Custom CRUD (12-char nanoid, name ≤60, icon from 10 curated tokens); pins ordered ≤5 in `app_preferences.pinnedSmartViewIdsJson`. Tests: seeding idempotent; custom CRUD round-trip; pin cap enforced; built-ins immutable (update refused).
+
+### Task 3.4: Browse tab — `browse/BrowseScreen.kt`, `browse/SmartViewListScreen.kt`, `browse/SmartViewEditorScreen.kt` + UI tests
+§6.1: Archive row top; sections Pinned / Built-in / Custom + "New Smart View"; live match counts (combine tasks flow + criteria). Open → filtered list using §8.1 rows (swipe/complete/menu all work) + in-list plain search + view-aware empty states (§8.13: overdue→green check "Nothing overdue", wins→trophy, search-miss, generic). Custom editor: name, icon picker (10), criteria controls (status segmented, quadrant multi-select, tag list, due-date toggles, range, recurrence kinds, ready-to-work, search text). Row swipes: pin/unpin leading; edit/delete trailing (custom only). Tests: sections render; count updates on task add; custom view create→appears→filter applies; pin ordering.
+
+### Task 3.5: Archive screen — `browse/ArchiveScreen.kt` + UI test
+Dimmed (72% alpha) read-only §5.6 cards; leading swipe Restore, trailing Delete-permanently (confirm dialog "This can't be undone."); search field; multi-select bulk bar (restore / delete-permanently confirmed); toolbar menu: auto-archive toggle, 30/60/90 picker, "Archive now" + status line. Tests: restore returns card to matrix; permanent delete confirmed; sweep-now moves eligible.
+
+### Task 3.6: Search + command palette — `palette/CommandPalette.kt` + tests
+Full-screen keyboard-first surface on compact (palette dialog at expanded): one query field; substring (not fuzzy), sectioned **Tasks · Smart Views · Actions · Navigation** (§8.14). Actions: New task, Toggle show completed, Toggle theme. Navigation: Matrix, Dashboard, Archive, Settings + each smart view. Hardware: Ctrl+K / Ctrl+F open, Ctrl+N new task, Ctrl+1–4 jump to quadrant, Esc dismisses (§6.6) via `Modifier.onPreviewKeyEvent` at the activity root. Matching logic pure: `PaletteIndex.query(q, tasks, views): PaletteResults` (JVM-tested). Tests: sectioning, substring casing, actions fire callbacks.
+
+### Task 3.7: Multi-select + bulk bar — `matrix/SelectionState.kt`, `matrix/BulkActionBar.kt` + tests
+Select mode via top-bar toggle or long-press when menu closed (§8.1): checkmarks replace discs, selection count, bottom bar: Complete, Move ▸, Add tags, Remove tags, Set due date, Delete (confirm). Each op per-task through the store with per-task validation; partial failures reported in snackbar ("Updated 4, failed 1"). Available on matrix + smart-view lists. Tests: selection toggling; bulk complete updates all; bulk delete confirms; partial-failure copy (VM-level).
+
+### Task 3.8: Dashboard — `core/model/.../Analytics.kt` + `dashboard/DashboardScreen.kt` + tests
+Pure metrics (§8.15): `Analytics.compute(tasks, window: 7|30|90, now, zone): DashboardStats` — active, completed, completionRate, trackedTotalMinutes, per-day created/completed series, per-quadrant active counts, top tags, minutes by quadrant, upcoming deadlines (sorted), overdueCount. **No streaks.** JVM tests over a fixture set. UI: Newsreader stat numerals, Canvas line/area trend, quadrant-pigment donut/bars, tappable upcoming rows → editor, overdue banner → (Phase 3.4's overdue view), "No stats yet" empty state; computation off main thread (flow on Default dispatcher).
+
+### Task 3.9: Import/export — `core/model/.../Interchange.kt` + `settings/DataScreen.kt` + tests
+`Interchange.export(tasks, exportedAt): String` — envelope `{tasks, exportedAt, version: 1}`, pretty, **sorted keys** (serialize per-task JsonObject → sorted map recursively). `Interchange.parse(raw, limitBytes = 10MB, limitTasks = 10_000): ImportResult(tasks, skipped)` — lenient §7.3. `MergePlan.compute(existing, imported, idGenerator): List<Task>` — colliding ids regenerated (checked against existing+imported+assigned), `dependencies` + `parentTaskId` remapped through the complete map incl. forward references. Replace semantics live in `TaskStore.replaceAll(imported)`: stamp updatedAt, enqueue UPDATE per imported + DELETE per missing id, swap atomically. Erase-local: type-"RESET" dialog + export-first prompt; clears tasks/archive/custom views/queue/pins/archive settings; keeps theme + hasOnboarded (§8.16). JVM tests: sorted-keys stability, size/count caps, merge remap with forward refs + collision, skip counting; instrumented: replaceAll queue contents, erase keeps prefs.
+
+### Task 3.10: Settings + onboarding — `settings/SettingsScreen.kt`, `onboarding/OnboardingFlow.kt`, help/about + UI smoke
+§8.17 groups minus Account (Phase 5) and Notifications (Phase 4): Appearance (theme, show completed), Sharing (fetch titles toggle + footer), Archive (toggle, 30/60/90, Archive Now + status), Data & Storage (export/import/erase), About (version, privacy blurb + policy link, support mail link, Field Guide, "Show onboarding again"). Onboarding: 4 §8.19 pages (Welcome/Matrix/Capture with monospace legend/Privacy) gated on `hasOnboarded`, skippable, cross-fade under reduced motion; final page primary "Start using GSD". Field Guide static screen. Tests: launch shows onboarding when flag false; settings toggles persist; export→import round-trip smoke via SAF is manual.
+**Phase 3 exit:** full gate green; a11y spot-check; `tasks/todo.md` updated; tag `v0.3.0-phase3`.
+
 *— end of plan —*
 
 
