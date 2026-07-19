@@ -17,11 +17,21 @@
 `:core:store:connectedAndroidTest` (21) + `:app:connectedAndroidTest` (41) — all green.
 Visual smoke: onboarding + Browse verified on emulator.
 
+- **Phase 4** (notifications) — ReminderPlanner (snooze override, quiet-hours deferral incl.
+  cross-midnight), NotificationSettings store, exact-alarm scheduler with inexact fallback +
+  stable per-task identity, debounced store-driven resync, two channels with sound-aware posting,
+  Complete/Snooze-1h notification actions through the store, boot + package-replace rescheduling,
+  hourly WorkManager sweep, Notifications settings group with contextual permission ask.
+  Tagged `v0.4.0-phase4`.
+
 ## Resuming From Here
-- **Next:** Phase 4 — notifications (`tasks/plan.md` outline): exact alarms + `SCHEDULE_EXACT_ALARM`,
-  two channels, contextual POST_NOTIFICATIONS, quiet hours, boot rescheduling, notification actions
-  (Complete / Snooze 1h), reminder resync off the store change stream, WorkManager maintenance job
-  (which should also run `ArchiveStore.sweep` — currently manual/launch only). Re-plan at task level first.
+- **Next:** Phase 5 — sync (highest risk; `tasks/plan.md` outline). **Before starting, the two
+  backend items:** verify `https://api.vinny.io/ios-oauth-redirect/` is client-agnostic, and the
+  web-accessible account deletion URL. A scratch PocketBase account is needed for fixture recording.
+- **Phase 4 deferrals:** notification tap uses an intent extra (the full `gsd://` router is
+  Phase 6); AlarmManager wall-clock firing not integration-tested (planner is; alarms verified by
+  code path + posting test); exact-alarm special access not granted on the test AVD (fallback
+  path exercised instead).
 - **Test device:** AVD `gsd-test` (API 36, 320×640 profile).
 - **Known deferrals** (`tasks/implementation-notes.md`): trailing-swipe two-button reveal; Ctrl+1–4
   quadrant jump; editor subtask drag-reorder (buttons/none yet — add/toggle/delete only); smart-view
