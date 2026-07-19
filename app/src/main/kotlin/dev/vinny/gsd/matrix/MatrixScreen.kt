@@ -17,13 +17,18 @@ import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.LocalFireDepartment
 import android.view.HapticFeedbackConstants
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalView
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -55,6 +60,7 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val captureState by captureViewModel.state.collectAsStateWithLifecycle()
     val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
     var confettiTrigger by remember { mutableIntStateOf(0) }
+    val snackbarHost = remember { SnackbarHostState() }
     val view = LocalView.current
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -77,10 +83,35 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     }
                 },
                 onOpen = editorViewModel::openExisting,
+                onDelete = { viewModel.delete(it.id) },
                 modifier = Modifier.weight(1f),
             )
         }
         ConfettiOverlay(trigger = confettiTrigger)
+        SnackbarHost(
+            hostState = snackbarHost,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
+    val lastDeleted by viewModel.lastDeleted.collectAsStateWithLifecycle()
+    val deletedLabel = lastDeleted?.let { stringResource(R.string.snackbar_deleted, it.title) }
+    val undoLabel = stringResource(R.string.snackbar_undo)
+    val accessibilityOn = remember(view) {
+        (view.context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE)
+            as? android.view.accessibility.AccessibilityManager)?.isEnabled == true
+    }
+    LaunchedEffect(lastDeleted) {
+        if (lastDeleted == null || deletedLabel == null) return@LaunchedEffect
+        // ~6 s to undo, extended to ~12 s under TalkBack (spec §8.20)
+        val result = withTimeoutOrNull(if (accessibilityOn) 12_000L else 6_000L) {
+            snackbarHost.showSnackbar(message = deletedLabel, actionLabel = undoLabel)
+        }
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoDelete()
+        } else {
+            snackbarHost.currentSnackbarData?.dismiss()
+            viewModel.clearUndo()
+        }
     }
     if (editorDraft != null) {
         TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})

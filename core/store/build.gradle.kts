@@ -24,7 +24,7 @@ room {
 dependencies {
     api(project(":core:model"))
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.room.runtime)
+    api(libs.room.runtime)
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
     androidTestImplementation(libs.room.testing)

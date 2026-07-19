@@ -32,6 +32,8 @@
     <string name="editor_section_links">Links</string>
     <string name="editor_tag_hint">Add tag</string>
     <string name="cd_remove_tag">Remove tag %1$s</string>
+    <string name="snackbar_deleted">Deleted \"%1$s\"</string>
+    <string name="snackbar_undo">Undo</string>
     <string name="browse_placeholder_title">Nothing here yet</string>
     <string name="browse_placeholder_body">Smart views and the archive arrive in a later phase.</string>
     <string name="dashboard_placeholder_title">No stats yet</string>

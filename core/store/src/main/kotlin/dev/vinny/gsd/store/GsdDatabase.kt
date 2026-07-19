@@ -39,5 +39,9 @@ abstract class GsdDatabase : RoomDatabase() {
         /** Keeps Room a private concern of this module — callers never see the builder. */
         fun build(context: Context): GsdDatabase =
             Room.databaseBuilder(context, GsdDatabase::class.java, "gsd.db").build()
+
+        /** Hermetic store for tests. */
+        fun buildInMemory(context: Context): GsdDatabase =
+            Room.inMemoryDatabaseBuilder(context, GsdDatabase::class.java).build()
     }
 }
