@@ -1610,7 +1610,14 @@ class TaskEditorTest {
 **Exit tests:** the full §13.6 sync matrix against **recorded fixtures**; early live-backend smoke against `https://api.vinny.io` with a scratch account. **Risks:** the two pre-phase blockers below; SSE parsing quirks; Apple OAuth form_post bounce.
 
 **Pre-Phase-5 checklist (owner/backend items — verify before starting Phase 5):**
-- [ ] Confirm `https://api.vinny.io/ios-oauth-redirect/` is client-agnostic (forwards to `gsd://` regardless of platform); if iOS-conditional, add `android-oauth-redirect` server-side (spec §16.1).
+- [x] ~~Confirm `https://api.vinny.io/ios-oauth-redirect/` is client-agnostic~~ **Verified 2026-07-19 by direct probe:**
+  GET returns a 144-byte static page — `location.replace("gsd://oauth-callback" + location.search)` — identical
+  bytes under an Android UA (no sniffing possible; it's a static file). POST (Apple `form_post`) is handled
+  server-side: **302 → `gsd://oauth-callback?code=…&state=…`** with body params promoted to the query string,
+  also UA-independent. Both paths land on the one `gsd://oauth-callback` route Android will register.
+  *Residual risk for the Phase 5 live test:* Chrome occasionally blocks JS `location.replace` to a custom
+  scheme without a user gesture in Custom Tabs — if that bites, the fix is server-side: 302 the GET path
+  exactly like the POST path already does.
 - [ ] Web-accessible account-deletion URL exists for the Play Data Safety form (spec §16.3).
 - [ ] A scratch PocketBase test account is available for live-fixture recording.
 
