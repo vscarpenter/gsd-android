@@ -1,0 +1,243 @@
+package dev.vinny.gsd.browse
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AdsClick
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Verified
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.vinny.gsd.AppContainer
+import dev.vinny.gsd.R
+import dev.vinny.gsd.theme.GsdType
+import dev.vinny.gsd.theme.LocalGsdColors
+
+/** Icon token → vector for both built-ins (§5.7) and the 10 curated custom options. */
+val smartViewIcons: Map<String, ImageVector> = mapOf(
+    "adjust" to Icons.Outlined.AdsClick,
+    "calendar_month" to Icons.Outlined.CalendarMonth,
+    "warning" to Icons.Outlined.Warning,
+    "event_busy" to Icons.Outlined.EventBusy,
+    "auto_awesome" to Icons.Outlined.AutoAwesome,
+    "verified" to Icons.Outlined.Verified,
+    "check_circle" to Icons.Outlined.CheckCircle,
+    "repeat" to Icons.Outlined.Repeat,
+    "bolt" to Icons.Outlined.Bolt,
+    "label" to Icons.Outlined.Label,
+    "star" to Icons.Outlined.Star,
+    "flag" to Icons.Outlined.Flag,
+    "folder" to Icons.Outlined.Folder,
+    "favorite" to Icons.Outlined.Favorite,
+    "lightbulb" to Icons.Outlined.Lightbulb,
+    "work" to Icons.Outlined.Work,
+    "home" to Icons.Outlined.Home,
+    "book" to Icons.Outlined.Book,
+)
+
+/** The 10 curated options for custom views (spec §7.6). */
+val curatedCustomIcons: List<String> =
+    listOf("bolt", "label", "star", "flag", "folder", "favorite", "lightbulb", "work", "home", "book")
+
+/** Views whose icon takes quadrant meaning (spec §5.7); the rest render ink2. */
+@Composable
+fun smartViewTint(viewId: String): Color {
+    val gsd = LocalGsdColors.current
+    return when (viewId) {
+        "today-focus" -> gsd.rust
+        "this-week", "ready-to-work" -> gsd.tide
+        "overdue" -> gsd.alert
+        "weeks-wins" -> gsd.ochre
+        else -> gsd.ink2
+    }
+}
+
+@Composable
+fun BrowseScreen(
+    container: AppContainer,
+    onOpenArchive: () -> Unit,
+    onOpenView: (String) -> Unit,
+    onNewView: () -> Unit,
+    onEditView: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val viewModel: BrowseViewModel = viewModel { BrowseViewModel(container.store, container.smartViewStore) }
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    BrowseContent(
+        state = state,
+        onOpenArchive = onOpenArchive,
+        onOpenView = onOpenView,
+        onNewView = onNewView,
+        onTogglePin = viewModel::togglePin,
+        onEditView = onEditView,
+        onDeleteView = viewModel::deleteCustom,
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun BrowseContent(
+    state: BrowseState,
+    onOpenArchive: () -> Unit,
+    onOpenView: (String) -> Unit,
+    onNewView: () -> Unit,
+    onTogglePin: (String) -> Unit,
+    onEditView: (String) -> Unit,
+    onDeleteView: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val gsd = LocalGsdColors.current
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item(key = "archive") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenArchive).padding(vertical = 12.dp),
+            ) {
+                Icon(Icons.Outlined.Inventory2, contentDescription = null, tint = gsd.ink2)
+                Text(stringResource(R.string.browse_archive), style = GsdType.cardTitle, color = gsd.ink)
+            }
+        }
+        section(R.string.browse_pinned, state.pinned, onOpenView, onTogglePin, onEditView, onDeleteView)
+        section(R.string.browse_built_in, state.builtIn, onOpenView, onTogglePin, onEditView, onDeleteView)
+        section(R.string.browse_custom, state.custom, onOpenView, onTogglePin, onEditView, onDeleteView)
+        item(key = "new-view") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onNewView).padding(vertical = 12.dp),
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = null, tint = gsd.tint)
+                Text(stringResource(R.string.browse_new_view), style = GsdType.body, color = gsd.tint)
+            }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.section(
+    labelRes: Int,
+    rows: List<BrowseRow>,
+    onOpenView: (String) -> Unit,
+    onTogglePin: (String) -> Unit,
+    onEditView: (String) -> Unit,
+    onDeleteView: (String) -> Unit,
+) {
+    if (rows.isEmpty()) return
+    item(key = "header-$labelRes") {
+        Text(
+            stringResource(labelRes).uppercase(),
+            style = GsdType.caption,
+            color = LocalGsdColors.current.ink3,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+    }
+    items(rows, key = { it.view.id }) { row ->
+        SmartViewRow(row, onOpenView, onTogglePin, onEditView, onDeleteView)
+    }
+}
+
+@Composable
+private fun SmartViewRow(
+    row: BrowseRow,
+    onOpenView: (String) -> Unit,
+    onTogglePin: (String) -> Unit,
+    onEditView: (String) -> Unit,
+    onDeleteView: (String) -> Unit,
+) {
+    val gsd = LocalGsdColors.current
+    var menuOpen by remember { mutableStateOf(false) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().clickable { onOpenView(row.view.id) }.padding(vertical = 8.dp),
+    ) {
+        Icon(
+            smartViewIcons[row.view.icon] ?: Icons.Outlined.Bolt,
+            contentDescription = null,
+            tint = smartViewTint(row.view.id),
+            modifier = Modifier.size(22.dp),
+        )
+        Text(row.view.name, style = GsdType.body, color = gsd.ink, modifier = Modifier.weight(1f))
+        Text(
+            "${row.count}",
+            style = GsdType.metadata.copy(fontFeatureSettings = "tnum"),
+            color = gsd.ink2,
+        )
+        Box {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(
+                    Icons.Outlined.MoreHoriz,
+                    contentDescription = stringResource(R.string.cd_task_options),
+                    tint = gsd.ink3,
+                )
+            }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(if (row.pinned) R.string.view_menu_unpin else R.string.view_menu_pin),
+                            style = GsdType.body,
+                        )
+                    },
+                    onClick = { menuOpen = false; onTogglePin(row.view.id) },
+                )
+                if (!row.view.isBuiltIn) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.view_menu_edit), style = GsdType.body) },
+                        onClick = { menuOpen = false; onEditView(row.view.id) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.view_menu_delete), style = GsdType.body) },
+                        onClick = { menuOpen = false; onDeleteView(row.view.id) },
+                    )
+                }
+            }
+        }
+    }
+}

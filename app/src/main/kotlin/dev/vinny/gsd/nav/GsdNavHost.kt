@@ -39,6 +39,28 @@ fun GsdNavHost(
             MatrixScreen(container, expanded = expanded)
         }
         composable(Destination.BROWSE.route) {
+            dev.vinny.gsd.browse.BrowseScreen(
+                container = container,
+                onOpenArchive = { navController.navigate("archive") },
+                onOpenView = { id -> navController.navigate("browse/view/$id") },
+                onNewView = { navController.navigate("browse/edit") },
+                onEditView = { id -> navController.navigate("browse/edit?id=$id") },
+            )
+        }
+        composable("browse/view/{viewId}") { entry ->
+            dev.vinny.gsd.browse.SmartViewListScreen(
+                container = container,
+                viewId = entry.arguments?.getString("viewId").orEmpty(),
+            )
+        }
+        composable("browse/edit?id={id}") { entry ->
+            dev.vinny.gsd.browse.SmartViewEditorScreen(
+                container = container,
+                viewId = entry.arguments?.getString("id"),
+                onDone = { navController.popBackStack() },
+            )
+        }
+        composable("archive") {
             PlaceholderScreen(R.string.browse_placeholder_title, R.string.browse_placeholder_body)
         }
         composable(Destination.DASHBOARD.route) {
