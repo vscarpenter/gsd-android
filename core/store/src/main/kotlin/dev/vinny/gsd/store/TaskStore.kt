@@ -83,6 +83,27 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         return update(TimeTracking.stop(current, clock.instant()))
     }
 
+    /**
+     * Replace-mode import (spec §8.16): the imported set becomes the store —
+     * UPDATE enqueued per imported task, DELETE per existing id missing from
+     * the import, table swapped in one transaction.
+     */
+    suspend fun replaceAll(imported: List<Task>) {
+        val now = clock.instant()
+        val stamped = imported.map { TaskValidator.validate(it, now).copy(updatedAt = now) }
+        val importedIds = stamped.map { it.id }.toSet()
+        db.withTransaction {
+            db.taskDao().all().filter { it.id !in importedIds }.forEach { row ->
+                db.syncQueueDao().insert(SyncQueueEntity.tombstone(row.id, now))
+                db.taskDao().deleteById(row.id)
+            }
+            stamped.forEach { task ->
+                db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, task, now))
+                db.taskDao().upsert(task.toEntity())
+            }
+        }
+    }
+
     /** Removes the task's id from every other task's dependencies first (spec §8.8). */
     suspend fun delete(id: String): Task? {
         val snapshot = get(id) ?: return null

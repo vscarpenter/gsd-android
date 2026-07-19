@@ -29,6 +29,9 @@ interface SmartViewDao {
 
     @Query("DELETE FROM smart_views WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    @Query("DELETE FROM smart_views WHERE isBuiltIn = 0")
+    suspend fun clearCustom()
 }
 
 @Dao
@@ -41,6 +44,9 @@ interface AppPreferencesDao {
 
     @Upsert
     suspend fun upsert(entity: AppPreferencesEntity)
+
+    @Query("DELETE FROM app_preferences")
+    suspend fun clear()
 }
 
 /** Smart views (spec §8.13): nine seeded built-ins, custom CRUD, ≤5 ordered pins. */

@@ -23,6 +23,9 @@ interface ArchivedTaskDao {
 
     @Query("DELETE FROM archived_tasks WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    @Query("DELETE FROM archived_tasks")
+    suspend fun clear()
 }
 
 @Dao
@@ -35,6 +38,9 @@ interface ArchiveSettingsDao {
 
     @Upsert
     suspend fun upsert(entity: ArchiveSettingsEntity)
+
+    @Query("DELETE FROM archive_settings")
+    suspend fun clear()
 }
 
 /**

@@ -17,4 +17,7 @@ interface SyncQueueDao {
 
     @Query("DELETE FROM sync_queue WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM sync_queue")
+    suspend fun clear()
 }
