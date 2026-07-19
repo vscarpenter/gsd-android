@@ -17,10 +17,17 @@
 - **Live-verified without credentials:** OAuth bounce page client-agnostic (GET static forward,
   POST 302 promotion); auth-methods envelope + all three providers with PKCE material.
 
+- **Phase 6 — native surfaces** (`v0.6.0-phase6`): §6.4 deep-link router (all routes, cold-start
+  pending route, not-found toast — smoke-tested per route via adb), §12.2 share target with URL
+  title derivation, §12.1 Glance Today's Focus widget (push-updated snapshot, day-night GSD
+  colors, deep-link taps), §6.5 static shortcuts. Deferrals: share-sheet title enrichment
+  (fetchShareTitles fetch stack), quadrant-route scroll position, widget render verified by
+  build + route smoke only (place from the launcher for a visual pass).
+
 ## Resuming From Here
-- **Next:** Phase 6 — native surfaces (Glance widget, share target, app shortcuts, `gsd://`
-  route hardening — the scheme + oauth-callback are registered; §6.4's task/quadrant/view routes
-  are not yet). Then Phase 7 — Play readiness.
+- **Next:** Phase 7 — Play readiness: adaptive icon + monochrome layer (§5.9), Data Safety form
+  content (§14), accessibility audit (TalkBack, 2× font, reduced motion), baseline profile,
+  screenshots, internal testing track. Owner item still open: web-accessible account deletion URL.
 - **Phase 5 live-verified on a Pixel 10a (2026-07-19):** Google sign-in through the Custom Tab →
   bounce → callback → exchange path works, and push/pull round-trips against the live backend.
   Two live-only bugs were found and fixed in the process: the missing INTERNET permission

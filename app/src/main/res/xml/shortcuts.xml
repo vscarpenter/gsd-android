@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new-task"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_new_task">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="gsd://capture"
+            android:targetPackage="dev.vinny.gsd"
+            android:targetClass="dev.vinny.gsd.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="today-focus"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_today_focus">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="gsd://smart-view/today-focus"
+            android:targetPackage="dev.vinny.gsd"
+            android:targetClass="dev.vinny.gsd.MainActivity" />
+    </shortcut>
+</shortcuts>
