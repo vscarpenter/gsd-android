@@ -26,8 +26,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalView
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,8 +64,16 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
     var confettiTrigger by remember { mutableIntStateOf(0) }
     val snackbarHost = remember { SnackbarHostState() }
     val view = LocalView.current
+    val showCompleted by container.prefs.showCompleted.collectAsStateWithLifecycle(initialValue = true)
+    val scope = rememberCoroutineScope()
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
+            GsdTopBar(
+                screenName = stringResource(R.string.nav_matrix),
+                showCompleted = showCompleted,
+                onToggleShowCompleted = { scope.launch { container.prefs.setShowCompleted(!showCompleted) } },
+                onSearch = { /* command palette arrives in Phase 3 */ },
+            )
             CaptureBarContent(
                 state = captureState,
                 onTextChange = captureViewModel::onTextChange,

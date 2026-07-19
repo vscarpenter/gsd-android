@@ -2,6 +2,8 @@ package dev.vinny.gsd
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Rule
@@ -13,7 +15,7 @@ class LaunchSmokeTest {
 
     @Test
     fun bottomNavShowsFourDestinationsAndSwitches() {
-        rule.onNodeWithText("Matrix").assertIsDisplayed()
+        rule.onAllNodesWithText("Matrix").onFirst().assertIsDisplayed()
         rule.onNodeWithText("Browse").assertIsDisplayed()
         rule.onNodeWithText("Dashboard").assertIsDisplayed()
         rule.onNodeWithText("Settings").assertIsDisplayed()

@@ -34,6 +34,9 @@
     <string name="cd_remove_tag">Remove tag %1$s</string>
     <string name="snackbar_deleted">Deleted \"%1$s\"</string>
     <string name="snackbar_undo">Undo</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_hide_completed">Hide completed</string>
+    <string name="cd_show_completed">Show completed</string>
     <string name="browse_placeholder_title">Nothing here yet</string>
     <string name="browse_placeholder_body">Smart views and the archive arrive in a later phase.</string>
     <string name="dashboard_placeholder_title">No stats yet</string>
