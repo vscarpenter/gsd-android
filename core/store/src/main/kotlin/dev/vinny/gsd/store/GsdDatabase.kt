@@ -34,6 +34,10 @@ class SyncOpConverter {
 abstract class GsdDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun syncQueueDao(): SyncQueueDao
+    abstract fun archivedTaskDao(): ArchivedTaskDao
+    abstract fun archiveSettingsDao(): ArchiveSettingsDao
+    abstract fun smartViewDao(): SmartViewDao
+    abstract fun appPreferencesDao(): AppPreferencesDao
 
     companion object {
         /** Keeps Room a private concern of this module — callers never see the builder. */
