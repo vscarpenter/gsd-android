@@ -18,6 +18,13 @@ android {
     buildFeatures {
         compose = true
     }
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
 }
 
 kotlin {
@@ -42,6 +49,7 @@ dependencies {
     implementation(libs.glance.appwidget)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.core.splashscreen)
+    implementation(libs.androidx.profileinstaller)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.kotlin.test)
