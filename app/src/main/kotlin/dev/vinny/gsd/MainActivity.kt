@@ -50,11 +50,19 @@ class MainActivity : ComponentActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(dev.vinny.gsd.notifications.ReminderScheduler.EXTRA_TASK_ID)
+            ?.let { (application as GsdApp).container.palette.requestOpenTask(it) }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = (application as GsdApp).container
+        intent.getStringExtra(dev.vinny.gsd.notifications.ReminderScheduler.EXTRA_TASK_ID)
+            ?.let { container.palette.requestOpenTask(it) }
         setContent {
             val themePref by container.prefs.theme.collectAsStateWithLifecycle(initialValue = ThemePref.SYSTEM)
             val darkTheme = when (themePref) {

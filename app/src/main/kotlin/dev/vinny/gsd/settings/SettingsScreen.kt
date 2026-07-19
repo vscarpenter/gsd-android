@@ -142,6 +142,8 @@ fun SettingsScreen(container: AppContainer, onOpenHelp: () -> Unit, modifier: Mo
             }) { Text(stringResource(R.string.archive_now), style = GsdType.metadata, color = gsd.tint) }
         }
 
+        NotificationsGroup(container)
+
         GroupLabel(R.string.settings_data)
         ActionRow(R.string.settings_export) { exportLauncher.launch("gsd-export.json") }
         ActionRow(R.string.settings_import) { importLauncher.launch(arrayOf("application/json", "text/*")) }

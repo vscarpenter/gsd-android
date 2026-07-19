@@ -28,13 +28,20 @@ class AppContainer(context: Context) {
 
     val prefs: GsdPrefs = GsdPrefs(context.dataStore)
 
+    val notificationSettingsStore: dev.vinny.gsd.store.NotificationSettingsStore =
+        dev.vinny.gsd.store.NotificationSettingsStore(db, clock)
+
+    val reminderScheduler: dev.vinny.gsd.notifications.ReminderScheduler =
+        dev.vinny.gsd.notifications.ReminderScheduler(context.applicationContext)
+
     val palette: PaletteController = PaletteController()
 }
 
-/** Bridges hardware shortcuts (§6.6) from the activity to whichever screen hosts the palette. */
+/** Bridges hardware shortcuts (§6.6) and notification taps to whichever screen hosts them. */
 class PaletteController {
     val openRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
     val newTaskRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
+    val openTaskRequests = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
     fun requestOpen() {
         openRequests.value++
@@ -42,5 +49,9 @@ class PaletteController {
 
     fun requestNewTask() {
         newTaskRequests.value++
+    }
+
+    fun requestOpenTask(taskId: String) {
+        openTaskRequests.value = taskId
     }
 }

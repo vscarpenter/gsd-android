@@ -79,6 +79,14 @@ fun MatrixScreen(
     LaunchedEffect(Unit) {
         container.palette.newTaskRequests.collect { if (it > 0) editorViewModel.openNew(null) }
     }
+    LaunchedEffect(Unit) {
+        container.palette.openTaskRequests.collect { taskId ->
+            if (taskId != null) {
+                editorViewModel.openExisting(taskId)
+                container.palette.openTaskRequests.value = null
+            }
+        }
+    }
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             GsdTopBar(
