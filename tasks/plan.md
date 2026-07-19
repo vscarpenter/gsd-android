@@ -1754,6 +1754,46 @@ Instrumented: adapter preservation upsert; coordinator smoke (signed-out run is 
 ### Task 5.8: Account UI + exit
 Settings **Account** (§8.17.3): signed out — three provider buttons + privacy hint; signed in — email (+ Apple private-relay note per §10.4), "Synced · N pending", health message when unhealthy, **Sync Now**, **Sync History** (totals + ~50 entries), **Sign Out**, **Delete Account…** (§8.21 two-option + cancel; remote erase → `DELETE /api/collections/users/records/{id}` → clear token). Account-switch prompt (§8.21) when sign-in resolves to a different owner with local active tasks: Keep (seed-upload merge) / Start fresh (erase local) / Cancel (sign out). Sync-status chip in the top bar (§5.10: hidden when idle-healthy-none-pending; spinner syncing; count pending; `sync_problem` alert/ochre). Erase-all-data flow gains the remote-first path when signed in (§8.16). Exit: full gate; UI tests for chip states + account section states; tag `v0.5.0-phase5`. Live end-to-end sign-in is a user smoke (needs real provider credentials).
 
+# PHASE 6 — task-level plan (planned 2026-07-19, executed in-session)
+
+### Task 6.1: Deep-link router — `app/.../nav/GsdRoute.kt` + JVM test
+`sealed interface GsdRoute` with the §6.4 table: `Capture`, `Focus`, `Quadrant(q)`, `TaskLink(id)`,
+`SmartViewLink(id)`, `Dashboard`, `Settings`, `Archive`; `GsdRoute.parse(uri): GsdRoute?` — null for
+`oauth-callback` (the auth path consumes it, router ignores per §6.4) and unknown hosts. Pending
+route on `PaletteController` (StateFlow) set by MainActivity's intent handling (cold-start safe: the
+flow holds the route until the nav host consumes it on first composition). Routing: capture → matrix
++ new-task editor; focus/quadrant → matrix; task/<id> → matrix + `openExisting`; missing id →
+friendly "Task not found" toast, never a blank screen; smart-view/<id> → `browse/view/<id>`;
+dashboard/settings/archive → their routes. `TaskEditorViewModel.openExisting` gains a not-found
+callback. JVM tests: every route in the table, oauth-callback → null, junk → null.
+
+### Task 6.2: Share target — `app/.../share/ShareCapture.kt`, `ShareActivity.kt` + tests
+Pure `ShareCapture.buildDraft(sharedText): ShareDraft(title, description, tags = [])` — URLs
+extracted+sanitized per §8.2; title = non-URL remainder, else derived from the first URL
+(host + path words, e.g. "example.com fancy article"), else "Review link below"; clamps: title 80
+(the one explicitly-clamped input, §7.11), description 600. JVM tests: plain text, bare URL
+derivation, mixed, unsafe URL stays in title, clamps. `ShareActivity` (exported, ACTION_SEND
+text/plain, dialog theme): editable title, §8.2-style quadrant picker defaulting Eliminate,
+comma-commit tag chips, read-only link list, Add → `store.add` (+ queue) → finish; failures keep
+the sheet open. Optional title enrichment only when `fetchShareTitles` && title is URL-derived —
+deferred with a note (needs a fetch stack decision; default off anyway).
+
+### Task 6.3: Glance widget — `app/.../widget/` + snapshot
+`WidgetSnapshot` (kotlinx-serializable: up to 5 of {id, title, dueLabel} + totalActive) computed
+from Q1-active tasks, written to a dedicated DataStore file by an app-scope observer of
+`store.observeTasks()`, then `GsdWidget().updateAll()` — push-updated per §12.1, widget never
+touches the database. `GsdWidget : GlanceAppWidget` — header "Today's Focus" + crosshair, rows
+(title + due), "+N more" when totalActive > shown (3 small / 5 medium via LocalSize), "All clear"
+empty state; GSD paper/surface/ink/Rust via day-night ColorProviders. Taps: rows →
+`gsd://task/<id>`, body → `gsd://smart-view/today-focus` (actionStartActivity VIEW intents).
+Receiver + `<appwidget-provider>` metadata. JVM test for the snapshot builder; render verified
+manually on the emulator (Glance host testing is not worth the harness).
+
+### Task 6.4: Shortcuts + exit — `res/xml/shortcuts.xml`
+Static shortcuts per §6.5: "New Task" → `gsd://capture`, "Today's Focus" →
+`gsd://smart-view/today-focus` (VIEW intents into MainActivity). Exit: full gate; adb deep-link
+smoke (`am start -d gsd://capture` etc.); tag `v0.6.0-phase6`; push.
+
 *— end of plan —*
 
 
