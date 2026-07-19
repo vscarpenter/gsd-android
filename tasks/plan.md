@@ -1794,6 +1794,41 @@ Static shortcuts per §6.5: "New Task" → `gsd://capture`, "Today's Focus" →
 `gsd://smart-view/today-focus` (VIEW intents into MainActivity). Exit: full gate; adb deep-link
 smoke (`am start -d gsd://capture` etc.); tag `v0.6.0-phase6`; push.
 
+# PHASE 7 — task-level plan (planned 2026-07-19, executed in-session)
+
+### Task 7.1: Adaptive icon — `res/drawable/ic_launcher_*.xml`, manifest
+§5.9 exactly: foreground = four rounded pigment tiles (TL Rust `#B23A2E`, TR Tide `#2C6680`,
+BL Ochre `#8A6A22`, BR Slate `#6F685F`; corner ≈23% of tile side, gutter ≈10%) + white check on the
+Rust tile (stroke ≈14% of side, round caps, rising left-to-right), cluster inside the 66/108
+safe zone; background = paper `#F4F1E9`; monochrome layer = the tile cluster silhouette (check
+omitted — same-color check on a same-color tile is invisible; noted deviation). `mipmap-anydpi-v26`
+adaptive-icon XML + `android:icon` + `android:roundIcon`. Splash keeps the paper window background
+and picks up the launcher icon automatically (SplashScreen API default).
+
+### Task 7.2: Release config — `app/build.gradle.kts`, `proguard-rules.pro`
+`release { isMinifyEnabled = true; isShrinkResources = true; proguardFiles(default-optimize, local) }`;
+keep rules only if R8 actually needs them (kotlinx.serialization/Room/OkHttp ship consumer rules —
+verify, don't cargo-cult). `androidx.profileinstaller` dependency (baseline-profile *generation*
+needs a macrobenchmark module + managed device — deferred with a note; the installer makes any
+future profile effective). Verification: `assembleRelease` builds an unsigned bundle-able APK.
+
+### Task 7.3: Accessibility audit — scripted + manual, findings fixed
+(1) Unlabeled-interactive scan: uiautomator dump of Matrix/Browse/Settings, flag clickable nodes
+with empty text+content-desc. (2) Font scale 2.0 (`settings put system font_scale 2.0`) reflow
+screenshots of Matrix + editor; revert. (3) Reduced-motion code review (confetti/timer-dot/
+snackbar paths already gate on `areAnimatorsEnabled`). Fix what the scan finds; record method +
+findings + fixes in `docs/play/accessibility-audit.md`. TalkBack-with-ears remains a device pass
+for the owner (documented).
+
+### Task 7.4: Play submission docs — `docs/play/`
+`data-safety.md`: §14 answers — local-only collects/shares nothing; optional sync stores task
+content + account identifier on the developer's self-hosted backend, encrypted in transit,
+user-deletable in-app; no third-party sharing, ads, or analytics SDKs. Permission declarations
+incl. the `SCHEDULE_EXACT_ALARM` justification (user-facing task reminders). `listing.md`: name
+"GSD — Get Stuff Done", short + full descriptions in brand voice, screenshot shot-list (2×2 grid
+is the tablet hero). `submission-checklist.md`: signing, AAB build, internal track steps, the
+open owner item (web deletion URL). Exit: full gate; tag `v0.7.0-phase7`; push.
+
 *— end of plan —*
 
 
