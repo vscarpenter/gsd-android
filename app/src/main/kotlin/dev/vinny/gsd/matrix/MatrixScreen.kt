@@ -15,10 +15,15 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.LocalFireDepartment
+import android.view.HapticFeedbackConstants
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -49,21 +54,33 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val sections by viewModel.sections.collectAsStateWithLifecycle()
     val captureState by captureViewModel.state.collectAsStateWithLifecycle()
     val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
-    Column(modifier = modifier.fillMaxSize()) {
-        CaptureBarContent(
-            state = captureState,
-            onTextChange = captureViewModel::onTextChange,
-            onCycleOverride = captureViewModel::cycleOverride,
-            onSubmit = { captureViewModel.submit(onError = {}) },
-            onDetails = { editorViewModel.openNew(captureViewModel.draftForEditor()) },
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-        )
-        MatrixList(
-            sections = sections,
-            onToggleComplete = viewModel::toggleCompleted,
-            onOpen = editorViewModel::openExisting,
-            modifier = Modifier.weight(1f),
-        )
+    var confettiTrigger by remember { mutableIntStateOf(0) }
+    val view = LocalView.current
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            CaptureBarContent(
+                state = captureState,
+                onTextChange = captureViewModel::onTextChange,
+                onCycleOverride = captureViewModel::cycleOverride,
+                onSubmit = { captureViewModel.submit(onError = {}) },
+                onDetails = { editorViewModel.openNew(captureViewModel.draftForEditor()) },
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            )
+            MatrixList(
+                sections = sections,
+                onToggleComplete = { task ->
+                    viewModel.toggleCompleted(task.id)
+                    if (!task.completed) {
+                        // The one haptic in the app (spec §5.8) + the one celebration.
+                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                        confettiTrigger++
+                    }
+                },
+                onOpen = editorViewModel::openExisting,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        ConfettiOverlay(trigger = confettiTrigger)
     }
     if (editorDraft != null) {
         TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
@@ -74,9 +91,10 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
 @Composable
 fun MatrixList(
     sections: List<QuadrantSectionState>,
-    onToggleComplete: (String) -> Unit,
+    onToggleComplete: (dev.vinny.gsd.model.Task) -> Unit,
     onOpen: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onDelete: (dev.vinny.gsd.model.Task) -> Unit = {},
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -94,11 +112,17 @@ fun MatrixList(
                 item(key = "empty-${section.quadrant.id}") { EmptyQuadrantPrompt(section.quadrant) }
             } else {
                 items(section.tasks, key = { it.id }) { task ->
-                    TaskCard(
+                    SwipeTaskRow(
                         task = task,
-                        onToggleComplete = { onToggleComplete(task.id) },
-                        onClick = { onOpen(task.id) },
-                    )
+                        onComplete = { onToggleComplete(task) },
+                        onDelete = { onDelete(task) },
+                    ) {
+                        TaskCard(
+                            task = task,
+                            onToggleComplete = { onToggleComplete(task) },
+                            onClick = { onOpen(task.id) },
+                        )
+                    }
                 }
             }
         }

@@ -56,7 +56,7 @@ class MatrixScreenTest {
             GsdTheme {
                 MatrixList(
                     buildSections(listOf(target)),
-                    onToggleComplete = { toggled = it },
+                    onToggleComplete = { toggled = it.id },
                     onOpen = { opened = it },
                 )
             }
