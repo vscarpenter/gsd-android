@@ -24,6 +24,17 @@
                 <data android:scheme="gsd" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".share.ShareActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Gsd"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
         <receiver android:name=".notifications.ReminderReceiver" android:exported="false" />
         <receiver android:name=".notifications.NotificationActionReceiver" android:exported="false" />
         <receiver android:name=".notifications.BootReceiver" android:exported="true">

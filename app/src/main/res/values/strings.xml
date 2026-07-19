@@ -213,6 +213,14 @@
     <string name="account_privacy_hint">Sync is optional. Without an account your tasks never leave this device.</string>
     <string name="sign_in_error">Couldn\'t start sign-in. Check your connection and try again.</string>
     <string name="task_not_found">That task no longer exists</string>
+    <string name="share_sheet_title">Add to GSD</string>
+    <string name="share_tags_hint">Tags (comma-separated)</string>
+    <string name="share_add">Add</string>
+    <string name="widget_title">Today\'s Focus</string>
+    <string name="widget_all_clear">All clear</string>
+    <string name="widget_more">+%1$d more</string>
+    <string name="shortcut_new_task">New Task</string>
+    <string name="shortcut_today_focus">Today\'s Focus</string>
     <string name="sign_in_google">Sign in with Google</string>
     <string name="sign_in_apple">Sign in with Apple</string>
     <string name="sign_in_github">Sign in with GitHub</string>
