@@ -67,21 +67,22 @@ internal fun NotificationsGroup(container: AppContainer) {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.settings_default_reminder), style = GsdType.body, color = gsd.ink,
-                modifier = Modifier.weight(1f))
-            listOf(15, 30, 60, 120, 1440).forEach { minutes ->
-                TextButton(onClick = { update { it.copy(defaultReminderMinutes = minutes) } }) {
-                    val label = when (minutes) {
-                        1440 -> "1d"
-                        in 60..120 -> "${minutes / 60}h"
-                        else -> "${minutes}m"
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.settings_default_reminder), style = GsdType.body, color = gsd.ink)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                listOf(15, 30, 60, 120, 1440).forEach { minutes ->
+                    TextButton(onClick = { update { it.copy(defaultReminderMinutes = minutes) } }) {
+                        val label = when (minutes) {
+                            1440 -> "1d"
+                            in 60..120 -> "${minutes / 60}h"
+                            else -> "${minutes}m"
+                        }
+                        Text(
+                            label + if (settings.defaultReminderMinutes == minutes) " ✓" else "",
+                            style = GsdType.metadata,
+                            color = gsd.tint,
+                        )
                     }
-                    Text(
-                        label + if (settings.defaultReminderMinutes == minutes) " ✓" else "",
-                        style = GsdType.metadata,
-                        color = gsd.tint,
-                    )
                 }
             }
         }
