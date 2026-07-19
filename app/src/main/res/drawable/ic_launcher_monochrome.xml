@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon silhouette (spec §5.9): the tile cluster. The check is omitted —
+     a same-color check on a same-color tile carries no silhouette. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32.7,26.7 h14 a6,6 0 0 1 6,6 v14 a6,6 0 0 1 -6,6 h-14 a6,6 0 0 1 -6,-6 v-14 a6,6 0 0 1 6,-6 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M61.3,26.7 h14 a6,6 0 0 1 6,6 v14 a6,6 0 0 1 -6,6 h-14 a6,6 0 0 1 -6,-6 v-14 a6,6 0 0 1 6,-6 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32.7,55.3 h14 a6,6 0 0 1 6,6 v14 a6,6 0 0 1 -6,6 h-14 a6,6 0 0 1 -6,-6 v-14 a6,6 0 0 1 6,-6 z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M61.3,55.3 h14 a6,6 0 0 1 6,6 v14 a6,6 0 0 1 -6,6 h-14 a6,6 0 0 1 -6,-6 v-14 a6,6 0 0 1 6,-6 z" />
+</vector>
