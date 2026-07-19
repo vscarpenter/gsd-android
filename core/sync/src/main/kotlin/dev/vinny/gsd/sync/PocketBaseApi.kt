@@ -50,7 +50,7 @@ class PocketBaseApi(
     private val baseUrl: String,
     private val token: () -> String?,
     private val client: OkHttpClient = OkHttpClient(),
-) {
+) : SyncRemote {
     class RateLimited : Exception("HTTP 429")
     class Unauthorized(code: Int) : Exception("HTTP $code")
     class HttpError(val code: Int, body: String) : Exception("HTTP $code: ${body.take(200)}")
@@ -76,7 +76,7 @@ class PocketBaseApi(
         }
     }
 
-    suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
+    override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
         val filter = URLEncoder.encode("updated >= \"$updatedCursor\"", "UTF-8")
         val raw = execute(
             request("/api/collections/tasks/records?page=$page&perPage=200&sort=updated&filter=$filter")
@@ -97,7 +97,7 @@ class PocketBaseApi(
         )
     }
 
-    suspend fun createTask(wire: WireTask): WireTask {
+    override suspend fun createTask(wire: WireTask): WireTask {
         val raw = execute(
             request("/api/collections/tasks/records")
                 .post(WireJson.encode(wire.copy(id = "")).toRequestBody(jsonType)).build(),
@@ -105,7 +105,7 @@ class PocketBaseApi(
         return WireJson.decodeOrNull(raw) ?: throw HttpError(200, "unparseable create response")
     }
 
-    suspend fun updateTask(recordId: String, wire: WireTask): WireTask {
+    override suspend fun updateTask(recordId: String, wire: WireTask): WireTask {
         val raw = execute(
             request("/api/collections/tasks/records/$recordId")
                 .patch(WireJson.encode(wire).toRequestBody(jsonType)).build(),
@@ -113,7 +113,7 @@ class PocketBaseApi(
         return WireJson.decodeOrNull(raw) ?: wire
     }
 
-    suspend fun deleteTask(recordId: String) {
+    override suspend fun deleteTask(recordId: String) {
         execute(request("/api/collections/tasks/records/$recordId").delete().build())
     }
 
