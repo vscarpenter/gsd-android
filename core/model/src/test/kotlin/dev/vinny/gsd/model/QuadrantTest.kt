@@ -33,4 +33,9 @@ class QuadrantTest {
         Quadrant.entries.forEach { assertEquals(it, Quadrant.fromId(it.id)) }
         assertNull(Quadrant.fromId("yearly-important"))
     }
+
+    @Test
+    fun `flags round-trip through derivation`() {
+        Quadrant.entries.forEach { assertEquals(it, Quadrant.from(it.urgent, it.important)) }
+    }
 }

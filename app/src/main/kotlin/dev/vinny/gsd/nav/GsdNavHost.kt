@@ -32,10 +32,11 @@ fun GsdNavHost(
     navController: NavHostController,
     container: AppContainer,
     modifier: Modifier = Modifier,
+    expanded: Boolean = false,
 ) {
     NavHost(navController = navController, startDestination = Destination.MATRIX.route, modifier = modifier) {
         composable(Destination.MATRIX.route) {
-            MatrixScreen(container)
+            MatrixScreen(container, expanded = expanded)
         }
         composable(Destination.BROWSE.route) {
             PlaceholderScreen(R.string.browse_placeholder_title, R.string.browse_placeholder_body)

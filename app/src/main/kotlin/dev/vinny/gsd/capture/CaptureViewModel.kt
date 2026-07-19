@@ -36,8 +36,8 @@ class CaptureViewModel(private val store: TaskStore) : ViewModel() {
                     Task(
                         title = parsed.title,
                         description = parsed.urls.joinToString("\n"),
-                        urgent = quadrant == Quadrant.DO_FIRST || quadrant == Quadrant.DELEGATE,
-                        important = quadrant == Quadrant.DO_FIRST || quadrant == Quadrant.SCHEDULE,
+                        urgent = quadrant.urgent,
+                        important = quadrant.important,
                         tags = parsed.tags,
                         createdAt = Instant.EPOCH, // store stamps
                         updatedAt = Instant.EPOCH,

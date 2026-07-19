@@ -5,15 +5,24 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.PermanentDrawerSheet
+import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -40,31 +49,63 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val backStack by navController.currentBackStackEntryAsState()
                 val currentRoute = backStack?.destination?.route
-                Scaffold(
-                    bottomBar = {
-                        NavigationBar {
+                // Window size classes per spec §6: <600 compact, <840 medium, else expanded
+                val widthDp = LocalConfiguration.current.screenWidthDp
+                val navigate: (Destination) -> Unit = { destination ->
+                    navController.navigate(destination.route) {
+                        launchSingleTop = true
+                        popUpTo(Destination.MATRIX.route) { saveState = true }
+                        restoreState = true
+                    }
+                }
+                when {
+                    widthDp < 600 -> Scaffold(
+                        bottomBar = {
+                            NavigationBar {
+                                Destination.entries.forEach { destination ->
+                                    NavigationBarItem(
+                                        selected = currentRoute == destination.route,
+                                        onClick = { navigate(destination) },
+                                        icon = { Icon(destination.icon, contentDescription = null) },
+                                        label = { Text(stringResource(destination.label)) },
+                                    )
+                                }
+                            }
+                        },
+                    ) { innerPadding ->
+                        GsdNavHost(navController, container, Modifier.padding(innerPadding))
+                    }
+
+                    widthDp < 840 -> Row {
+                        NavigationRail {
                             Destination.entries.forEach { destination ->
-                                NavigationBarItem(
+                                NavigationRailItem(
                                     selected = currentRoute == destination.route,
-                                    onClick = {
-                                        navController.navigate(destination.route) {
-                                            launchSingleTop = true
-                                            popUpTo(Destination.MATRIX.route) { saveState = true }
-                                            restoreState = true
-                                        }
-                                    },
+                                    onClick = { navigate(destination) },
                                     icon = { Icon(destination.icon, contentDescription = null) },
                                     label = { Text(stringResource(destination.label)) },
                                 )
                             }
                         }
-                    },
-                ) { innerPadding ->
-                    GsdNavHost(
-                        navController = navController,
-                        container = container,
-                        modifier = Modifier.padding(innerPadding),
-                    )
+                        GsdNavHost(navController, container, Modifier.weight(1f))
+                    }
+
+                    else -> PermanentNavigationDrawer(
+                        drawerContent = {
+                            PermanentDrawerSheet(modifier = Modifier.width(220.dp)) {
+                                Destination.entries.forEach { destination ->
+                                    NavigationDrawerItem(
+                                        selected = currentRoute == destination.route,
+                                        onClick = { navigate(destination) },
+                                        icon = { Icon(destination.icon, contentDescription = null) },
+                                        label = { Text(stringResource(destination.label)) },
+                                    )
+                                }
+                            }
+                        },
+                    ) {
+                        GsdNavHost(navController, container, expanded = true)
+                    }
                 }
             }
         }

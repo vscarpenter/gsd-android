@@ -187,12 +187,7 @@ private fun QuadrantPicker(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                                 shape = GsdShapes.small,
                             )
                             .clickable {
-                                onEdit {
-                                    it.copy(
-                                        urgent = quadrant == Quadrant.DO_FIRST || quadrant == Quadrant.DELEGATE,
-                                        important = quadrant == Quadrant.DO_FIRST || quadrant == Quadrant.SCHEDULE,
-                                    )
-                                }
+                                onEdit { it.copy(urgent = quadrant.urgent, important = quadrant.important) }
                             }
                             .padding(12.dp),
                     )

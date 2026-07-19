@@ -54,7 +54,7 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 
 @Composable
-fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
+fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier, expanded: Boolean = false) {
     val viewModel: MatrixViewModel = viewModel { MatrixViewModel(container.store, container.prefs) }
     val captureViewModel: CaptureViewModel = viewModel { CaptureViewModel(container.store) }
     val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
@@ -82,20 +82,32 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 onDetails = { editorViewModel.openNew(captureViewModel.draftForEditor()) },
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
-            MatrixList(
-                sections = sections,
-                onToggleComplete = { task ->
-                    viewModel.toggleCompleted(task.id)
-                    if (!task.completed) {
-                        // The one haptic in the app (spec §5.8) + the one celebration.
-                        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                        confettiTrigger++
-                    }
-                },
-                onOpen = editorViewModel::openExisting,
-                onDelete = { viewModel.delete(it.id) },
-                modifier = Modifier.weight(1f),
-            )
+            val onToggle: (dev.vinny.gsd.model.Task) -> Unit = { task ->
+                viewModel.toggleCompleted(task.id)
+                if (!task.completed) {
+                    // The one haptic in the app (spec §5.8) + the one celebration.
+                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                    confettiTrigger++
+                }
+            }
+            if (expanded) {
+                MatrixGrid(
+                    sections = sections,
+                    onToggleComplete = onToggle,
+                    onOpen = editorViewModel::openExisting,
+                    onDropToQuadrant = viewModel::moveToQuadrant,
+                    onDelete = { viewModel.delete(it.id) },
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                MatrixList(
+                    sections = sections,
+                    onToggleComplete = onToggle,
+                    onOpen = editorViewModel::openExisting,
+                    onDelete = { viewModel.delete(it.id) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
         ConfettiOverlay(trigger = confettiTrigger)
         SnackbarHost(
@@ -178,7 +190,7 @@ private val quadrantIcons: Map<Quadrant, ImageVector> = mapOf(
 )
 
 @Composable
-private fun QuadrantHeader(section: QuadrantSectionState, modifier: Modifier = Modifier) {
+internal fun QuadrantHeader(section: QuadrantSectionState, modifier: Modifier = Modifier) {
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(section.quadrant)
     Row(

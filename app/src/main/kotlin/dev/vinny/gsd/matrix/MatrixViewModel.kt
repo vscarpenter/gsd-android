@@ -68,4 +68,13 @@ class MatrixViewModel(private val store: TaskStore, prefs: GsdPrefs) : ViewModel
     fun clearUndo() {
         _lastDeleted.value = null
     }
+
+    /** Drag-and-drop reclassification (spec §6.2): the flags change, quadrant follows. */
+    fun moveToQuadrant(id: String, quadrant: Quadrant) {
+        viewModelScope.launch {
+            val current = store.get(id) ?: return@launch
+            if (current.quadrant == quadrant) return@launch
+            store.update(current.copy(urgent = quadrant.urgent, important = quadrant.important))
+        }
+    }
 }

@@ -27,8 +27,8 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
         _draft.value = Task(
             title = parsed?.title.orEmpty(),
             description = parsed?.urls?.joinToString("\n").orEmpty(),
-            urgent = quadrant == Quadrant.DO_FIRST || quadrant == Quadrant.DELEGATE,
-            important = quadrant == Quadrant.DO_FIRST || quadrant == Quadrant.SCHEDULE,
+            urgent = quadrant.urgent,
+            important = quadrant.important,
             tags = parsed?.tags.orEmpty(),
             createdAt = Instant.EPOCH, // store stamps on save
             updatedAt = Instant.EPOCH,
