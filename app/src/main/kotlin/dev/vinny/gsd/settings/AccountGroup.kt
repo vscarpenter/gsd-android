@@ -38,14 +38,17 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     val failed by container.syncCoordinator.failedCount.collectAsStateWithLifecycle(initialValue = 0)
     val email by container.prefs.lastOwnerEmail.collectAsStateWithLifecycle(initialValue = null)
     var deleteOpen by remember { mutableStateOf(false) }
+    var signInError by remember { mutableStateOf<String?>(null) }
 
     fun launchProvider(provider: String) {
         scope.launch {
+            signInError = null
             try {
                 val pendingAuth = container.authManager.beginOAuth(provider)
                 CustomTabsIntent.Builder().build().launchUrl(context, pendingAuth.url.toUri())
-            } catch (_: Exception) {
-                // unreachable backend: stay signed out quietly; health chip explains
+            } catch (failure: Exception) {
+                android.util.Log.w("GsdAuth", "sign-in with $provider failed: ${failure.javaClass.simpleName}")
+                signInError = context.getString(R.string.sign_in_error)
             }
         }
     }
@@ -61,6 +64,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
             AccountAction(R.string.sign_in_google) { launchProvider("google") }
             AccountAction(R.string.sign_in_apple) { launchProvider("apple") }
             AccountAction(R.string.sign_in_github) { launchProvider("github") }
+            signInError?.let { Text(it, style = GsdType.metadata, color = gsd.alert) }
             Text(stringResource(R.string.account_privacy_hint), style = GsdType.metadata, color = gsd.ink3)
         } else {
             email?.let { address ->

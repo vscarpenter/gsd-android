@@ -61,8 +61,13 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch {
                 try {
                     container.syncCoordinator.completeOAuthCallback(data.toString())
-                } catch (_: Exception) {
-                    // state mismatch or exchange failure: user stays signed out; Settings reflects it
+                } catch (failure: Exception) {
+                    android.util.Log.w("GsdAuth", "oauth callback failed: ${failure.javaClass.simpleName}")
+                    android.widget.Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.sign_in_error),
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
                 }
             }
         }
