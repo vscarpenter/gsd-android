@@ -1,0 +1,106 @@
+package dev.vinny.gsd.palette
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import dev.vinny.gsd.R
+import dev.vinny.gsd.model.SmartView
+import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.theme.GsdShapes
+import dev.vinny.gsd.theme.GsdType
+import dev.vinny.gsd.theme.LocalGsdColors
+
+/** The §8.14 command palette: one query, sectioned results, substring matching. */
+@Composable
+fun CommandPalette(
+    tasks: List<Task>,
+    views: List<SmartView>,
+    onOpenTask: (String) -> Unit,
+    onOpenView: (String) -> Unit,
+    onAction: (PaletteAction) -> Unit,
+    onNavigate: (PaletteNav) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val gsd = LocalGsdColors.current
+    var query by remember { mutableStateOf("") }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(GsdShapes.sheet)
+                .background(gsd.surface)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box {
+                if (query.isEmpty()) {
+                    Text(stringResource(R.string.palette_hint), style = GsdType.body, color = gsd.ink3)
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    textStyle = GsdType.body.copy(color = gsd.ink),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("palette_query"),
+                )
+            }
+            val results = PaletteIndex.query(query, tasks, views)
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                section(R.string.palette_tasks, results.tasks, { it.title }) { onOpenTask(it.id); onDismiss() }
+                section(R.string.palette_views, results.views, { it.name }) { onOpenView(it.id); onDismiss() }
+                section(R.string.palette_actions, results.actions, { it.label }) { onAction(it); onDismiss() }
+                section(R.string.palette_navigation, results.navigation, { it.label }) { onNavigate(it); onDismiss() }
+            }
+        }
+    }
+}
+
+private fun <T> androidx.compose.foundation.lazy.LazyListScope.section(
+    labelRes: Int,
+    items: List<T>,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    if (items.isEmpty()) return
+    item(key = "palette-header-$labelRes") {
+        val gsd = LocalGsdColors.current
+        Text(
+            stringResource(labelRes).uppercase(),
+            style = GsdType.caption,
+            color = gsd.ink3,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+    items.forEach { entry ->
+        item {
+            val gsd = LocalGsdColors.current
+            Text(
+                label(entry),
+                style = GsdType.body,
+                color = gsd.ink,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelect(entry) }
+                    .padding(vertical = 8.dp),
+            )
+        }
+    }
+}

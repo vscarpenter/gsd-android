@@ -133,6 +133,11 @@
     <string name="archive_delete_title">Delete permanently?</string>
     <string name="archive_delete_body">This can\'t be undone.</string>
     <string name="dialog_cancel">Cancel</string>
+    <string name="palette_hint">Search tasks and commands…</string>
+    <string name="palette_tasks">Tasks</string>
+    <string name="palette_views">Smart Views</string>
+    <string name="palette_actions">Actions</string>
+    <string name="palette_navigation">Navigation</string>
     <string name="browse_placeholder_title">Nothing here yet</string>
     <string name="browse_placeholder_body">Smart views and the archive arrive in a later phase.</string>
     <string name="dashboard_placeholder_title">No stats yet</string>

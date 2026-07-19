@@ -33,6 +33,21 @@ import dev.vinny.gsd.prefs.ThemePref
 import dev.vinny.gsd.theme.GsdTheme
 
 class MainActivity : ComponentActivity() {
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean {
+        val container = (application as GsdApp).container
+        if (event.isCtrlPressed) {
+            when (keyCode) {
+                android.view.KeyEvent.KEYCODE_K, android.view.KeyEvent.KEYCODE_F -> {
+                    container.palette.requestOpen(); return true
+                }
+                android.view.KeyEvent.KEYCODE_N -> {
+                    container.palette.requestNewTask(); return true
+                }
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)

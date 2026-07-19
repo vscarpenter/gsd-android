@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -54,7 +55,12 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 
 @Composable
-fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier, expanded: Boolean = false) {
+fun MatrixScreen(
+    container: AppContainer,
+    modifier: Modifier = Modifier,
+    expanded: Boolean = false,
+    onNavigate: (String) -> Unit = {},
+) {
     val viewModel: MatrixViewModel = viewModel { MatrixViewModel(container.store, container.prefs) }
     val captureViewModel: CaptureViewModel = viewModel { CaptureViewModel(container.store) }
     val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
@@ -66,13 +72,20 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier, expande
     val view = LocalView.current
     val showCompleted by container.prefs.showCompleted.collectAsStateWithLifecycle(initialValue = true)
     val scope = rememberCoroutineScope()
+    var paletteVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        container.palette.openRequests.collect { if (it > 0) paletteVisible = true }
+    }
+    LaunchedEffect(Unit) {
+        container.palette.newTaskRequests.collect { if (it > 0) editorViewModel.openNew(null) }
+    }
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             GsdTopBar(
                 screenName = stringResource(R.string.nav_matrix),
                 showCompleted = showCompleted,
                 onToggleShowCompleted = { scope.launch { container.prefs.setShowCompleted(!showCompleted) } },
-                onSearch = { /* command palette arrives in Phase 3 */ },
+                onSearch = { paletteVisible = true },
             )
             CaptureBarContent(
                 state = captureState,
@@ -158,6 +171,45 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier, expande
     }
     if (editorDraft != null) {
         TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+    }
+    if (paletteVisible) {
+        val allTasks by editorViewModel.allTasks.collectAsStateWithLifecycle()
+        val views by container.smartViewStore.observeViews()
+            .collectAsStateWithLifecycle(initialValue = emptyList())
+        val themePref by container.prefs.theme.collectAsStateWithLifecycle(
+            initialValue = dev.vinny.gsd.prefs.ThemePref.SYSTEM,
+        )
+        dev.vinny.gsd.palette.CommandPalette(
+            tasks = allTasks,
+            views = views,
+            onOpenTask = editorViewModel::openExisting,
+            onOpenView = { onNavigate("browse/view/$it") },
+            onAction = { action ->
+                when (action) {
+                    dev.vinny.gsd.palette.PaletteAction.NEW_TASK -> editorViewModel.openNew(null)
+                    dev.vinny.gsd.palette.PaletteAction.TOGGLE_SHOW_COMPLETED ->
+                        scope.launch { container.prefs.setShowCompleted(!showCompleted) }
+                    dev.vinny.gsd.palette.PaletteAction.TOGGLE_THEME -> scope.launch {
+                        container.prefs.setTheme(
+                            when (themePref) {
+                                dev.vinny.gsd.prefs.ThemePref.SYSTEM -> dev.vinny.gsd.prefs.ThemePref.LIGHT
+                                dev.vinny.gsd.prefs.ThemePref.LIGHT -> dev.vinny.gsd.prefs.ThemePref.DARK
+                                dev.vinny.gsd.prefs.ThemePref.DARK -> dev.vinny.gsd.prefs.ThemePref.SYSTEM
+                            },
+                        )
+                    }
+                }
+            },
+            onNavigate = { nav ->
+                when (nav) {
+                    dev.vinny.gsd.palette.PaletteNav.MATRIX -> onNavigate("matrix")
+                    dev.vinny.gsd.palette.PaletteNav.DASHBOARD -> onNavigate("dashboard")
+                    dev.vinny.gsd.palette.PaletteNav.ARCHIVE -> onNavigate("archive")
+                    dev.vinny.gsd.palette.PaletteNav.SETTINGS -> onNavigate("settings")
+                }
+            },
+            onDismiss = { paletteVisible = false },
+        )
     }
 }
 

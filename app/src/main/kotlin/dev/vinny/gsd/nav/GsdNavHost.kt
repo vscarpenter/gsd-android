@@ -36,7 +36,7 @@ fun GsdNavHost(
 ) {
     NavHost(navController = navController, startDestination = Destination.MATRIX.route, modifier = modifier) {
         composable(Destination.MATRIX.route) {
-            MatrixScreen(container, expanded = expanded)
+            MatrixScreen(container, expanded = expanded, onNavigate = { navController.navigate(it) })
         }
         composable(Destination.BROWSE.route) {
             dev.vinny.gsd.browse.BrowseScreen(

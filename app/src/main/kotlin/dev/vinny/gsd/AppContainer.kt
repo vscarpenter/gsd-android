@@ -27,4 +27,20 @@ class AppContainer(context: Context) {
     val smartViewStore: SmartViewStore = SmartViewStore(db, clock)
 
     val prefs: GsdPrefs = GsdPrefs(context.dataStore)
+
+    val palette: PaletteController = PaletteController()
+}
+
+/** Bridges hardware shortcuts (§6.6) from the activity to whichever screen hosts the palette. */
+class PaletteController {
+    val openRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
+    val newTaskRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    fun requestOpen() {
+        openRequests.value++
+    }
+
+    fun requestNewTask() {
+        newTaskRequests.value++
+    }
 }
