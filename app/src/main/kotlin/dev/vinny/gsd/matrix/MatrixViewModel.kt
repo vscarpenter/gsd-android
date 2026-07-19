@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TaskDuplicator
+import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.TaskStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,6 +77,24 @@ class MatrixViewModel(private val store: TaskStore, prefs: GsdPrefs) : ViewModel
             val current = store.get(id) ?: return@launch
             if (current.quadrant == quadrant) return@launch
             store.update(current.copy(urgent = quadrant.urgent, important = quadrant.important))
+        }
+    }
+
+    fun duplicate(id: String) {
+        viewModelScope.launch {
+            val current = store.get(id) ?: return@launch
+            store.add(TaskDuplicator.duplicate(current, java.time.Instant.now()))
+        }
+    }
+
+    fun snooze(id: String, duration: java.time.Duration) {
+        viewModelScope.launch { store.snooze(id, java.time.Instant.now().plus(duration)) }
+    }
+
+    fun toggleTimer(id: String) {
+        viewModelScope.launch {
+            val current = store.get(id) ?: return@launch
+            if (TimeTracking.runningEntry(current) != null) store.stopTimer(id) else store.startTimer(id)
         }
     }
 }

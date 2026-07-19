@@ -90,6 +90,26 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier, expande
                     confettiTrigger++
                 }
             }
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val rowActions: (dev.vinny.gsd.model.Task) -> TaskRowActions = { task ->
+                TaskRowActions(
+                    onEdit = { editorViewModel.openExisting(task.id) },
+                    onToggleComplete = { onToggle(task) },
+                    onToggleTimer = { viewModel.toggleTimer(task.id) },
+                    onSnooze = { duration -> viewModel.snooze(task.id, duration) },
+                    onDuplicate = { viewModel.duplicate(task.id) },
+                    onShare = {
+                        val text = dev.vinny.gsd.model.ShareText.render(task, java.time.ZoneId.systemDefault())
+                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_TEXT, text)
+                        }
+                        context.startActivity(android.content.Intent.createChooser(send, null))
+                    },
+                    onMoveTo = { quadrant -> viewModel.moveToQuadrant(task.id, quadrant) },
+                    onDelete = { viewModel.delete(task.id) },
+                )
+            }
             if (expanded) {
                 MatrixGrid(
                     sections = sections,
@@ -105,6 +125,7 @@ fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier, expande
                     onToggleComplete = onToggle,
                     onOpen = editorViewModel::openExisting,
                     onDelete = { viewModel.delete(it.id) },
+                    rowActions = rowActions,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -148,7 +169,9 @@ fun MatrixList(
     onOpen: (String) -> Unit,
     modifier: Modifier = Modifier,
     onDelete: (dev.vinny.gsd.model.Task) -> Unit = {},
+    rowActions: ((dev.vinny.gsd.model.Task) -> TaskRowActions)? = null,
 ) {
+    val allVisible = sections.flatMap { it.tasks }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
@@ -165,16 +188,21 @@ fun MatrixList(
                 item(key = "empty-${section.quadrant.id}") { EmptyQuadrantPrompt(section.quadrant) }
             } else {
                 items(section.tasks, key = { it.id }) { task ->
+                    val badges = TaskBadges(
+                        blocked = dev.vinny.gsd.model.DependencyGraph.uncompletedBlockers(allVisible, task).size,
+                        blocking = dev.vinny.gsd.model.DependencyGraph.blocking(allVisible, task).size,
+                    )
                     SwipeTaskRow(
                         task = task,
                         onComplete = { onToggleComplete(task) },
                         onDelete = { onDelete(task) },
                     ) {
-                        TaskCard(
-                            task = task,
+                        val actions = rowActions?.invoke(task) ?: TaskRowActions(
+                            onEdit = { onOpen(task.id) },
                             onToggleComplete = { onToggleComplete(task) },
-                            onClick = { onOpen(task.id) },
+                            onDelete = { onDelete(task) },
                         )
+                        TaskRowWithMenu(task = task, badges = badges, actions = actions)
                     }
                 }
             }
