@@ -1,32 +1,30 @@
 # GSD Android — progress
 
 ## Done
-### Phase 0 (foundations) — complete, tagged in history
-- Repo + four-module scaffold (AGP 9.3, Kotlin 2.4, Compose BOM 2026.06) · NanoId · Quadrant ·
-  domain types · TaskValidator · TaskJson codec · Room v1 (all nine §7.10 tables) + TaskStore ·
-  GsdTheme tokens/type/shapes.
+- **Phase 0** (foundations) — modules, domain model, validation, codec, Room v1, theme. All green.
+- **Phase 1** (core local app) — matrix (compact + 2×2 drag), capture bar + parser, editor,
+  completion/confetti/haptic, delete+undo, show-completed, adaptive nav. Tagged `v0.1.0-phase1`.
+- **Phase 2** (task depth) — due presets, recurrence engine (month-end clamp, single-level lineage,
+  transactional spawn-on-complete), BFS dependency graph, time tracking, snooze, editor depth
+  sections, card badges/live timer, long-press context menu, share. Tagged `v0.2.0-phase2`.
+- **Phase 3** (organization & insight) — FilterCriteria pipeline + nine built-ins, archive
+  (store + screen + auto-sweep), smart views (custom CRUD + pins ≤5), Browse tab + filtered lists +
+  criteria editor, command palette (Ctrl+K/F/N), multi-select bulk bar, analytics dashboard,
+  import/export (sorted-keys envelope, merge ID-remap, replace-all) + RESET-guarded local erase,
+  full local Settings, 4-page onboarding, Field Guide. Tagged `v0.3.0-phase3`.
 
-### Phase 1 (core local app) — complete
-- [x] Capture parser + URL sanitizer (Appendix C fixtures)
-- [x] Composition root, DataStore prefs, adaptive navigation (bottom bar / rail ≥600dp / drawer ≥840dp)
-- [x] Compact matrix: quadrant sections, §5.6 task cards, dashed empty prompts
-- [x] Capture bar with live quadrant preview + override cycle, IME serial capture
-- [x] Editor sheet: title, 2×2 quadrant picker, tag chips, notes, auto-detected links
-- [x] Completion: disc + leading swipe, one CONFIRM haptic, §5.8 confetti (reduced-motion aware)
-- [x] Delete-immediately + undo snackbar (6 s / 12 s TalkBack), LWW-safe restore
-- [x] Show-completed toggle + brand lockup top bar (Canvas four-tile mark)
-- [x] Expanded 2×2 grid with cross-quadrant drag-and-drop; Quadrant enum now carries its flags
-
-**Phase 1 exit gate:** `:core:model:test` (41) + `:app:testDebugUnitTest` (3) +
-`:core:store:connectedAndroidTest` (6) + `:app:connectedAndroidTest` (21) — all green.
-Manual smoke on emulator: capture "Ship the deck !!" lands in Do First with cleared field. ✔
+**Phase 3 exit gate:** `:core:model:test` (~80 tests) + `:app:testDebugUnitTest` (7) +
+`:core:store:connectedAndroidTest` (21) + `:app:connectedAndroidTest` (41) — all green.
+Visual smoke: onboarding + Browse verified on emulator.
 
 ## Resuming From Here
-- **Next:** Phase 2 — task depth (`tasks/plan.md` outline): due dates + presets, recurrence engine,
-  subtasks UI, snooze, dependencies + BFS, time tracking. Re-plan at task level before starting.
-- **Test device:** AVD `gsd-test` (API 36 google_apis arm64, **320×640 default profile** — recreate with
-  `-d pixel_7` if a realistic screen is needed for screenshots).
-- **Deferred within Phase 1 scope (intentional):** context menu on long-press (§8.1) and quick-snooze
-  trailing action arrive with Phase 2 snooze; TalkBack custom accessibility actions audit lands with
-  the Phase 7 accessibility pass; capture-bar placeholder wraps on very narrow screens (cosmetic).
-- **Blockers:** none for Phases 2–4. Pre-Phase-5 backend checklist in `tasks/plan.md`.
+- **Next:** Phase 4 — notifications (`tasks/plan.md` outline): exact alarms + `SCHEDULE_EXACT_ALARM`,
+  two channels, contextual POST_NOTIFICATIONS, quiet hours, boot rescheduling, notification actions
+  (Complete / Snooze 1h), reminder resync off the store change stream, WorkManager maintenance job
+  (which should also run `ArchiveStore.sweep` — currently manual/launch only). Re-plan at task level first.
+- **Test device:** AVD `gsd-test` (API 36, 320×640 profile).
+- **Known deferrals** (`tasks/implementation-notes.md`): trailing-swipe two-button reveal; Ctrl+1–4
+  quadrant jump; editor subtask drag-reorder (buttons/none yet — add/toggle/delete only); smart-view
+  dateRange UI (criteria supports it); expanded-width palette dialog styling; per-view bulk bar
+  (matrix only today).
+- **Blockers:** none for Phase 4. Pre-Phase-5 backend checklist in `tasks/plan.md`.

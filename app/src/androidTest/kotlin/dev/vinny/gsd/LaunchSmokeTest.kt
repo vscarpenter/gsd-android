@@ -15,6 +15,11 @@ class LaunchSmokeTest {
 
     @Test
     fun bottomNavShowsFourDestinationsAndSwitches() {
+        // First launch on a fresh install shows onboarding (spec §8.19) — skip through it
+        if (rule.onAllNodesWithText("Skip").fetchSemanticsNodes().isNotEmpty()) {
+            rule.onNodeWithText("Skip").performClick()
+            rule.waitForIdle()
+        }
         rule.onAllNodesWithText("Matrix").onFirst().assertIsDisplayed()
         rule.onNodeWithText("Browse").assertIsDisplayed()
         rule.onNodeWithText("Dashboard").assertIsDisplayed()

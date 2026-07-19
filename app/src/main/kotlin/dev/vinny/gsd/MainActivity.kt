@@ -19,7 +19,9 @@ import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -61,6 +63,14 @@ class MainActivity : ComponentActivity() {
                 ThemePref.DARK -> true
             }
             GsdTheme(darkTheme = darkTheme) {
+                val hasOnboarded by container.prefs.hasOnboarded.collectAsStateWithLifecycle(initialValue = true)
+                if (!hasOnboarded) {
+                    val scope = rememberCoroutineScope()
+                    dev.vinny.gsd.onboarding.OnboardingFlow(
+                        onFinished = { scope.launch { container.prefs.setHasOnboarded(true) } },
+                    )
+                    return@GsdTheme
+                }
                 val navController = rememberNavController()
                 val backStack by navController.currentBackStackEntryAsState()
                 val currentRoute = backStack?.destination?.route
