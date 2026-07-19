@@ -24,10 +24,16 @@
   (fetchShareTitles fetch stack), quadrant-route scroll position, widget render verified by
   build + route smoke only (place from the launcher for a visual pass).
 
-## Resuming From Here
-- **Next:** Phase 7 — Play readiness: adaptive icon + monochrome layer (§5.9), Data Safety form
-  content (§14), accessibility audit (TalkBack, 2× font, reduced motion), baseline profile,
-  screenshots, internal testing track. Owner item still open: web-accessible account deletion URL.
+- **Phase 7 — Play readiness** (`v0.7.0-phase7`): adaptive icon + monochrome layer, minified
+  release build (R8 clean) + profileinstaller, accessibility audit (0 unlabeled clickables,
+  2× reflow pass, reduced-motion by construction — `docs/play/accessibility-audit.md`),
+  Data Safety answers + permission declarations, listing copy + shot-list, submission checklist.
+  Version 0.7.0; Settings reads BuildConfig.
+
+## Resuming From Here — ALL EIGHT PHASES COMPLETE
+The spec's roadmap is fully implemented. Remaining work is in `docs/play/submission-checklist.md`:
+all owner steps (deletion URL, signing, release smoke, Console upload, screenshots) plus the
+post-1.0 deferral list. TalkBack with-ears pass is documented in the accessibility audit.
 - **Phase 5 live-verified on a Pixel 10a (2026-07-19):** Google sign-in through the Custom Tab →
   bounce → callback → exchange path works, and push/pull round-trips against the live backend.
   Two live-only bugs were found and fixed in the process: the missing INTERNET permission

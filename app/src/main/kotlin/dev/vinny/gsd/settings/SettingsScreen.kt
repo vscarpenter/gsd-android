@@ -158,7 +158,7 @@ fun SettingsScreen(
 
         GroupLabel(R.string.settings_about)
         Text(
-            stringResource(R.string.settings_version, "0.3.0"),
+            stringResource(R.string.settings_version, dev.vinny.gsd.BuildConfig.VERSION_NAME),
             style = GsdType.metadata,
             color = gsd.ink2,
         )
