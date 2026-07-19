@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.datastore.preferences)
     implementation(libs.work.runtime)
+    implementation(libs.androidx.browser)
     implementation(libs.core.splashscreen)
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)
