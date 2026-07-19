@@ -65,7 +65,10 @@ class PocketBaseApiTest {
     fun `update patches by record id and delete expects 204`() = runBlocking {
         server.enqueue(MockResponse().setBody("""{"id":"rec1","task_id":"t1","client_updated_at":"2026-06-10T12:00:00.000Z"}"""))
         api.updateTask("rec1", WireTask(taskId = "t1"))
-        assertEquals("PATCH", server.takeRequest().method)
+        val patch = server.takeRequest()
+        assertEquals("PATCH", patch.method)
+        // an empty id in the PATCH body reads as a primary-key change → 400 validation_pk_change
+        assertTrue("\"id\":\"rec1\"" in patch.body.readUtf8().replace(" ", ""))
 
         server.enqueue(MockResponse().setResponseCode(204))
         api.deleteTask("rec1")

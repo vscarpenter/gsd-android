@@ -37,8 +37,9 @@ class WireMapperTest {
             TimeEntry("entry001", t0, t0.plusSeconds(150), notes = "secret note"), // 2 min
             TimeEntry("entry002", t0, null), // running -> 0
         )
-        val wire = WireMapper.push(task(timeEntries = entries), deviceId = "device-1")
+        val wire = WireMapper.push(task(timeEntries = entries), deviceId = "device-1", owner = "user-1")
         assertEquals("task-abc-123456789012", wire.taskId)
+        assertEquals("user-1", wire.owner) // required by the collection rule — blank 400s (field: owner)
         assertEquals("urgent-not-important", wire.quadrant)
         assertEquals("2026-06-15T08:30:00.500Z", wire.clientUpdatedAt)
         assertEquals("2026-06-15T08:29:00.500Z", wire.clientCreatedAt)
@@ -53,7 +54,7 @@ class WireMapperTest {
 
     @Test
     fun `push serializes with exact wire field names and empty-string nil dates`() {
-        val raw = WireJson.encode(WireMapper.push(task(), deviceId = "d"))
+        val raw = WireJson.encode(WireMapper.push(task(), deviceId = "d", owner = "user-1"))
         val obj = Json.parseToJsonElement(raw).jsonObject
         assertTrue("task_id" in obj)
         assertTrue("client_updated_at" in obj)
@@ -61,7 +62,7 @@ class WireMapperTest {
         assertEquals("\"\"", obj["completed_at"].toString()) // nil date -> ""
         // camelCase startedAt survives inside the otherwise snake_case record
         assertTrue("startedAt" in WireJson.encode(
-            WireMapper.push(task(timeEntries = listOf(TimeEntry("e1", t0, t0))), deviceId = "d"),
+            WireMapper.push(task(timeEntries = listOf(TimeEntry("e1", t0, t0))), deviceId = "d", owner = "user-1"),
         ))
         assertTrue("\"id\":\"\"" in raw.replace(" ", "")) // record id empty on create
     }
@@ -70,7 +71,7 @@ class WireMapperTest {
     fun `pull with no local copy reconstructs rich entries from minutes`() {
         val wire = WireMapper.push(
             task(timeEntries = listOf(TimeEntry("entry001", t0, t0.plusSeconds(120)))),
-            deviceId = "other",
+            deviceId = "other", owner = "user-1",
         )
         val pulled = WireMapper.pull(wire, local = null)!!
         assertEquals("task-abc-123456789012", pulled.id)
@@ -88,7 +89,7 @@ class WireMapperTest {
             timeEntries = listOf(TimeEntry("entry001", t0, t0.plusSeconds(120), notes = "keep me")),
             snoozedUntil = t0.plusSeconds(9999),
         )
-        val remote = WireMapper.push(task().copy(title = "Renamed remotely"), deviceId = "other")
+        val remote = WireMapper.push(task().copy(title = "Renamed remotely"), deviceId = "other", owner = "user-1")
         val merged = WireMapper.pull(remote, local = richLocal)!!
         assertEquals("Renamed remotely", merged.title) // remote wins synced fields
         assertEquals("parent-123", merged.parentTaskId) // preserved

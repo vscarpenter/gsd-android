@@ -29,6 +29,7 @@ class SyncEngine(
     private val local: SyncLocalStore,
     private val clock: Clock,
     private val throttleMs: Long = 100,
+    private val ownerId: suspend () -> String? = { null },
 ) {
     private val mutex = Mutex()
 
@@ -128,6 +129,7 @@ class SyncEngine(
 
     /** Returns pushed count to permanently-failed-this-drain count. */
     private suspend fun push(): Pair<Int, Int> {
+        val owner = ownerId() ?: return 0 to 0 // no authenticated owner → nothing to push
         val deviceId = local.deviceId()
         val index = fetchRemoteIndex()
         var pushed = 0
@@ -155,7 +157,7 @@ class SyncEngine(
                             local.markQueueItemDone(item.id) // LWW payload guard: pull delivers remote (spec §9.3)
                             continue
                         }
-                        val wire = WireMapper.push(payload, deviceId)
+                        val wire = WireMapper.push(payload, deviceId, owner)
                         if (remoteEntry != null) {
                             remote.updateTask(remoteEntry.first, wire)
                         } else {

@@ -10,9 +10,10 @@ import java.time.Instant
 /** Local ⇄ wire translation (spec §9.2). The wire time-entry form is lossy on purpose. */
 object WireMapper {
 
-    fun push(task: Task, deviceId: String): WireTask = WireTask(
+    fun push(task: Task, deviceId: String, owner: String): WireTask = WireTask(
         id = "",
         taskId = task.id,
+        owner = owner, // required by the collection rule — blank is a 400
         title = task.title,
         description = task.description,
         urgent = task.urgent,

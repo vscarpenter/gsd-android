@@ -49,7 +49,7 @@ class AppContainer(context: Context) {
     val syncLocal: dev.vinny.gsd.sync.RoomSyncLocalStore = dev.vinny.gsd.sync.RoomSyncLocalStore(db)
 
     val syncEngine: dev.vinny.gsd.sync.SyncEngine =
-        dev.vinny.gsd.sync.SyncEngine(api, syncLocal, clock)
+        dev.vinny.gsd.sync.SyncEngine(api, syncLocal, clock, ownerId = { authManager.currentUserId() })
 
     val sseClient: dev.vinny.gsd.sync.SseClient =
         dev.vinny.gsd.sync.SseClient(BACKEND_URL, { tokenStore.cachedToken() })

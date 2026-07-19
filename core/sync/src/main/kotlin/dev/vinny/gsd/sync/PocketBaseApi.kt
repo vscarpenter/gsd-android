@@ -106,9 +106,10 @@ class PocketBaseApi(
     }
 
     override suspend fun updateTask(recordId: String, wire: WireTask): WireTask {
+        // the body's id must match the record — "" reads as a primary-key change (400)
         val raw = execute(
             request("/api/collections/tasks/records/$recordId")
-                .patch(WireJson.encode(wire).toRequestBody(jsonType)).build(),
+                .patch(WireJson.encode(wire.copy(id = recordId)).toRequestBody(jsonType)).build(),
         )
         return WireJson.decodeOrNull(raw) ?: wire
     }

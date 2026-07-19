@@ -112,7 +112,7 @@ class SyncEngineTest {
     )
 
     private fun engine(remote: FakeRemote, local: FakeLocal) =
-        SyncEngine(remote, local, clock, throttleMs = 0)
+        SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
 
     @Test
     fun `pull applies remote-newer, no-ops equal, keeps local-newer`() = runTest {
@@ -121,10 +121,10 @@ class SyncEngineTest {
         local.tasks["stale"] = task("stale", title = "old local", updatedAt = now.minusSeconds(100))
         local.tasks["equal"] = task("equal", title = "same", updatedAt = now.minusSeconds(50))
         local.tasks["newer"] = task("newer", title = "local wins", updatedAt = now)
-        remote.records["r1"] = WireMapper.push(task("stale", "remote wins", now.minusSeconds(10)), "other")
-        remote.records["r2"] = WireMapper.push(task("equal", "remote same", now.minusSeconds(50)), "other")
-        remote.records["r3"] = WireMapper.push(task("newer", "remote older", now.minusSeconds(500)), "other")
-        remote.records["r4"] = WireMapper.push(task("brand-new", "hello", now.minusSeconds(5)), "other")
+        remote.records["r1"] = WireMapper.push(task("stale", "remote wins", now.minusSeconds(10)), "other", "user-1")
+        remote.records["r2"] = WireMapper.push(task("equal", "remote same", now.minusSeconds(50)), "other", "user-1")
+        remote.records["r3"] = WireMapper.push(task("newer", "remote older", now.minusSeconds(500)), "other", "user-1")
+        remote.records["r4"] = WireMapper.push(task("brand-new", "hello", now.minusSeconds(5)), "other", "user-1")
 
         val result = engine(remote, local).runSync(triggeredByUser = false)
         assertEquals("remote wins", local.tasks["stale"]!!.title)
@@ -140,7 +140,7 @@ class SyncEngineTest {
     fun `cursor advances to max applied minus five seconds`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("aaaa", updatedAt = now.minusSeconds(30)), "other")
+        remote.records["r1"] = WireMapper.push(task("aaaa", updatedAt = now.minusSeconds(30)), "other", "user-1")
         engine(remote, local).runSync(false)
         assertEquals(PbDates.cursorAfter(now.minusSeconds(30)), local.savedCursor)
     }
@@ -152,7 +152,7 @@ class SyncEngineTest {
         remote.listResponder = { page, _ ->
             TaskListPage(
                 page = 1, totalPages = 1,
-                items = listOf(WireMapper.push(task("weird"), "other")),
+                items = listOf(WireMapper.push(task("weird"), "other", "user-1")),
                 updatedStamps = listOf("not-a-date"),
             )
         }
@@ -181,7 +181,7 @@ class SyncEngineTest {
     fun `push payload guard skips items older than remote`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r9"] = WireMapper.push(task("guarded", "remote newer", now), "other")
+        remote.records["r9"] = WireMapper.push(task("guarded", "remote newer", now), "other", "user-1")
         val stale = task("guarded", "stale local", now.minusSeconds(500))
         local.queue += queueItem(1, stale, SyncOp.UPDATE)
 
@@ -234,7 +234,7 @@ class SyncEngineTest {
     fun `deletion reconciliation removes unprotected absentees only`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("kept-remote"), "other")
+        remote.records["r1"] = WireMapper.push(task("kept-remote"), "other", "user-1")
         local.tasks["kept-remote"] = task("kept-remote")
         local.tasks["gone-remote"] = task("gone-remote")
         local.tasks["protected-pending"] = task("protected-pending")
@@ -253,7 +253,7 @@ class SyncEngineTest {
     fun `history records counts, status, and trigger`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("incoming"), "other")
+        remote.records["r1"] = WireMapper.push(task("incoming"), "other", "user-1")
         engine(remote, local).runSync(triggeredByUser = true)
         val entry = local.history.single()
         assertEquals("success", entry.status)
