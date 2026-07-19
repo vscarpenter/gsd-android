@@ -64,7 +64,10 @@ fun GsdNavHost(
             dev.vinny.gsd.browse.ArchiveScreen(container = container)
         }
         composable(Destination.DASHBOARD.route) {
-            PlaceholderScreen(R.string.dashboard_placeholder_title, R.string.dashboard_placeholder_body)
+            dev.vinny.gsd.dashboard.DashboardScreen(
+                container = container,
+                onOpenOverdue = { navController.navigate("browse/view/overdue") },
+            )
         }
         composable(Destination.SETTINGS.route) {
             SettingsScreen(container)
