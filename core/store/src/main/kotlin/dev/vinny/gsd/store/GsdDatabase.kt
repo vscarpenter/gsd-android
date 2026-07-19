@@ -1,6 +1,8 @@
 package dev.vinny.gsd.store
 
+import android.content.Context
 import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
@@ -32,4 +34,10 @@ class SyncOpConverter {
 abstract class GsdDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun syncQueueDao(): SyncQueueDao
+
+    companion object {
+        /** Keeps Room a private concern of this module — callers never see the builder. */
+        fun build(context: Context): GsdDatabase =
+            Room.databaseBuilder(context, GsdDatabase::class.java, "gsd.db").build()
+    }
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Gsd" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Splash: the mark on paper (spec §5.9); content theme takes over after. -->
+    <style name="Theme.Gsd.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#F4F1E9</item>
+        <item name="postSplashScreenTheme">@style/Theme.Gsd</item>
+    </style>
+</resources>
