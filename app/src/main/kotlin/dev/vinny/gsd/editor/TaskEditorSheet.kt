@@ -60,6 +60,7 @@ fun TaskEditorSheet(viewModel: TaskEditorViewModel, onDismiss: () -> Unit) {
         shape = GsdShapes.sheet,
         containerColor = gsd.surface,
     ) {
+        val allTasks by viewModel.allTasks.collectAsStateWithLifecycle()
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             EditorContent(
                 draft = task,
@@ -68,6 +69,7 @@ fun TaskEditorSheet(viewModel: TaskEditorViewModel, onDismiss: () -> Unit) {
                 onSave = {
                     viewModel.save(onDone = onDismiss, onError = { error = it })
                 },
+                allTasks = allTasks,
             )
             error?.let {
                 Text(
@@ -81,7 +83,7 @@ fun TaskEditorSheet(viewModel: TaskEditorViewModel, onDismiss: () -> Unit) {
     }
 }
 
-/** Stateless editor body — Phase 1 sections in spec §8.3 order. */
+/** Stateless editor body — sections in spec §8.3 order. */
 @Composable
 fun EditorContent(
     draft: Task,
@@ -89,6 +91,7 @@ fun EditorContent(
     onEdit: ((Task) -> Task) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
+    allTasks: List<Task> = emptyList(),
 ) {
     val gsd = LocalGsdColors.current
     Column(
@@ -136,6 +139,29 @@ fun EditorContent(
                 Text(link, style = GsdType.subhead, color = gsd.tint)
             }
         }
+
+        SectionLabel(R.string.editor_section_due)
+        DueDateSection(draft, onEdit)
+
+        if (draft.dueDate != null) {
+            SectionLabel(R.string.editor_section_reminder)
+            ReminderSection(draft, onEdit)
+        }
+
+        SectionLabel(R.string.editor_section_repeat)
+        RepeatSection(draft, onEdit)
+
+        SectionLabel(R.string.editor_section_subtasks)
+        SubtasksSection(draft, onEdit)
+
+        SectionLabel(R.string.editor_section_estimate)
+        EstimateSection(draft, onEdit)
+
+        SectionLabel(R.string.editor_section_snooze)
+        SnoozeSection(draft, onEdit)
+
+        SectionLabel(R.string.editor_section_dependencies)
+        DependenciesSection(draft, allTasks, onEdit)
 
         TextButton(onClick = onSave, enabled = canSave, modifier = Modifier.align(Alignment.End)) {
             Text(
