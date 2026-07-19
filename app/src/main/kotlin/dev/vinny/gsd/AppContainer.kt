@@ -35,6 +35,37 @@ class AppContainer(context: Context) {
         dev.vinny.gsd.notifications.ReminderScheduler(context.applicationContext)
 
     val palette: PaletteController = PaletteController()
+
+    val tokenStore: dev.vinny.gsd.auth.CachedTokenStore =
+        dev.vinny.gsd.auth.CachedTokenStore(dev.vinny.gsd.auth.KeystoreTokenStore(context.applicationContext))
+
+    val api: dev.vinny.gsd.sync.PocketBaseApi =
+        dev.vinny.gsd.sync.PocketBaseApi(BACKEND_URL, { tokenStore.cachedToken() })
+
+    val authManager: dev.vinny.gsd.sync.AuthManager =
+        dev.vinny.gsd.sync.AuthManager(api, tokenStore, clock)
+
+    val syncLocal: dev.vinny.gsd.sync.RoomSyncLocalStore = dev.vinny.gsd.sync.RoomSyncLocalStore(db)
+
+    val syncEngine: dev.vinny.gsd.sync.SyncEngine =
+        dev.vinny.gsd.sync.SyncEngine(api, syncLocal, clock)
+
+    val sseClient: dev.vinny.gsd.sync.SseClient =
+        dev.vinny.gsd.sync.SseClient(BACKEND_URL, { tokenStore.cachedToken() })
+
+    lateinit var syncCoordinator: dev.vinny.gsd.sync.SyncCoordinator
+        private set
+
+    fun startSync(scope: kotlinx.coroutines.CoroutineScope, context: Context) {
+        syncCoordinator = dev.vinny.gsd.sync.SyncCoordinator(
+            context, syncEngine, authManager, tokenStore, db, syncLocal, sseClient, scope,
+        )
+        syncCoordinator.start()
+    }
+
+    companion object {
+        const val BACKEND_URL = "https://api.vinny.io"
+    }
 }
 
 /** Bridges hardware shortcuts (§6.6) and notification taps to whichever screen hosts them. */

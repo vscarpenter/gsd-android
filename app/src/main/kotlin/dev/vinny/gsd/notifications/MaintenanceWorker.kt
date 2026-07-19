@@ -22,6 +22,10 @@ class MaintenanceWorker(context: Context, params: WorkerParameters) : CoroutineW
         if (settings?.enabled == true) {
             container.archiveStore.sweep(settings.archiveAfterDays)
         }
+        // Opportunistic background sync when signed in (spec §11.5)
+        if (container.syncCoordinator.signedIn.value) {
+            container.syncCoordinator.requestSync(false)
+        }
         return Result.success()
     }
 

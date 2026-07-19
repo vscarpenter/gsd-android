@@ -19,6 +19,7 @@ class GsdApp : Application() {
         Channels.ensure(this)
         ReminderResync(container.store, container.notificationSettingsStore, container.reminderScheduler)
             .start(appScope)
+        container.startSync(appScope, this)
         dev.vinny.gsd.notifications.MaintenanceWorker.register(this)
     }
 }

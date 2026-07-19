@@ -39,6 +39,8 @@ abstract class GsdDatabase : RoomDatabase() {
     abstract fun smartViewDao(): SmartViewDao
     abstract fun appPreferencesDao(): AppPreferencesDao
     abstract fun notificationSettingsDao(): NotificationSettingsDao
+    abstract fun syncMetadataDao(): SyncMetadataDao
+    abstract fun syncHistoryDao(): SyncHistoryDao
 
     companion object {
         /** Keeps Room a private concern of this module — callers never see the builder. */

@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -50,10 +51,35 @@ class MainActivity : ComponentActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    private fun handleIncomingIntent(intent: android.content.Intent) {
+        val container = (application as GsdApp).container
+        intent.getStringExtra(dev.vinny.gsd.notifications.ReminderScheduler.EXTRA_TASK_ID)
+            ?.let { container.palette.requestOpenTask(it) }
+        val data = intent.data
+        if (data?.scheme == "gsd" && data.host == "oauth-callback") {
+            lifecycleScope.launch {
+                try {
+                    container.syncCoordinator.completeOAuthCallback(data.toString())
+                } catch (_: Exception) {
+                    // state mismatch or exchange failure: user stays signed out; Settings reflects it
+                }
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        (application as GsdApp).container.syncCoordinator.onForeground()
+    }
+
+    override fun onStop() {
+        (application as GsdApp).container.syncCoordinator.onBackground()
+        super.onStop()
+    }
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
-        intent.getStringExtra(dev.vinny.gsd.notifications.ReminderScheduler.EXTRA_TASK_ID)
-            ?.let { (application as GsdApp).container.palette.requestOpenTask(it) }
+        handleIncomingIntent(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,8 +87,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = (application as GsdApp).container
-        intent.getStringExtra(dev.vinny.gsd.notifications.ReminderScheduler.EXTRA_TASK_ID)
-            ?.let { container.palette.requestOpenTask(it) }
+        handleIncomingIntent(intent)
         setContent {
             val themePref by container.prefs.theme.collectAsStateWithLifecycle(initialValue = ThemePref.SYSTEM)
             val darkTheme = when (themePref) {
