@@ -6,6 +6,7 @@ import dev.vinny.gsd.notifications.ReminderResync
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class GsdApp : Application() {
     lateinit var container: AppContainer
@@ -21,5 +22,18 @@ class GsdApp : Application() {
             .start(appScope)
         container.startSync(appScope, this)
         dev.vinny.gsd.notifications.MaintenanceWorker.register(this)
+        // Glance is push-updated: snapshot recomputed on every relevant data change (spec §12.1)
+        appScope.launch {
+            container.store.observeTasks().collect { tasks ->
+                dev.vinny.gsd.widget.writeWidgetSnapshot(
+                    this@GsdApp,
+                    dev.vinny.gsd.widget.WidgetSnapshot.build(
+                        tasks,
+                        java.time.Instant.now(),
+                        java.time.ZoneId.systemDefault(),
+                    ),
+                )
+            }
+        }
     }
 }
