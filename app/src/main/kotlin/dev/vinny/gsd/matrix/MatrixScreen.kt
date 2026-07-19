@@ -35,6 +35,8 @@ import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.capture.CaptureBarContent
 import dev.vinny.gsd.capture.CaptureViewModel
+import dev.vinny.gsd.editor.TaskEditorSheet
+import dev.vinny.gsd.editor.TaskEditorViewModel
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
@@ -43,23 +45,28 @@ import dev.vinny.gsd.theme.LocalGsdColors
 fun MatrixScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val viewModel: MatrixViewModel = viewModel { MatrixViewModel(container.store, container.prefs) }
     val captureViewModel: CaptureViewModel = viewModel { CaptureViewModel(container.store) }
+    val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
     val sections by viewModel.sections.collectAsStateWithLifecycle()
     val captureState by captureViewModel.state.collectAsStateWithLifecycle()
+    val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
     Column(modifier = modifier.fillMaxSize()) {
         CaptureBarContent(
             state = captureState,
             onTextChange = captureViewModel::onTextChange,
             onCycleOverride = captureViewModel::cycleOverride,
             onSubmit = { captureViewModel.submit(onError = {}) },
-            onDetails = { /* editor arrives in plan Task 13 */ },
+            onDetails = { editorViewModel.openNew(captureViewModel.draftForEditor()) },
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
         )
         MatrixList(
             sections = sections,
             onToggleComplete = viewModel::toggleCompleted,
-            onOpen = { /* editor arrives in plan Task 13 */ },
+            onOpen = editorViewModel::openExisting,
             modifier = Modifier.weight(1f),
         )
+    }
+    if (editorDraft != null) {
+        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
     }
 }
 
