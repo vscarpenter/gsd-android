@@ -1,10 +1,13 @@
 package dev.vinny.gsd.store
 
 import androidx.room.withTransaction
+import dev.vinny.gsd.model.RecurrenceEngine
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskJson
 import dev.vinny.gsd.model.TaskValidator
+import dev.vinny.gsd.model.TimeTracking
 import java.time.Clock
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -40,14 +43,44 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         return stamped
     }
 
+    /**
+     * Completing a recurring task also spawns its next instance — in the same
+     * transaction, so the instance and its CREATE queue row land atomically
+     * with the completion (spec §8.5).
+     */
     suspend fun setCompleted(id: String, completed: Boolean): Task? {
         val current = get(id) ?: return null
-        return update(
-            current.copy(
-                completed = completed,
-                completedAt = if (completed) clock.instant() else null,
-            ),
-        )
+        val now = clock.instant()
+        val updated = TaskValidator.validate(
+            current.copy(completed = completed, completedAt = if (completed) now else null),
+            now,
+        ).copy(updatedAt = now)
+        val spawned = if (completed) RecurrenceEngine.spawnNext(updated, now) else null
+        db.withTransaction {
+            db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, updated, now))
+            db.taskDao().upsert(updated.toEntity())
+            if (spawned != null) {
+                val validSpawn = TaskValidator.validate(spawned, now)
+                db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.CREATE, validSpawn, now))
+                db.taskDao().upsert(validSpawn.toEntity())
+            }
+        }
+        return updated
+    }
+
+    suspend fun snooze(id: String, until: Instant?): Task? {
+        val current = get(id) ?: return null
+        return update(current.copy(snoozedUntil = until))
+    }
+
+    suspend fun startTimer(id: String): Task? {
+        val current = get(id) ?: return null
+        return update(TimeTracking.start(current, clock.instant()))
+    }
+
+    suspend fun stopTimer(id: String): Task? {
+        val current = get(id) ?: return null
+        return update(TimeTracking.stop(current, clock.instant()))
     }
 
     /** Removes the task's id from every other task's dependencies first (spec §8.8). */
