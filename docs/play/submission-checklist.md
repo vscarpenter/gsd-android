@@ -8,11 +8,25 @@
 - [x] Listing copy + shot-list (`listing.md`)
 
 ## Owner steps
+Play Console account: **vinnycarpenterdev@gmail.com**.
+
 1. **Web account-deletion URL** — publish on gsdtaskmanager.com and link it in the Data Safety
    form (hard Play requirement; the only §16 item still open).
-2. **Signing** — create an upload key (`keytool -genkeypair`), add a `signingConfigs.release`
-   block or use Play App Signing; never commit the keystore.
-3. **Build the bundle** — `./gradlew :app:bundleRelease` → `app/build/outputs/bundle/release/`.
+2. **Signing** — the gradle side is wired; it reads an untracked `keystore.properties`. Create the
+   upload key once:
+   ```bash
+   keytool -genkeypair -v -keystore ~/keys/gsd-upload.jks -alias gsd-upload \
+     -keyalg RSA -keysize 2048 -validity 10000
+   ```
+   Then create `keystore.properties` at the repo root (gitignored):
+   ```properties
+   storeFile=/Users/vinnycarpenter/keys/gsd-upload.jks
+   storePassword=...
+   keyAlias=gsd-upload
+   keyPassword=...
+   ```
+   Enroll in Play App Signing at app creation so this stays an upload key, not the app key.
+3. **Build the bundle** — `./gradlew :app:bundleRelease` → `app/build/outputs/bundle/release/app-release.aab`.
 4. **Release smoke on the minified build** — install the release build on the Pixel and walk
    capture → complete → sync → reminder once (R8 build is compile-verified but not runtime-smoked).
 5. **Play Console** — create the app (`dev.vinny.gsd`), fill Data Safety from

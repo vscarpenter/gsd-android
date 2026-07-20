@@ -5,3 +5,6 @@ local.properties
 .DS_Store
 .kotlin/
 *.hprof
+keystore.properties
+*.jks
+*.keystore
