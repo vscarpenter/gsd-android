@@ -43,4 +43,8 @@ post-1.0 deferral list. TalkBack with-ears pass is documented in the accessibili
 - **Phase 5 deferrals:** onboarding's final-page sign-in buttons (Settings is the sign-in surface
   for now); expanded-width palette dialog styling; Chrome JS-redirect user-gesture caveat on the
   GET bounce path (fix is server-side 302 if it bites).
-- **Still open (owner):** web-accessible account deletion URL for the Play Data Safety form.
+- **Play Console (2026-07-19):** app created and every app-content declaration saved, including
+  Data Safety (deletion URLs filed as the privacy page's deletion section); category, contact
+  details, and listing text in as a draft. Nothing sent for Google review yet. Remaining owner
+  items: listing graphics, upload keystore + `keystore.properties`, `:app:bundleRelease`,
+  release smoke, internal-testing upload — see `docs/play/submission-checklist.md`.

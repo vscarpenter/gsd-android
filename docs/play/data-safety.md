@@ -9,9 +9,9 @@ nothing. Everything below the "with optional sync" line applies only after expli
 | Does the app collect or share user data? | **Collects, only with optional sync sign-in. Shares: no.** |
 | Data types collected (sync only) | **Personal info → Email address** (account identity from the OAuth provider). **App activity → Other user-generated content** (task titles, notes, tags, dates). |
 | Is collection optional? | **Yes** — the app is fully functional without an account; sync is opt-in. |
-| Purpose | App functionality (multi-device sync). |
+| Purpose | Email: app functionality + account management. Tasks: app functionality (multi-device sync). |
 | Encrypted in transit? | **Yes** (HTTPS only). |
-| Can users request deletion? | **Yes** — in-app account deletion (Settings → Account → Delete Account) removes every synced record and the user record. Web deletion URL: **[OWNER: publish and link, required by Play]**. |
+| Can users request deletion? | **Yes** — in-app account deletion (Settings → Account → Delete Account) removes every synced record and the user record. Web deletion URL as filed (both "delete account" and "delete data"): https://gsdtaskmanager.com/privacy/ (its "Keeping and deleting your data" section). A dedicated deletion page can replace it later by editing the Data safety form. |
 | Shared with third parties? | **No.** Self-hosted backend (api.vinny.io), no ads, no analytics SDKs, no tracking. |
 
 ## Permission declarations
@@ -24,4 +24,4 @@ nothing. Everything below the "with optional sync" line applies only after expli
 
 ## Account deletion (Play requirement)
 - In-app path: Settings → Account → Delete Account… (erases remote records, then the user record, then local token). ✔ shipped
-- Web path: **[OWNER ITEM — not yet published]** — required before the Data Safety form can be completed.
+- Web path: filed as https://gsdtaskmanager.com/privacy/ (covers deletion steps and retention). ✔ form completed 2026-07-19. Optional follow-up: publish a dedicated /delete-account/ page and swap the URL in the form.
