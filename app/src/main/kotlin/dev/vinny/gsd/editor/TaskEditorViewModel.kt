@@ -23,7 +23,8 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
     val allTasks: StateFlow<List<Task>> = store.observeTasks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private var isNew = true
+    var isNew = true
+        private set
     private var original: Task? = null
 
     /** New task: the ID is reserved at editor-open (spec §8.3). */

@@ -70,6 +70,7 @@ fun TaskEditorSheet(viewModel: TaskEditorViewModel, onDismiss: () -> Unit) {
                     viewModel.save(onDone = onDismiss, onError = { error = it })
                 },
                 allTasks = allTasks,
+                isNew = viewModel.isNew,
             )
             error?.let {
                 Text(
@@ -92,13 +93,18 @@ fun EditorContent(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
     allTasks: List<Task> = emptyList(),
+    isNew: Boolean = true,
 ) {
     val gsd = LocalGsdColors.current
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(stringResource(R.string.editor_title_new), style = GsdType.title, color = gsd.ink)
+        Text(
+            stringResource(if (isNew) R.string.editor_title_new else R.string.editor_title_edit),
+            style = GsdType.title,
+            color = gsd.ink,
+        )
 
         SectionLabel(R.string.editor_section_title)
         BasicTextField(
