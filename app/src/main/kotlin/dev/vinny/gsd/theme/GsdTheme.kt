@@ -31,6 +31,19 @@ fun GsdTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable ()
             outlineVariant = gsd.hairline,
             error = gsd.alert,
             surfaceTint = gsd.surface,
+            // surfaceContainer family + secondaryContainer feed NavigationBar/Rail,
+            // sheets, and selection indicators — unmapped they resurface baseline purple
+            secondaryContainer = gsd.sunken,
+            onSecondaryContainer = gsd.ink,
+            surfaceContainerLowest = gsd.paper,
+            surfaceContainerLow = gsd.surface2,
+            surfaceContainer = gsd.surface2,
+            surfaceContainerHigh = gsd.surface,
+            surfaceContainerHighest = gsd.sunken,
+            // inverse family feeds Snackbar; unmapped inversePrimary is baseline purple
+            inverseSurface = gsd.ink,
+            inverseOnSurface = gsd.paper,
+            inversePrimary = GsdColorsLight.tint,
         )
     } else {
         lightColorScheme(
@@ -46,6 +59,16 @@ fun GsdTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable ()
             outlineVariant = gsd.hairline,
             error = gsd.alert,
             surfaceTint = gsd.surface,
+            secondaryContainer = gsd.sunken,
+            onSecondaryContainer = gsd.ink,
+            surfaceContainerLowest = gsd.paper,
+            surfaceContainerLow = gsd.surface2,
+            surfaceContainer = gsd.surface2,
+            surfaceContainerHigh = gsd.surface,
+            surfaceContainerHighest = gsd.sunken,
+            inverseSurface = gsd.ink,
+            inverseOnSurface = gsd.paper,
+            inversePrimary = GsdColorsDark.tint,
         )
     }
     CompositionLocalProvider(LocalGsdColors provides gsd) {
