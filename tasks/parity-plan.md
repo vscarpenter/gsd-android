@@ -64,7 +64,7 @@ app/src/main/kotlin/dev/vinny/gsd/
 - Consumes: `CaptureParser.parse(input: String): ParsedCapture` (exists; signature unchanged).
 - Produces: same signature, corpus-conformant behavior. Later tasks rely on nothing new here.
 
-- [ ] **Step 1: Copy the corpus byte-identically**
+- [x] **Step 1: Copy the corpus byte-identically**
 
 ```bash
 cp /Users/vinnycarpenter/Projects/GSD/gsd-taskmanager/tests/fixtures/cross-platform/capture-parser-corpus.json \
@@ -75,7 +75,7 @@ diff /Users/vinnycarpenter/Projects/GSD/gsd-taskmanager/tests/fixtures/cross-pla
 
 Expected: `diff` silent. (Create the directory first; `src/test/resources` is on the JVM test classpath automatically for a `kotlin.jvm` module.)
 
-- [ ] **Step 2: Write the corpus runner (failing test)**
+- [x] **Step 2: Write the corpus runner (failing test)**
 
 Corpus shape: `{ "note": "...", "cases": [ { "name", "input", "expect": { "title", "urgent", "important", "tags", "urls" } } ] }` — 40 cases.
 
@@ -124,12 +124,12 @@ class CaptureParserCorpusTest {
 }
 ```
 
-- [ ] **Step 3: Run it — confirm it fails on the settled decisions**
+- [x] **Step 3: Run it — confirm it fails on the settled decisions**
 
 Run: `./gradlew :core:model:test --tests '*CaptureParserCorpusTest*'`
 Expected: FAIL listing divergent cases (Unicode tags, duplicate URLs, boundary anchoring, over-length tag handling are the likely deltas from the July grammar).
 
-- [ ] **Step 4: Align the parser — implement to the fixture**
+- [x] **Step 4: Align the parser — implement to the fixture**
 
 The nine settled decisions (P§5) as implementation guidance; where this sketch and a corpus case disagree, **the case wins**:
 
@@ -179,12 +179,12 @@ object CaptureParser {
 
 `UrlSanitizer` stays as-is (raw trimmed storage and the `>= 2048` guard are already corpus-correct).
 
-- [ ] **Step 5: Run the corpus + the whole model suite**
+- [x] **Step 5: Run the corpus + the whole model suite**
 
 Run: `./gradlew :core:model:test`
 Expected: PASS, including the pre-existing `CaptureParserTest`. If a pre-existing vector now contradicts the corpus, **the corpus wins** — update that vector citing P§5 (Appendix C is superseded).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 `feat(parser): align capture grammar with the 40-case cross-platform corpus`
 
@@ -224,7 +224,7 @@ data class BackupEnvelope(
 fun Interchange.export(envelope: BackupEnvelope, exportedAt: Instant): String  // replaces export(tasks, at)
 ```
 
-- [ ] **Step 1: Write the failing export tests** (extend `InterchangeTest`)
+- [x] **Step 1: Write the failing export tests** (extend `InterchangeTest`)
 
 ```kotlin
 @Test
@@ -272,11 +272,11 @@ fun `absent stores are omitted keys, not empty arrays`() {
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (`Interchange.export(BackupEnvelope, …)` unresolved).
+- [x] **Step 2: Run — expect FAIL** (`Interchange.export(BackupEnvelope, …)` unresolved).
 
 Run: `./gradlew :core:model:test --tests '*InterchangeTest*'`
 
-- [ ] **Step 3: Implement `Backup.kt` (types above) and the export**
+- [x] **Step 3: Implement `Backup.kt` (types above) and the export**
 
 In `Interchange`, replace `export(tasks, exportedAt)`:
 
@@ -344,9 +344,9 @@ private fun notificationRecord(s: BackupNotificationSettings): JsonObject = buil
 
 Update the one production call site (`app/.../settings/SettingsScreen.kt:78`) minimally for now — `Interchange.export(BackupEnvelope(tasks = tasks), Instant.now())` — Task 6 replaces it with the full assembler. Fix any test callers of the old signature the same way.
 
-- [ ] **Step 4: Run** `./gradlew :core:model:test` → PASS. Also `./gradlew :app:assembleDebug` compiles.
+- [x] **Step 4: Run** `./gradlew :core:model:test` → PASS. Also `./gradlew :app:assembleDebug` compiles.
 
-- [ ] **Step 5: Commit** — `feat(model): export the seven-store 2.1.0 backup envelope`
+- [x] **Step 5: Commit** — `feat(model): export the seven-store 2.1.0 backup envelope`
 
 ---
 
@@ -365,7 +365,7 @@ data class BackupImport(val envelope: BackupEnvelope, val version: String, val s
 
 `envelope.archivedTasks == null` means the key was absent; `emptyList()` means present-and-empty (Task 6 relies on that distinction for replace-mode clears). `Interchange.TooLarge` semantics unchanged.
 
-- [ ] **Step 1: Write the failing import tests**
+- [x] **Step 1: Write the failing import tests**
 
 ```kotlin
 @Test
@@ -419,9 +419,9 @@ fun `archived and deleted rows carry their timestamps, defaulting to now when un
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (no `BackupImport`, cap counts one array). `./gradlew :core:model:test --tests '*InterchangeTest*'`
+- [x] **Step 2: Run — expect FAIL** (no `BackupImport`, cap counts one array). `./gradlew :core:model:test --tests '*InterchangeTest*'`
 
-- [ ] **Step 3: Implement `parse` v2**
+- [x] **Step 3: Implement `parse` v2**
 
 ```kotlin
 fun parse(raw: String, limitBytes: Int = 10 * 1024 * 1024, limitTasks: Int = 10_000): BackupImport {
@@ -469,9 +469,9 @@ fun parse(raw: String, limitBytes: Int = 10 * 1024 * 1024, limitTasks: Int = 10_
 
 The four `…OrNull` decoders are lenient (`runCatching`, defaults per the parity spec table P§2.1; a malformed singleton decodes to `null` = treated as absent; a smart-view row with `isBuiltIn: true` or invalid criteria is dropped). `Instant.now()` in `timestamp` is acceptable here — Interchange is a codec, not a store; determinism-sensitive callers pass data through, and the fallback only fires on corrupt input. Delete the old `ImportResult` type; migrate existing callers/tests (`SettingsScreen.kt:246` reads `parsed.envelope.tasks` + `parsed.skipped` until Task 6 rewires it).
 
-- [ ] **Step 4: Run** `./gradlew :core:model:test` → PASS; `./gradlew :app:assembleDebug` compiles.
+- [x] **Step 4: Run** `./gradlew :core:model:test` → PASS; `./gradlew :app:assembleDebug` compiles.
 
-- [ ] **Step 5: Commit** — `feat(model): lenient 2.1.0 envelope import with the three-array cap`
+- [x] **Step 5: Commit** — `feat(model): lenient 2.1.0 envelope import with the three-array cap`
 
 ---
 
@@ -486,7 +486,7 @@ The four `…OrNull` decoders are lenient (`runCatching`, defaults per the parit
 - Consumes: `Interchange.parse` / `Interchange.export` from Tasks 2–3, exactly as specified there.
 - Produces: nothing new — this task is the third-client enforcement of the shared fixture discipline (P§2.3).
 
-- [ ] **Step 1: Copy both fixtures byte-identically**
+- [x] **Step 1: Copy both fixtures byte-identically**
 
 ```bash
 cp /Users/vinnycarpenter/Projects/GSD/gsd-taskmanager/tests/fixtures/cross-platform/ios-backup-export.json \
@@ -496,7 +496,7 @@ cp /Users/vinnycarpenter/Projects/GSD/gsd-taskmanager/tests/fixtures/cross-platf
 
 Verify with `diff` per file (silent output).
 
-- [ ] **Step 2: Write the round-trip test (failing only if Tasks 2–3 got something wrong — that is its job)**
+- [x] **Step 2: Write the round-trip test (failing only if Tasks 2–3 got something wrong — that is its job)**
 
 ```kotlin
 package dev.vinny.gsd.model
@@ -561,9 +561,9 @@ class CrossPlatformBackupTest {
 
 Adjust the web-fixture assertions to that file's actual contents on first run (read the file, assert its real counts — precision over vagueness; do not weaken the iOS assertions).
 
-- [ ] **Step 3: Run** `./gradlew :core:model:test --tests '*CrossPlatformBackupTest*'` → PASS (fix Task 2/3 code if not — the fixture wins).
+- [x] **Step 3: Run** `./gradlew :core:model:test --tests '*CrossPlatformBackupTest*'` → PASS (fix Task 2/3 code if not — the fixture wins).
 
-- [ ] **Step 4: Commit** — `test(model): adopt the cross-platform backup fixture pair`
+- [x] **Step 4: Commit** — `test(model): adopt the cross-platform backup fixture pair`
 
 ---
 
@@ -596,9 +596,9 @@ class TrashStore(private val db: GsdDatabase, private val clock: Clock) {
 // TaskStore.delete(id): Task?  — same signature; now moves the row into deleted_tasks
 ```
 
-- [ ] **Step 1: Add `room-testing` if absent** — in `gradle/libs.versions.toml` (`room-testing = { module = "androidx.room:room-testing", version.ref = "room" }`) and `core/store/build.gradle.kts` (`androidTestImplementation(libs.room.testing)`).
+- [x] **Step 1: Add `room-testing` if absent** — in `gradle/libs.versions.toml` (`room-testing = { module = "androidx.room:room-testing", version.ref = "room" }`) and `core/store/build.gradle.kts` (`androidTestImplementation(libs.room.testing)`).
 
-- [ ] **Step 2: Write the failing migration test**
+- [x] **Step 2: Write the failing migration test**
 
 ```kotlin
 package dev.vinny.gsd.store
@@ -631,9 +631,9 @@ class MigrationTest {
 
 (Adjust the v1 INSERT column list against `core/store/schemas/dev.vinny.gsd.store.GsdDatabase/1.json` — the schema file is the truth for v1's exact columns and NOT NULLs.)
 
-- [ ] **Step 3: Run it** — `./gradlew :core:store:connectedAndroidTest --tests '*MigrationTest*'` → FAIL (`MIGRATION_1_2` unresolved).
+- [x] **Step 3: Run it** — `./gradlew :core:store:connectedAndroidTest --tests '*MigrationTest*'` → FAIL (`MIGRATION_1_2` unresolved).
 
-- [ ] **Step 4: Implement the schema change**
+- [x] **Step 4: Implement the schema change**
 
 `DormantEntities.kt`: add `DeletedTaskEntity` — copy `ArchivedTaskEntity`'s declaration verbatim, rename table to `deleted_tasks`, replace `val archivedAt: Long` with `val deletedAt: Long`, index on `deletedAt` (drop the `completedAt` index — trash doesn't sweep on completion). Add the DAO alongside the entity:
 
@@ -685,9 +685,9 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 
 Register it in both builders (`.addMigrations(MIGRATION_1_2)` in `build`; in-memory builder needs nothing). After the first build, verify `core/store/schemas/.../2.json` was generated and its `deleted_tasks` definition matches the SQL above exactly (Room validates this in the migration test — a mismatch fails there).
 
-- [ ] **Step 5: Migration test green** — rerun Step 3's command → PASS.
+- [x] **Step 5: Migration test green** — rerun Step 3's command → PASS.
 
-- [ ] **Step 6: Write the failing `TrashStoreTest`** (instrumented; mirror `ArchiveStoreTest`'s in-memory setup and fixed-`Clock` pattern)
+- [x] **Step 6: Write the failing `TrashStoreTest`** (instrumented; mirror `ArchiveStoreTest`'s in-memory setup and fixed-`Clock` pattern)
 
 ```kotlin
 @Test fun delete_movesToTrash_andEnqueuesTombstoneFirst() = runBlocking {
@@ -729,7 +729,7 @@ Register it in both builders (`.addMigrations(MIGRATION_1_2)` in `build`; in-mem
 }
 ```
 
-- [ ] **Step 7: Run** → FAIL (`TrashStore` unresolved). **Step 8: Implement**
+- [x] **Step 7: Run** → FAIL (`TrashStore` unresolved). **Step 8: Implement**
 
 `TrashStore.kt` (the `ArchiveStore` pattern, inverted enqueue rules):
 
@@ -782,9 +782,9 @@ db.taskDao().deleteById(id)                                                  // 
 
 The dependency-scrub loop above it is unchanged. `LocalErase`: add `db.deletedTaskDao().clear()` next to the archive clear, and extend `ReplaceEraseTest` with an assertion that erase leaves the trash empty. Replace-mode import's per-id tombstones (TaskStore.kt:95-99) stay hard deletes — replace is an explicit store swap, not a user deletion (matches web replace semantics).
 
-- [ ] **Step 9: Run the store suite** — `./gradlew :core:store:connectedAndroidTest` → PASS; `./gradlew testDebugUnitTest` still green.
+- [x] **Step 9: Run the store suite** — `./gradlew :core:store:connectedAndroidTest` → PASS; `./gradlew testDebugUnitTest` still green.
 
-- [ ] **Step 10: Commit** — `feat(store): recoverable trash with 30-day retention (Room v2)`
+- [x] **Step 10: Commit** — `feat(store): recoverable trash with 30-day retention (Room v2)`
 
 ---
 
@@ -812,7 +812,7 @@ class ImportApplier(private val db: GsdDatabase, private val taskStore: TaskStor
 data class ImportSummary(val imported: Int, val skipped: Int)
 ```
 
-- [ ] **Step 1: Write the failing round-trip test** (instrumented, in-memory DB)
+- [x] **Step 1: Write the failing round-trip test** (instrumented, in-memory DB)
 
 ```kotlin
 @Test fun assemble_exportsCustomViewsOnly_andAllSingletons() = runBlocking { /* seed 1 built-in +
@@ -838,7 +838,7 @@ data class ImportSummary(val imported: Int, val skipped: Int)
     archivedTasks; after MERGE apply, "x" is active and NOT archived (P§2.2 rule) */ }
 ```
 
-- [ ] **Step 2: Run** → FAIL (types unresolved). **Step 3: Implement**
+- [x] **Step 2: Run** → FAIL (types unresolved). **Step 3: Implement**
 
 `BackupAssembler.assemble()` — read every store, map to envelope types (entity `Long` millis → `Instant`; `ReminderSettings`' `LocalTime` fields → `"HH:mm"` strings via `toString()`; the `NotificationSettingsEntity.updatedAt` millis feed `BackupNotificationSettings.updatedAt`; a never-written singleton row assembles from its entity defaults). Filter `smartViews` to `!isBuiltIn`. Always emit all seven keys on a user-initiated export (full backup — `null` only ever appears on *import*).
 
@@ -881,11 +881,11 @@ suspend fun apply(import: BackupImport, mode: ImportMode): ImportSummary {
 
 Match `taskStore.replaceAll` / `insertMerged` / `all` to the *actual* existing TaskStore entry points the settings import already calls (read `SettingsScreen.kt:240-270` and reuse those exact functions — do not invent parallel paths; if today's code inlines the calls, lift them in, unchanged). Merge collision policy for tombstone stores is **skip** (existing wins) — never remap (P§2.2). None of the six non-task stores touch the sync queue.
 
-- [ ] **Step 4: Wire the app** — `AppContainer` constructs both; `SettingsScreen.kt:78` becomes `stream.write(Interchange.export(container.backupAssembler.assemble(), Instant.now()).toByteArray())`; `:246` becomes `container.importApplier.apply(Interchange.parse(raw), chosenMode)` and reports `"Imported N, skipped M"` from `ImportSummary`.
+- [x] **Step 4: Wire the app** — `AppContainer` constructs both; `SettingsScreen.kt:78` becomes `stream.write(Interchange.export(container.backupAssembler.assemble(), Instant.now()).toByteArray())`; `:246` becomes `container.importApplier.apply(Interchange.parse(raw), chosenMode)` and reports `"Imported N, skipped M"` from `ImportSummary`.
 
-- [ ] **Step 5: Run** — `./gradlew :core:store:connectedAndroidTest testDebugUnitTest :app:assembleDebug` → all green.
+- [x] **Step 5: Run** — `./gradlew :core:store:connectedAndroidTest testDebugUnitTest :app:assembleDebug` → all green.
 
-- [ ] **Step 6: Commit** — `feat(backup): assemble and apply the seven-store envelope end to end`
+- [x] **Step 6: Commit** — `feat(backup): assemble and apply the seven-store envelope end to end`
 
 ---
 
@@ -904,21 +904,21 @@ Match `taskStore.replaceAll` / `insertMerged` / `all` to the *actual* existing T
 - Consumes: `TrashStore` (Task 5) exactly as declared there; the existing undo-snackbar plumbing in `MatrixViewModel` (find the `delete` call and its snapshot-undo lambda); the `BrowseScreen` Archive-row pattern; `GsdRoute` sealed routes.
 - Produces: route `GsdRoute.Trash` ← `gsd://trash`; no new store surface.
 
-- [ ] **Step 1: Failing route test** — extend `GsdRouteTest` with `gsd://trash` → `GsdRoute.Trash` (copy the existing archive-route case). Run `./gradlew :app:testDebugUnitTest --tests '*GsdRouteTest*'` → FAIL.
+- [x] **Step 1: Failing route test** — extend `GsdRouteTest` with `gsd://trash` → `GsdRoute.Trash` (copy the existing archive-route case). Run `./gradlew :app:testDebugUnitTest --tests '*GsdRouteTest*'` → FAIL.
 
-- [ ] **Step 2: Add the route** — `GsdRoute.Trash` object, parser case for host `trash`, nav destination rendering `TrashScreen`. Test → PASS.
+- [x] **Step 2: Add the route** — `GsdRoute.Trash` object, parser case for host `trash`, nav destination rendering `TrashScreen`. Test → PASS.
 
-- [ ] **Step 3: Rewire undo** — in `MatrixViewModel` (and any other delete-with-undo call site — grep `UndoDelete`/snackbar usages): keep the snackbar exactly as it is (`Deleted "<title>"`, ~6 s / ~12 s TalkBack), but the Undo action now calls `trashStore.restore(id)` instead of re-creating from the held snapshot. The held snapshot shrinks to `(id, title)` for the message. Update `UndoDeleteTest` to assert the restored task came from the trash (delete → undo → task active again **and** trash empty).
+- [x] **Step 3: Rewire undo** — in `MatrixViewModel` (and any other delete-with-undo call site — grep `UndoDelete`/snackbar usages): keep the snackbar exactly as it is (`Deleted "<title>"`, ~6 s / ~12 s TalkBack), but the Undo action now calls `trashStore.restore(id)` instead of re-creating from the held snapshot. The held snapshot shrinks to `(id, title)` for the message. Update `UndoDeleteTest` to assert the restored task came from the trash (delete → undo → task active again **and** trash empty).
 
-- [ ] **Step 4: Trash screen** — follow `ArchiveScreen.kt` as the template (dimmed read-only rows, leading-swipe Restore, trailing-swipe destructive with confirm, multi-select bulk bar, toolbar menu). Differences only: rows come from `trashStore.observeTrash()`; each row's metadata line shows retention remaining — `"29 days left"` in `ink3`, `"Last day"` in `alert` — computed from `deletedAt + 30 days` against the clock; trailing swipe = **Delete forever** (confirm: existing `archive_delete_confirm`-style string "This can't be undone."); toolbar menu = **Empty trash** (confirmed) instead of the auto-archive controls; bulk bar = Restore / Delete forever. Browse gains the row under Archive: icon `delete_outline` (add the Material Symbols glyph the same way Archive's `inventory_2` is wired), label "Trash", live count from `observeTrash()`. New strings (`strings.xml`): `trash_title`, `trash_row_label`, `trash_days_left`, `trash_last_day`, `trash_empty_state` ("Trash is empty"), `trash_empty_action` ("Empty trash"), `trash_empty_confirm`, `trash_restore`, `trash_delete_forever`.
+- [x] **Step 4: Trash screen** — follow `ArchiveScreen.kt` as the template (dimmed read-only rows, leading-swipe Restore, trailing-swipe destructive with confirm, multi-select bulk bar, toolbar menu). Differences only: rows come from `trashStore.observeTrash()`; each row's metadata line shows retention remaining — `"29 days left"` in `ink3`, `"Last day"` in `alert` — computed from `deletedAt + 30 days` against the clock; trailing swipe = **Delete forever** (confirm: existing `archive_delete_confirm`-style string "This can't be undone."); toolbar menu = **Empty trash** (confirmed) instead of the auto-archive controls; bulk bar = Restore / Delete forever. Browse gains the row under Archive: icon `delete_outline` (add the Material Symbols glyph the same way Archive's `inventory_2` is wired), label "Trash", live count from `observeTrash()`. New strings (`strings.xml`): `trash_title`, `trash_row_label`, `trash_days_left`, `trash_last_day`, `trash_empty_state` ("Trash is empty"), `trash_empty_action` ("Empty trash"), `trash_empty_confirm`, `trash_restore`, `trash_delete_forever`.
 
-- [ ] **Step 5: Purge scheduling** — `MaintenanceWorker.doWork()` adds `container.trashStore.purgeExpired()` unconditionally (before the archive sweep, no settings gate — retention is not user-configurable); `GsdApp` launch path calls the same where the launch archive sweep runs.
+- [x] **Step 5: Purge scheduling** — `MaintenanceWorker.doWork()` adds `container.trashStore.purgeExpired()` unconditionally (before the archive sweep, no settings gate — retention is not user-configurable); `GsdApp` launch path calls the same where the launch archive sweep runs.
 
-- [ ] **Step 6: Compose test** — `TrashScreenTest`: seed one trashed task; assert row + days-left text render; Restore returns it to active; Empty trash (through the confirm) leaves the empty state visible. Mirror `ArchiveScreenTest`'s scaffolding.
+- [x] **Step 6: Compose test** — `TrashScreenTest`: seed one trashed task; assert row + days-left text render; Restore returns it to active; Empty trash (through the confirm) leaves the empty state visible. Mirror `ArchiveScreenTest`'s scaffolding.
 
-- [ ] **Step 7: Run** — `./gradlew :app:testDebugUnitTest :app:connectedAndroidTest` → green.
+- [x] **Step 7: Run** — `./gradlew :app:testDebugUnitTest :app:connectedAndroidTest` → green.
 
-- [ ] **Step 8: Commit** — `feat(app): trash surface with undo-as-restore and retention purge`
+- [x] **Step 8: Commit** — `feat(app): trash surface with undo-as-restore and retention purge`
 
 ---
 
@@ -945,7 +945,7 @@ interface SyncLocalStore {
 }
 ```
 
-- [ ] **Step 1: Failing engine tests** (extend `SyncEngineTest`'s fake store with an in-memory `tombstones: MutableMap<String, Long>`; the fake's `removeTombstone` deletes the entry)
+- [x] **Step 1: Failing engine tests** (extend `SyncEngineTest`'s fake store with an in-memory `tombstones: MutableMap<String, Long>`; the fake's `removeTombstone` deletes the entry)
 
 ```kotlin
 @Test fun `pull drops a record whose tombstone is not strictly older`() {
@@ -965,7 +965,7 @@ interface SyncLocalStore {
 
 Mirror the same three cases in `SseTest` for `tasks` create/update events (the SSE path must call the *same* guard function). Run `./gradlew :core:sync:test` → FAIL (port members missing).
 
-- [ ] **Step 2: Implement the guard once, call it from both paths**
+- [x] **Step 2: Implement the guard once, call it from both paths**
 
 ```kotlin
 /**
@@ -985,9 +985,9 @@ internal suspend fun resolveTombstone(local: SyncLocalStore, taskId: String, rem
 
 In `SyncEngine`'s pull-apply loop, before the existing LWW upsert of each pulled record: `if (!resolveTombstone(local, task.id, remoteMs)) { continue-with-next-record }` — where `remoteMs` is the already-parsed `client_updated_at` millis the LWW comparison uses (`null` when unparseable; the existing skip-malformed handling stays first). In the SSE apply path (create/update actions, after the owner fail-close and echo filter, before the LWW upsert): same call, drop the event when false. SSE **delete** events and deletion reconciliation are untouched (P§4). `RoomSyncLocalStore`: implement the two members against both DAOs (`archivedTaskDao().byId(id)?.archivedAt ?: deletedTaskDao().byId(id)?.deletedAt`; remove from whichever holds it).
 
-- [ ] **Step 3: Run** — `./gradlew :core:sync:test` → PASS; full `./gradlew testDebugUnitTest` green.
+- [x] **Step 3: Run** — `./gradlew :core:sync:test` → PASS; full `./gradlew testDebugUnitTest` green.
 
-- [ ] **Step 4: Commit** — `feat(sync): archive and trash tombstones suppress pulled resurrections`
+- [x] **Step 4: Commit** — `feat(sync): archive and trash tombstones suppress pulled resurrections`
 
 ---
 
@@ -1019,7 +1019,7 @@ object FeedbackPayload {
 }
 ```
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```kotlin
 class FeedbackTest {
@@ -1068,9 +1068,9 @@ class FeedbackTest {
 }
 ```
 
-- [ ] **Step 2: Run** → FAIL (file absent). **Step 3: Implement** — `build` assembles the `JsonObject` in `FIELDS` order: `submission_id` = `draft.submissionId`, `sentiment`/`category` = wire value or `""`, `message` = `draft.message.trim().take(MAX_MESSAGE_LENGTH)`, `votes` = `draft.votes.distinct().filter(Roadmap::isSlug)`, `app_version` = `appVersion.take(20)`, `client_submitted_at` = the `iso(submittedAt)` formatter Interchange uses (extract it to a shared internal if needed). `Roadmap.items` carries the eight entries above with user-facing labels/descriptions adapted from the web's copy (`Roadmap` labels live in the model deliberately — the corpus of items *is* contract-ish data, not UI chrome; the wear-os entry: label "Wear OS app", description "Your Do First quadrant on your watch."). `isEmpty` = no sentiment, no category, blank trimmed message, no votes.
+- [x] **Step 2: Run** → FAIL (file absent). **Step 3: Implement** — `build` assembles the `JsonObject` in `FIELDS` order: `submission_id` = `draft.submissionId`, `sentiment`/`category` = wire value or `""`, `message` = `draft.message.trim().take(MAX_MESSAGE_LENGTH)`, `votes` = `draft.votes.distinct().filter(Roadmap::isSlug)`, `app_version` = `appVersion.take(20)`, `client_submitted_at` = the `iso(submittedAt)` formatter Interchange uses (extract it to a shared internal if needed). `Roadmap.items` carries the eight entries above with user-facing labels/descriptions adapted from the web's copy (`Roadmap` labels live in the model deliberately — the corpus of items *is* contract-ish data, not UI chrome; the wear-os entry: label "Wear OS app", description "Your Do First quadrant on your watch."). `isEmpty` = no sentiment, no category, blank trimmed message, no votes.
 
-- [ ] **Step 4: Run** `./gradlew :core:model:test` → PASS (and still sub-second). **Step 5: Commit** — `feat(model): the seven-key anonymous feedback payload`
+- [x] **Step 4: Run** `./gradlew :core:model:test` → PASS (and still sub-second). **Step 5: Commit** — `feat(model): the seven-key anonymous feedback payload`
 
 ---
 
@@ -1094,7 +1094,7 @@ class FeedbackApi(private val client: OkHttpClient, private val baseUrl: String 
 }
 ```
 
-- [ ] **Step 1: Failing API tests** (MockWebServer)
+- [x] **Step 1: Failing API tests** (MockWebServer)
 
 ```kotlin
 @Test fun `submit posts JSON to the feedback collection with no auth header`() {
@@ -1119,17 +1119,17 @@ class FeedbackApi(private val client: OkHttpClient, private val baseUrl: String 
 }
 ```
 
-- [ ] **Step 2: Run** `./gradlew :core:sync:test --tests '*FeedbackApiTest*'` → FAIL. **Step 3: Implement** — plain OkHttp POST, body `payload.toString()`, media type `application/json`; 2xx → `Sent`; 400 whose parsed body has `data.submission_id.code == "validation_not_unique"` → `Sent` (the structured check both siblings ship — not a substring scan); anything else (including IOException) → `Failed(human message)`. No PocketBase auth plumbing anywhere near it. Tests → PASS.
+- [x] **Step 2: Run** `./gradlew :core:sync:test --tests '*FeedbackApiTest*'` → FAIL. **Step 3: Implement** — plain OkHttp POST, body `payload.toString()`, media type `application/json`; 2xx → `Sent`; 400 whose parsed body has `data.submission_id.code == "validation_not_unique"` → `Sent` (the structured check both siblings ship — not a substring scan); anything else (including IOException) → `Failed(human message)`. No PocketBase auth plumbing anywhere near it. Tests → PASS.
 
-- [ ] **Step 4: Draft persistence** — `GsdPrefs` gains the draft fields (sentiment/category wire strings, message, votes CSV or JSON, submissionId), following the file's existing key pattern. A fresh draft mints `NanoId.generate()` once; the id survives process death and retries; success clears every field. Unit-test the round-trip if `GsdPrefs` has an existing test pattern; otherwise the ViewModel test covers it.
+- [x] **Step 4: Draft persistence** — `GsdPrefs` gains the draft fields (sentiment/category wire strings, message, votes CSV or JSON, submissionId), following the file's existing key pattern. A fresh draft mints `NanoId.generate()` once; the id survives process death and retries; success clears every field. Unit-test the round-trip if `GsdPrefs` has an existing test pattern; otherwise the ViewModel test covers it.
 
-- [ ] **Step 5: The screen** — `FeedbackScreen` reached from a new Settings row ("Feedback", between Data & Storage and About). Sections: sentiment (two toggle pills: 👍/👎 with labels), category chips (Idea/Praise/Gripe/Bug), message field (≤1000, count shown near the cap), "Vote for what's next" checklist from `Roadmap.items` (label + description, ≥48dp rows), and — non-negotiable (P§6.2) — a **"What gets sent"** disclosure: a monospace block rendering `FeedbackPayload.build(draft, appVersion, now)` pretty-printed, plus one `ink2` sentence ("No account, no device id, no task content."). Send button disabled while `draft.isEmpty`; on `Sent` clear the draft and show the calm confirmation ("Thanks — sent."); on `Failed` keep everything and surface retry. `appVersion` = `"android-${BuildConfig.VERSION_NAME}.${BuildConfig.VERSION_CODE}"`. All copy in `strings.xml` (`feedback_title`, `feedback_sentiment_*`, `feedback_category_*`, `feedback_message_hint`, `feedback_votes_header`, `feedback_disclosure_*`, `feedback_send`, `feedback_sent`, `feedback_failed`).
+- [x] **Step 5: The screen** — `FeedbackScreen` reached from a new Settings row ("Feedback", between Data & Storage and About). Sections: sentiment (two toggle pills: 👍/👎 with labels), category chips (Idea/Praise/Gripe/Bug), message field (≤1000, count shown near the cap), "Vote for what's next" checklist from `Roadmap.items` (label + description, ≥48dp rows), and — non-negotiable (P§6.2) — a **"What gets sent"** disclosure: a monospace block rendering `FeedbackPayload.build(draft, appVersion, now)` pretty-printed, plus one `ink2` sentence ("No account, no device id, no task content."). Send button disabled while `draft.isEmpty`; on `Sent` clear the draft and show the calm confirmation ("Thanks — sent."); on `Failed` keep everything and surface retry. `appVersion` = `"android-${BuildConfig.VERSION_NAME}.${BuildConfig.VERSION_CODE}"`. All copy in `strings.xml` (`feedback_title`, `feedback_sentiment_*`, `feedback_category_*`, `feedback_message_hint`, `feedback_votes_header`, `feedback_disclosure_*`, `feedback_send`, `feedback_sent`, `feedback_failed`).
 
-- [ ] **Step 6: ViewModel test** (JVM, like `PaletteIndexTest`) — drives draft edits, asserts the preview object == the object handed to a fake `FeedbackApi`, asserts clear-on-success and keep-on-failure.
+- [x] **Step 6: ViewModel test** (JVM, like `PaletteIndexTest`) — drives draft edits, asserts the preview object == the object handed to a fake `FeedbackApi`, asserts clear-on-success and keep-on-failure.
 
-- [ ] **Step 7: Run** — `./gradlew testDebugUnitTest :app:assembleDebug` green; screen smoke via `:app:connectedAndroidTest` if a Compose test is added (optional here — the contract lives in the JVM tests).
+- [x] **Step 7: Run** — `./gradlew testDebugUnitTest :app:assembleDebug` green; screen smoke via `:app:connectedAndroidTest` if a Compose test is added (optional here — the contract lives in the JVM tests).
 
-- [ ] **Step 8: Commit** — `feat(app): anonymous opt-in feedback with payload disclosure`
+- [x] **Step 8: Commit** — `feat(app): anonymous opt-in feedback with payload disclosure`
 
 ---
 
@@ -1154,14 +1154,14 @@ fun accountNote(provider: String?, email: String?): AccountNote? = when {
 }
 ```
 
-- [ ] **Step 1: Failing unit test** for `accountNote` — relay email (any provider) → `RELAY_SEPARATE_ACCOUNT`; provider `apple` + normal email → `APPLE_MAY_DIFFER`; `google`/`github` + normal email → null; relay wins over provider. Put it wherever pure app-layer helpers are tested (`app/src/test/`).
+- [x] **Step 1: Failing unit test** for `accountNote` — relay email (any provider) → `RELAY_SEPARATE_ACCOUNT`; provider `apple` + normal email → `APPLE_MAY_DIFFER`; `google`/`github` + normal email → null; relay wins over provider. Put it wherever pure app-layer helpers are tested (`app/src/test/`).
 
-- [ ] **Step 2: Implement** — persist the provider on successful exchange (the `launchProvider(provider)` string, written alongside the token save); replace the single relay check at AccountGroup.kt:72 with `accountNote(...)` and render per tier, iOS copy verbatim (P§7, typographic apostrophes):
+- [x] **Step 2: Implement** — persist the provider on successful exchange (the `launchProvider(provider)` string, written alongside the token save); replace the single relay check at AccountGroup.kt:72 with `accountNote(...)` and render per tier, iOS copy verbatim (P§7, typographic apostrophes):
   - `account_note_relay`: "Signed in with a private relay email — this is a separate account from your web tasks."
   - `account_note_apple`: "Signed in with Apple. If you use Google or GitHub on the web, that’s a different account and won’t show the same tasks." (U+2019 apostrophes, byte-faithful to iOS `SettingsView.swift:243` — copy, never re-type)
   A pre-existing session with no persisted provider degrades to the relay-only behavior (provider `null`) — correct and honest.
 
-- [ ] **Step 3: Run** `./gradlew :app:testDebugUnitTest` → PASS. **Step 4: Commit** — `feat(settings): warn on every Apple sign-in, not only private relay`
+- [x] **Step 3: Run** `./gradlew :app:testDebugUnitTest` → PASS. **Step 4: Commit** — `feat(settings): warn on every Apple sign-in, not only private relay`
 
 ---
 
@@ -1171,12 +1171,12 @@ fun accountNote(provider: String?, email: String?): AccountNote? = when {
 - Modify: `docs/gsd-android-spec.md` (the P§8 amendment list), `README.md` (status), `CLAUDE.md` (plan pointer), `tasks/todo.md` ("Resuming From Here")
 - Delete marker: none — `tasks/parity-plan.md` stays (checkboxes are the progress record)
 
-- [ ] **Step 1: Amend `docs/gsd-android-spec.md`** per parity-spec P§8, keeping its voice: §4.4+§8.16 (envelope 2.1.0 — replace the v1 envelope paragraph with the P§2.1 table, three-array cap, absent≠empty); §7.10 (add `deleted_tasks`, "Room v2"); §8.20 (retitle "Undo delete & Trash" — undo restores from the 30-day trash; add the Trash surface + purge rules from P§3); §9.4/§9.6 (add the tombstone-suppression paragraph from P§4); §8.2+Appendix C (corpus supersedes; nine decisions; fixture path); §8.17 (Feedback row; two-tier Apple note); §10.4 (auto-linking correction from P§7); §6.4 (`gsd://trash` row); Appendix B (feedback limits row; import-cap wording "counts tasks + archivedTasks + deletedTasks"). Cite `docs/2026-08-29-cross-platform-parity-spec.md` once at the top of each amended section (`> Amended 2026-08-29 — see the parity spec`).
-- [ ] **Step 2: README** — status paragraph gains one sentence: parity catch-up (envelope 2.1.0, trash, corpus parser, feedback) landed 2026-08/09; fixtures shared with the sibling repos.
-- [ ] **Step 3: `CLAUDE.md`** — the Plan line becomes: `- **Plan:** tasks/plan.md (phases 0–7, complete) · tasks/parity-plan.md (Aug 2026 parity catch-up) · progress in tasks/todo.md`.
-- [ ] **Step 4: `tasks/todo.md`** — new "Parity catch-up (2026-08-29)" section listing the twelve tasks' done/remaining state and a fresh "Resuming From Here".
-- [ ] **Step 5: Full verification sweep** — `./gradlew :core:model:test testDebugUnitTest connectedAndroidTest :app:assembleRelease` all green; `:core:model:test` still sub-second.
-- [ ] **Step 6: Commit** — `docs: fold the August 2026 parity amendments into the spec`
+- [x] **Step 1: Amend `docs/gsd-android-spec.md`** per parity-spec P§8, keeping its voice: §4.4+§8.16 (envelope 2.1.0 — replace the v1 envelope paragraph with the P§2.1 table, three-array cap, absent≠empty); §7.10 (add `deleted_tasks`, "Room v2"); §8.20 (retitle "Undo delete & Trash" — undo restores from the 30-day trash; add the Trash surface + purge rules from P§3); §9.4/§9.6 (add the tombstone-suppression paragraph from P§4); §8.2+Appendix C (corpus supersedes; nine decisions; fixture path); §8.17 (Feedback row; two-tier Apple note); §10.4 (auto-linking correction from P§7); §6.4 (`gsd://trash` row); Appendix B (feedback limits row; import-cap wording "counts tasks + archivedTasks + deletedTasks"). Cite `docs/2026-08-29-cross-platform-parity-spec.md` once at the top of each amended section (`> Amended 2026-08-29 — see the parity spec`).
+- [x] **Step 2: README** — status paragraph gains one sentence: parity catch-up (envelope 2.1.0, trash, corpus parser, feedback) landed 2026-08/09; fixtures shared with the sibling repos.
+- [ ] **Step 3: `CLAUDE.md`** — the Plan line becomes: `- **Plan:** tasks/plan.md (phases 0–7, complete) · tasks/parity-plan.md (Aug 2026 parity catch-up) · progress in tasks/todo.md`. **Deliberately skipped** — the controller ruled this out for Task 12: `CLAUDE.md` carries a pre-existing uncommitted user edit and must not be staged or altered. See the Task 12 report's Deviations section.
+- [x] **Step 4: `tasks/todo.md`** — new "Parity catch-up (2026-08-29)" section listing the twelve tasks' done/remaining state and a fresh "Resuming From Here".
+- [x] **Step 5: Full verification sweep** — `./gradlew :core:model:test testDebugUnitTest connectedAndroidTest :app:assembleRelease` all green; `:core:model:test` still sub-second.
+- [x] **Step 6: Commit** — `docs: fold the August 2026 parity amendments into the spec`
 
 ---
 

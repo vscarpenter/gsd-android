@@ -90,16 +90,14 @@ behavior; the spec labels every contested rule with its source client.
 ## Resuming From Here (2026-08-29, post-parity)
 - **Done:** all twelve parity-plan tasks landed and verified (commits `f64b325..HEAD`, listed
   above); `docs/gsd-android-spec.md` amended and is the spec of record again; `README.md`
-  status paragraph updated. Full verification sweep run — see the Task 12 report
+  status paragraph updated. Full verification sweep run and green — see the Task 12 report
   (`.superpowers/sdd/parity-plan/task-12-report.md`) for the exact commands and results,
-  including the release-signing gap (owner-held `keystore.properties` not present locally;
-  `:app:assembleRelease` fails only on signing, `:app:assembleDebug` + R8-minified debug both
-  verified green as the substitute evidence).
-- **Next:** version bump 0.7.0 → 0.8.0 (versionCode 8), `:app:bundleRelease` (needs the owner's
-  release keystore), release smoke test, then the remaining Play Console owner steps in
-  `docs/play/submission-checklist.md`.
-- **Blockers:** release signing needs the owner-held `keystore.properties` — not present in this
-  environment; nothing else blocks.
+  including `:app:assembleRelease`: the owner's `keystore.properties` is present, and the
+  build produced a validly signed release APK (`apksigner verify` passes; signed 2026-08-29
+  16:22). No signing gap.
+- **Next:** version bump 0.7.0 → 0.8.0 (versionCode 8), `:app:bundleRelease`, release smoke
+  test, then the remaining Play Console owner steps in `docs/play/submission-checklist.md`.
+- **Blockers:** none.
 - **Assumptions (all labeled in the spec):** restore preserves timestamps; singletons
   replace-only; smart-view `description` is a documented round-trip loss.
 
