@@ -77,10 +77,14 @@ behavior; the spec labels every contested rule with its source client.
 3. ✅ **Tasks 9–11** (`:app`): feedback payload/API/screen, two-tier Apple note.
 4. ✅ **Task 12**: fold amendments into `docs/gsd-android-spec.md`; full sweep
    (`testDebugUnitTest`, `connectedAndroidTest`, `:app:assembleRelease`).
-5. ☐ **Release**: bump 0.7.0 → 0.8.0 (versionCode 8), `:app:bundleRelease`, release smoke.
-6. ☐ **Play submission** (owner steps, `docs/play/submission-checklist.md`): the parity work
-   landed on top of the existing 0.7.0 draft; the 0.8.0 bump + bundleRelease + release smoke
-   above are the last engineering steps before Console upload.
+5. ✅ **Release build**: 0.8.0 (versionCode 8) committed (`112a099`); signed
+   `app-release.aab` (6.4 MB) and `app-release.apk` (4.8 MB, aapt2-verified 0.8.0) built from
+   the post-fix-wave tree in `app/build/outputs/`.
+6. ☐ **Release smoke on a device**: sideload the release APK (`adb install -r` — a debug-signed
+   install must be uninstalled first, which wipes local data; back up or sync first) and walk
+   the new surfaces (trash, feedback, restore-syncs-as-create, v1→v2 migration on upgrade).
+7. ☐ **Play submission** (owner steps, `docs/play/submission-checklist.md`): upload the 0.8.0
+   `.aab` to internal testing; the parity work supersedes the 0.7.0 draft.
 
 ### Upstream follow-ups (not Android's, don't block)
 - Web: `resetEverything` leaves `deletedTasks` + `appPreferences` behind (privacy-shaped).
@@ -95,9 +99,23 @@ behavior; the spec labels every contested rule with its source client.
   including `:app:assembleRelease`: the owner's `keystore.properties` is present, and the
   build produced a validly signed release APK (`apksigner verify` passes; signed 2026-08-29
   16:22). No signing gap.
-- **Next:** version bump 0.7.0 → 0.8.0 (versionCode 8), `:app:bundleRelease`, release smoke
-  test, then the remaining Play Console owner steps in `docs/play/submission-checklist.md`.
-- **Blockers:** none.
+- **Also done (post-fold-in):** the final whole-branch review's two Important fixes landed —
+  import now sweeps tombstone stores for ids that became active (`7961100`) and delete
+  tolerates a vanished row (`22ff674`), both with red-confirmed regression tests; version
+  0.8.0/versionCode 8 committed (`112a099`); signed `.aab` + `.apk` built from that tree.
+- **Next:** release smoke on a device (sideload the APK), then the Play Console owner steps
+  in `docs/play/submission-checklist.md` (upload the 0.8.0 `.aab` to internal testing).
+- **Blockers:** none. One loose end: an uncommitted one-line AGP bump `9.3.0 → 9.3.2` in
+  `gradle/libs.versions.toml` appeared during the 2026-08-29 session (provenance unclear);
+  every green gate and both release artifacts were built under 9.3.2 — commit it (or revert
+  and rebuild) before the next release build for reproducibility.
+- **Post-parity backlog (from the final review):** extract `SyncCoordinator.applyRealtime`'s
+  ApplyUpsert body into `:core:sync` for a JVM behavioral test of the tombstone-guard wiring;
+  land an Android-produced backup fixture in both sibling repos' fixture directories (today no
+  sibling imports an Android export — the last one-way mirror); `<plurals>` for
+  `trash_days_left` ("1 days left"); align amended spec §8.17's Feedback placement with the
+  actual Settings layout; a cap test admitting exactly 10,000; owner copy pass on roadmap
+  labels ("Apple Calendar or Google Calendar" reads oddly on Android).
 - **Assumptions (all labeled in the spec):** restore preserves timestamps; singletons
   replace-only; smart-view `description` is a documented round-trip loss.
 
