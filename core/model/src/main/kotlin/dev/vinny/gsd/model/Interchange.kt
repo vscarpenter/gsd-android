@@ -6,12 +6,17 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
-data class ImportResult(val tasks: List<Task>, val skipped: Int)
+data class BackupImport(val envelope: BackupEnvelope, val version: String, val skipped: Int)
 
 /**
  * The shared interchange format (P§2.1/§2.2, replacing spec §8.16): a
@@ -83,20 +88,100 @@ object Interchange {
         put("updatedAt", JsonPrimitive(iso(s.updatedAt)))
     }
 
-    fun parse(raw: String, limitBytes: Int = 10 * 1024 * 1024, limitTasks: Int = 10_000): ImportResult {
+    /**
+     * Lenient, version-tolerant import (P§2.2): 10 MB byte cap first, then the
+     * count cap over all three task-bearing arrays, then per-record leniency —
+     * a corrupt row is skipped and counted, never aborts the batch.
+     */
+    fun parse(raw: String, limitBytes: Int = 10 * 1024 * 1024, limitTasks: Int = 10_000): BackupImport {
         if (raw.toByteArray(Charsets.UTF_8).size > limitBytes) throw TooLarge("Import exceeds size limit")
         val root = Json.parseToJsonElement(raw).jsonObject
-        val entries = root["tasks"]?.jsonArray ?: JsonArray(emptyList())
-        if (entries.size > limitTasks) throw TooLarge("Import exceeds $limitTasks tasks")
+        val taskEntries = root["tasks"]?.jsonArray ?: JsonArray(emptyList())
+        val archivedEntries = root["archivedTasks"]?.jsonArray
+        val deletedEntries = root["deletedTasks"]?.jsonArray
+        val total = taskEntries.size + (archivedEntries?.size ?: 0) + (deletedEntries?.size ?: 0)
+        if (total > limitTasks) throw TooLarge("Import exceeds $limitTasks tasks") // before decode work
+
         var skipped = 0
-        val tasks = entries.mapNotNull { element ->
-            TaskJson.decodeOrNull(element) ?: run {
-                skipped++
-                null
-            }
+        fun decodeTasks(entries: JsonArray): List<Task> = entries.mapNotNull {
+            TaskJson.decodeOrNull(it) ?: run { skipped++; null }
         }
-        return ImportResult(tasks, skipped)
+        fun timestamp(element: JsonElement, key: String): Instant =
+            (element as? JsonObject)?.get(key)?.jsonPrimitive?.contentOrNull
+                ?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: Instant.now()
+
+        val version = when (val v = root["version"]) {
+            null -> "1"
+            else -> v.jsonPrimitive.content
+        }
+        return BackupImport(
+            envelope = BackupEnvelope(
+                tasks = decodeTasks(taskEntries),
+                archivedTasks = archivedEntries?.mapNotNull { el ->
+                    TaskJson.decodeOrNull(el)?.let { ArchivedTask(it, timestamp(el, "archivedAt")) }
+                        ?: run { skipped++; null }
+                },
+                deletedTasks = deletedEntries?.mapNotNull { el ->
+                    TaskJson.decodeOrNull(el)?.let { DeletedTask(it, timestamp(el, "deletedAt")) }
+                        ?: run { skipped++; null }
+                },
+                smartViews = root["smartViews"]?.jsonArray?.mapNotNull(::smartViewOrNull),
+                notificationSettings = root["notificationSettings"]?.let(::notificationOrNull),
+                archiveSettings = root["archiveSettings"]?.let(::archiveSettingsOrNull),
+                appPreferences = root["appPreferences"]?.let(::appPreferencesOrNull),
+            ),
+            version = version,
+            skipped = skipped,
+        )
     }
+
+    /** A malformed singleton decodes to null — treated as absent, never aborts the import. */
+    private fun smartViewOrNull(element: JsonElement): SmartView? = runCatching {
+        val obj = element.jsonObject
+        val isBuiltIn = obj.getValue("isBuiltIn").jsonPrimitive.boolean
+        val criteria = TaskJson.json.decodeFromJsonElement(FilterCriteria.serializer(), obj.getValue("criteria"))
+        if (isBuiltIn) {
+            null // an Android guard: built-ins are derived, never stored (P§2.2)
+        } else {
+            SmartView(
+                id = obj.getValue("id").jsonPrimitive.content,
+                name = obj.getValue("name").jsonPrimitive.content,
+                icon = obj.getValue("icon").jsonPrimitive.content,
+                criteria = criteria,
+                isBuiltIn = false,
+                createdAt = Instant.parse(obj.getValue("createdAt").jsonPrimitive.content),
+                updatedAt = Instant.parse(obj.getValue("updatedAt").jsonPrimitive.content),
+            )
+        }
+    }.getOrNull()
+
+    private fun notificationOrNull(element: JsonElement): BackupNotificationSettings? = runCatching {
+        val obj = element.jsonObject
+        BackupNotificationSettings(
+            enabled = obj.getValue("enabled").jsonPrimitive.boolean,
+            defaultReminder = obj.getValue("defaultReminder").jsonPrimitive.int,
+            soundEnabled = obj.getValue("soundEnabled").jsonPrimitive.boolean,
+            quietHoursStart = obj["quietHoursStart"]?.jsonPrimitive?.contentOrNull,
+            quietHoursEnd = obj["quietHoursEnd"]?.jsonPrimitive?.contentOrNull,
+            permissionAsked = obj.getValue("permissionAsked").jsonPrimitive.boolean,
+            updatedAt = Instant.parse(obj.getValue("updatedAt").jsonPrimitive.content),
+        )
+    }.getOrNull()
+
+    private fun archiveSettingsOrNull(element: JsonElement): BackupArchiveSettings? = runCatching {
+        val obj = element.jsonObject
+        BackupArchiveSettings(
+            enabled = obj.getValue("enabled").jsonPrimitive.boolean,
+            archiveAfterDays = obj.getValue("archiveAfterDays").jsonPrimitive.int,
+        )
+    }.getOrNull()
+
+    private fun appPreferencesOrNull(element: JsonElement): BackupAppPreferences? = runCatching {
+        val obj = element.jsonObject
+        BackupAppPreferences(
+            pinnedSmartViewIds = obj.getValue("pinnedSmartViewIds").jsonArray.map { it.jsonPrimitive.content },
+        )
+    }.getOrNull()
 
     private fun iso(instant: Instant): String =
         java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")

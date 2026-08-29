@@ -246,13 +246,13 @@ private suspend fun runImport(
     try {
         val parsed = Interchange.parse(raw)
         if (replace) {
-            container.store.replaceAll(parsed.tasks)
+            container.store.replaceAll(parsed.envelope.tasks)
         } else {
             val existing = container.store.observeTasks().first()
-            MergePlan.compute(existing, parsed.tasks).forEach { container.store.add(it) }
+            MergePlan.compute(existing, parsed.envelope.tasks).forEach { container.store.add(it) }
         }
         snackbar.showSnackbar(
-            context.getString(R.string.import_result, parsed.tasks.size, parsed.skipped),
+            context.getString(R.string.import_result, parsed.envelope.tasks.size, parsed.skipped),
         )
     } catch (error: Exception) {
         snackbar.showSnackbar(error.message ?: "Import failed")

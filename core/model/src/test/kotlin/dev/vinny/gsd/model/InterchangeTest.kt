@@ -3,6 +3,9 @@ package dev.vinny.gsd.model
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.boolean
@@ -74,8 +77,8 @@ class InterchangeTest {
         assertTrue(completedIdx < createdIdx && createdIdx < titleIdx)
 
         val parsed = Interchange.parse(raw)
-        assertEquals(1, parsed.tasks.size)
-        assertEquals("Ship", parsed.tasks.single().title)
+        assertEquals(1, parsed.envelope.tasks.size)
+        assertEquals("Ship", parsed.envelope.tasks.single().title)
         assertEquals(0, parsed.skipped)
     }
 
@@ -85,8 +88,58 @@ class InterchangeTest {
             "createdAt":"2026-06-15T08:30:00.500Z","updatedAt":"2026-06-15T08:30:00.500Z"},
             {"title":"missing id"}],"exportedAt":"2026-06-15T08:30:00.500Z","version":1}"""
         val parsed = Interchange.parse(raw)
-        assertEquals(1, parsed.tasks.size)
+        assertEquals(1, parsed.envelope.tasks.size)
         assertEquals(1, parsed.skipped)
+    }
+
+    @Test
+    fun `parse accepts int, string, and absent versions`() {
+        assertEquals("1", Interchange.parse("""{"tasks": [], "version": 1, "exportedAt": "2026-01-01T00:00:00.000Z"}""").version)
+        assertEquals("2.1.0", Interchange.parse("""{"tasks": [], "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""").version)
+        assertEquals("1", Interchange.parse("""{"tasks": []}""").version) // absent → "1" (iOS-style leniency, P§2.2)
+    }
+
+    @Test
+    fun `cap counts all three task-bearing arrays`() {
+        fun records(n: Int, prefix: String) = (1..n).joinToString(",") {
+            """{"id":"$prefix-${it.toString().padStart(6, '0')}","title":"t","urgent":false,"important":false,
+                "createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}"""
+        }
+        val overCap = """{"tasks":[${records(4000, "a")}],"archivedTasks":[${records(3001, "b")}],
+            "deletedTasks":[${records(3000, "c")}],"version":"2.1.0","exportedAt":"2026-01-01T00:00:00.000Z"}"""
+        assertFailsWith<Interchange.TooLarge> { Interchange.parse(overCap) } // 10,001
+    }
+
+    @Test
+    fun `absent stores decode to null, present-empty to empty lists`() {
+        val absent = Interchange.parse("""{"tasks": [], "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""")
+        assertNull(absent.envelope.archivedTasks)
+        val present = Interchange.parse("""{"tasks": [], "archivedTasks": [], "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""")
+        assertEquals(emptyList(), present.envelope.archivedTasks)
+    }
+
+    @Test
+    fun `incoming quadrant is ignored and recomputed from the flags`() {
+        val parsed = Interchange.parse("""{"tasks":[{"id":"task-1","title":"t","urgent":true,"important":true,
+            "quadrant":"not-urgent-not-important",
+            "createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z"}],
+            "version":"2.1.0","exportedAt":"2026-01-01T00:00:00.000Z"}""")
+        assertEquals(Quadrant.DO_FIRST, parsed.envelope.tasks.single().quadrant)
+    }
+
+    @Test
+    fun `archived and deleted rows carry their timestamps, defaulting to now when unparseable`() {
+        val parsed = Interchange.parse("""{"tasks":[],
+            "archivedTasks":[{"id":"arch-1","title":"t","urgent":false,"important":false,
+                "createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z",
+                "archivedAt":"2026-06-01T10:00:00.000Z"}],
+            "deletedTasks":[{"id":"tr-1","title":"t","urgent":false,"important":false,
+                "createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z",
+                "deletedAt":"garbage"}],
+            "version":"2.1.0","exportedAt":"2026-01-01T00:00:00.000Z"}""")
+        assertEquals(Instant.parse("2026-06-01T10:00:00.000Z"), parsed.envelope.archivedTasks!!.single().archivedAt)
+        // unparseable deletedAt: the row imports anyway; timestamp defaulted (P§2.2) — assert non-null, not a value
+        assertNotNull(parsed.envelope.deletedTasks!!.single().deletedAt)
     }
 
     @Test
