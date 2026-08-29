@@ -143,6 +143,83 @@ class InterchangeTest {
     }
 
     @Test
+    fun `a valid custom smart view decodes with its FilterCriteria intact`() {
+        val parsed = Interchange.parse("""{"tasks": [],
+            "smartViews": [{"id": "view-1", "name": "Overdue work", "icon": "overdue",
+                "criteria": {"overdue": true, "status": "active"},
+                "isBuiltIn": false,
+                "createdAt": "2026-07-01T09:00:00.000Z", "updatedAt": "2026-07-15T09:00:00.000Z"}],
+            "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""")
+        val view = parsed.envelope.smartViews!!.single()
+        assertEquals("view-1", view.id)
+        assertEquals("Overdue work", view.name)
+        assertEquals("overdue", view.icon)
+        assertEquals(false, view.isBuiltIn)
+        assertEquals(true, view.criteria.overdue)
+        assertEquals(FilterStatus.ACTIVE, view.criteria.status)
+    }
+
+    @Test
+    fun `a smart view row with isBuiltIn true is dropped`() {
+        val parsed = Interchange.parse("""{"tasks": [],
+            "smartViews": [{"id": "today-focus", "name": "Today's Focus", "icon": "adjust",
+                "criteria": {}, "isBuiltIn": true,
+                "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z"}],
+            "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""")
+        assertEquals(emptyList(), parsed.envelope.smartViews) // present-and-dropped, not absent
+    }
+
+    @Test
+    fun `a smart view row with invalid criteria is dropped`() {
+        val parsed = Interchange.parse("""{"tasks": [],
+            "smartViews": [{"id": "view-2", "name": "Bad", "icon": "warning",
+                "criteria": {"status": "not-a-real-status"}, "isBuiltIn": false,
+                "createdAt": "2026-01-01T00:00:00.000Z", "updatedAt": "2026-01-01T00:00:00.000Z"}],
+            "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""")
+        assertEquals(emptyList(), parsed.envelope.smartViews)
+    }
+
+    @Test
+    fun `all three singletons decode from a well-formed payload`() {
+        val parsed = Interchange.parse("""{"tasks": [],
+            "notificationSettings": {"id": "settings", "enabled": true, "defaultReminder": 15,
+                "soundEnabled": true, "quietHoursStart": "22:00", "quietHoursEnd": "07:00",
+                "permissionAsked": false, "updatedAt": "2026-08-18T12:00:00.000Z"},
+            "archiveSettings": {"id": "settings", "enabled": false, "archiveAfterDays": 30},
+            "appPreferences": {"id": "preferences", "pinnedSmartViewIds": ["view-1"],
+                "maxPinnedViews": 5, "smartViewsEnabled": true},
+            "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""")
+        val notif = parsed.envelope.notificationSettings!!
+        assertEquals(true, notif.enabled)
+        assertEquals(15, notif.defaultReminder)
+        assertEquals(true, notif.soundEnabled)
+        assertEquals("22:00", notif.quietHoursStart)
+        assertEquals("07:00", notif.quietHoursEnd)
+        assertEquals(false, notif.permissionAsked)
+        val archive = parsed.envelope.archiveSettings!!
+        assertEquals(false, archive.enabled)
+        assertEquals(30, archive.archiveAfterDays)
+        val prefs = parsed.envelope.appPreferences!!
+        assertEquals(listOf("view-1"), prefs.pinnedSmartViewIds)
+
+        // quiet-hours: absent keys decode to null, not the sentinel-string "null"
+        val withoutQuietHours = Interchange.parse("""{"tasks": [],
+            "notificationSettings": {"id": "settings", "enabled": false, "defaultReminder": 30,
+                "soundEnabled": false, "permissionAsked": true, "updatedAt": "2026-08-18T12:00:00.000Z"},
+            "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""").envelope.notificationSettings!!
+        assertNull(withoutQuietHours.quietHoursStart)
+        assertNull(withoutQuietHours.quietHoursEnd)
+    }
+
+    @Test
+    fun `a malformed singleton decodes to null, treated as absent`() {
+        val parsed = Interchange.parse("""{"tasks": [],
+            "archiveSettings": {"enabled": false},
+            "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""")
+        assertNull(parsed.envelope.archiveSettings) // missing archiveAfterDays — fails to decode, not a crash
+    }
+
+    @Test
     fun `size and count caps enforced`() {
         val raw = Interchange.export(BackupEnvelope(tasks = (1..3).map { task() }), exportedAt = t0)
         assertTrue(runCatching { Interchange.parse(raw, limitTasks = 2) }.isFailure)
