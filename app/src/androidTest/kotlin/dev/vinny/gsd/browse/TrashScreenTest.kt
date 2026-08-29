@@ -1,6 +1,7 @@
 package dev.vinny.gsd.browse
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -109,6 +110,67 @@ class TrashScreenTest {
         // confirm button matches "Empty trash" now.
         rule.onNodeWithText("Empty trash").performClick()
         assertEquals(true, emptied)
+    }
+
+    @Test
+    fun bulkRestoreFiresForEverySelectedTask() {
+        val taskA = trashedTask("first thing")
+        val taskB = trashedTask("second thing")
+        val restored = mutableListOf<String>()
+        rule.setContent {
+            GsdTheme {
+                TrashContent(
+                    trashed = listOf(taskA to t0, taskB to t0),
+                    now = t0,
+                    onRestore = { restored += it },
+                    onDeleteForever = {},
+                    onEmptyTrash = {},
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Select tasks").performClick()
+        // Selection mode hides the per-row Restore/Delete forever buttons — the
+        // row checkboxes are the selection UI; check both.
+        rule.onAllNodes(isToggleable())[0].performClick()
+        rule.onAllNodes(isToggleable())[1].performClick()
+        rule.onNodeWithText("2 selected").assertIsDisplayed()
+
+        rule.onNodeWithText("Restore").performClick() // the bulk bar's — no per-row buttons in this mode
+        assertEquals(setOf(taskA.id, taskB.id), restored.toSet())
+    }
+
+    @Test
+    fun bulkDeleteForeverConfirmsAndOnlyDeletesAfterConfirm() {
+        val taskA = trashedTask("first thing")
+        val taskB = trashedTask("second thing")
+        val deleted = mutableListOf<String>()
+        rule.setContent {
+            GsdTheme {
+                TrashContent(
+                    trashed = listOf(taskA to t0, taskB to t0),
+                    now = t0,
+                    onRestore = {},
+                    onDeleteForever = { deleted += it },
+                    onEmptyTrash = {},
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Select tasks").performClick()
+        rule.onAllNodes(isToggleable())[0].performClick()
+        rule.onAllNodes(isToggleable())[1].performClick()
+
+        rule.onNodeWithText("Delete forever").performClick() // bulk bar button — only match while dialog is closed
+        assertEquals(emptyList(), deleted) // confirmation dialog gates it
+        rule.onNodeWithText("Delete 2 tasks?").assertIsDisplayed()
+
+        // Cancel deletes nothing
+        rule.onNodeWithText("Cancel").performClick()
+        assertEquals(emptyList(), deleted)
+
+        // Confirming deletes every selected task
+        rule.onNodeWithText("Delete forever").performClick()
+        rule.onAllNodesWithText("Delete forever")[1].performClick() // [0] bulk bar, [1] dialog confirm
+        assertEquals(setOf(taskA.id, taskB.id), deleted.toSet())
     }
 
     @Test
