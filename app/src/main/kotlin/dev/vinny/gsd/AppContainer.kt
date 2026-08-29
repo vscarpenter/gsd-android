@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.ArchiveStore
+import dev.vinny.gsd.store.BackupAssembler
 import dev.vinny.gsd.store.GsdDatabase
+import dev.vinny.gsd.store.ImportApplier
 import dev.vinny.gsd.store.SmartViewStore
 import dev.vinny.gsd.store.TaskStore
 import java.time.Clock
@@ -26,6 +28,10 @@ class AppContainer(context: Context) {
     val archiveStore: ArchiveStore = ArchiveStore(db, clock)
 
     val smartViewStore: SmartViewStore = SmartViewStore(db, clock)
+
+    val backupAssembler: BackupAssembler = BackupAssembler(db)
+
+    val importApplier: ImportApplier = ImportApplier(db, store, clock)
 
     val prefs: GsdPrefs = GsdPrefs(context.dataStore)
 

@@ -99,13 +99,13 @@ class SmartViewStore(private val db: GsdDatabase, private val clock: Clock) {
     }
 }
 
-private fun SmartView.toEntity(): SmartViewEntity = SmartViewEntity(
+internal fun SmartView.toEntity(): SmartViewEntity = SmartViewEntity(
     id = id, name = name, icon = icon,
     criteriaJson = TaskJson.json.encodeToString(FilterCriteria.serializer(), criteria),
     isBuiltIn = isBuiltIn, createdAt = createdAt.toEpochMilli(), updatedAt = updatedAt.toEpochMilli(),
 )
 
-private fun SmartViewEntity.toSmartView(): SmartView = SmartView(
+internal fun SmartViewEntity.toSmartView(): SmartView = SmartView(
     id = id, name = name, icon = icon,
     criteria = try {
         TaskJson.json.decodeFromString(FilterCriteria.serializer(), criteriaJson)

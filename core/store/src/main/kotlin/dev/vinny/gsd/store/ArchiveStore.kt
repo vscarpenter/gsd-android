@@ -18,6 +18,9 @@ interface ArchivedTaskDao {
     @Query("SELECT * FROM archived_tasks WHERE id = :id")
     suspend fun byId(id: String): ArchivedTaskEntity?
 
+    @Query("SELECT id FROM archived_tasks")
+    suspend fun allIds(): List<String>
+
     @Upsert
     suspend fun upsert(entity: ArchivedTaskEntity)
 
@@ -90,7 +93,7 @@ class ArchiveStore(private val db: GsdDatabase, private val clock: Clock) {
     }
 }
 
-private fun TaskEntity.toArchived(archivedAt: Long): ArchivedTaskEntity = ArchivedTaskEntity(
+internal fun TaskEntity.toArchived(archivedAt: Long): ArchivedTaskEntity = ArchivedTaskEntity(
     id = id, title = title, description = description, urgent = urgent, important = important,
     quadrant = quadrant, completed = completed, completedAt = completedAt, createdAt = createdAt,
     updatedAt = updatedAt, dueDate = dueDate, recurrence = recurrence, tagsJson = tagsJson,

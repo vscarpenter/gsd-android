@@ -35,17 +35,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
-import dev.vinny.gsd.model.BackupEnvelope
 import dev.vinny.gsd.model.Interchange
-import dev.vinny.gsd.model.MergePlan
 import dev.vinny.gsd.prefs.ThemePref
 import dev.vinny.gsd.store.ArchiveSettingsEntity
+import dev.vinny.gsd.store.ImportMode
 import dev.vinny.gsd.store.LocalErase
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -74,9 +72,9 @@ fun SettingsScreen(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
         if (uri != null) scope.launch(Dispatchers.IO) {
-            val tasks = container.store.observeTasks().first()
+            val envelope = container.backupAssembler.assemble()
             context.contentResolver.openOutputStream(uri)?.use { stream ->
-                stream.write(Interchange.export(BackupEnvelope(tasks = tasks), Instant.now()).toByteArray())
+                stream.write(Interchange.export(envelope, Instant.now()).toByteArray())
             }
         }
     }
@@ -245,14 +243,10 @@ private suspend fun runImport(
     } ?: return
     try {
         val parsed = Interchange.parse(raw)
-        if (replace) {
-            container.store.replaceAll(parsed.envelope.tasks)
-        } else {
-            val existing = container.store.observeTasks().first()
-            MergePlan.compute(existing, parsed.envelope.tasks).forEach { container.store.add(it) }
-        }
+        val mode = if (replace) ImportMode.REPLACE else ImportMode.MERGE
+        val summary = container.importApplier.apply(parsed, mode)
         snackbar.showSnackbar(
-            context.getString(R.string.import_result, parsed.envelope.tasks.size, parsed.skipped),
+            context.getString(R.string.import_result, summary.imported, summary.skipped),
         )
     } catch (error: Exception) {
         snackbar.showSnackbar(error.message ?: "Import failed")

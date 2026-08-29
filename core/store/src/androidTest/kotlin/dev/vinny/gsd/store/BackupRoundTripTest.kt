@@ -1,0 +1,201 @@
+package dev.vinny.gsd.store
+
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.vinny.gsd.model.ArchivedTask
+import dev.vinny.gsd.model.BackupAppPreferences
+import dev.vinny.gsd.model.BackupArchiveSettings
+import dev.vinny.gsd.model.BackupEnvelope
+import dev.vinny.gsd.model.BackupImport
+import dev.vinny.gsd.model.BackupNotificationSettings
+import dev.vinny.gsd.model.DeletedTask
+import dev.vinny.gsd.model.FilterCriteria
+import dev.vinny.gsd.model.SmartView
+import dev.vinny.gsd.model.Task
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Round-trips the seven-store backup envelope through [BackupAssembler] and
+ * [ImportApplier] (P§2.1/§2.2): export shape, replace-mode present-empty vs
+ * absent-key semantics, merge-mode skip-on-collision, the singleton
+ * merge-never-adopts rule, sync-queue silence for the six non-task stores,
+ * and the one-store-per-id invariant.
+ */
+@RunWith(AndroidJUnit4::class)
+class BackupRoundTripTest {
+    private val fixed = Clock.fixed(Instant.parse("2026-08-29T12:00:00.000Z"), ZoneOffset.UTC)
+    private lateinit var db: GsdDatabase
+    private lateinit var taskStore: TaskStore
+    private lateinit var archiveStore: ArchiveStore
+    private lateinit var smartViewStore: SmartViewStore
+    private lateinit var assembler: BackupAssembler
+    private lateinit var applier: ImportApplier
+
+    @Before
+    fun setUp() {
+        db = GsdDatabase.buildInMemory(ApplicationProvider.getApplicationContext())
+        taskStore = TaskStore(db, fixed)
+        archiveStore = ArchiveStore(db, fixed)
+        smartViewStore = SmartViewStore(db, fixed)
+        assembler = BackupAssembler(db)
+        applier = ImportApplier(db, taskStore, fixed)
+    }
+
+    @After
+    fun tearDown() = db.close()
+
+    private fun draft(id: String, title: String = "t") =
+        Task(id = id, title = title, urgent = false, important = false,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH)
+
+    @Test
+    fun assemble_exportsCustomViewsOnly_andAllSingletons() = runTest {
+        smartViewStore.seedBuiltInsIfEmpty()
+        smartViewStore.create("Custom", "star", FilterCriteria())
+
+        db.notificationSettingsDao().upsert(NotificationSettingsEntity(updatedAt = fixed.millis()))
+        db.archiveSettingsDao().upsert(ArchiveSettingsEntity(enabled = true, archiveAfterDays = 45))
+        db.appPreferencesDao().upsert(AppPreferencesEntity(pinnedSmartViewIdsJson = "[]"))
+
+        val archived = taskStore.add(draft("archived-001", "archived"))
+        taskStore.setCompleted(archived.id, true)
+        archiveStore.archive(archived.id)
+
+        val trashed = taskStore.add(draft("trashed-001", "trashed"))
+        taskStore.delete(trashed.id)
+
+        taskStore.add(draft("active-0001", "a1"))
+        taskStore.add(draft("active-0002", "a2"))
+
+        val envelope = assembler.assemble()
+
+        assertEquals(2, envelope.tasks.size)
+        assertEquals(1, envelope.archivedTasks!!.size)
+        assertEquals(1, envelope.deletedTasks!!.size)
+        assertEquals(1, envelope.smartViews!!.size) // built-ins excluded
+        assertNotNull(envelope.notificationSettings)
+        assertNotNull(envelope.archiveSettings)
+        assertNotNull(envelope.appPreferences)
+    }
+
+    @Test
+    fun replaceMode_presentEmptyArrayClearsStore_absentKeyLeavesIt() = runTest {
+        val archived = taskStore.add(draft("archive-r001", "r"))
+        taskStore.setCompleted(archived.id, true)
+        archiveStore.archive(archived.id)
+        assertEquals(1, db.archivedTaskDao().allIds().size)
+
+        applier.apply(
+            BackupImport(BackupEnvelope(tasks = emptyList(), archivedTasks = emptyList()), "2.1.0", 0),
+            ImportMode.REPLACE,
+        )
+        assertTrue(db.archivedTaskDao().allIds().isEmpty())
+
+        val reseeded = taskStore.add(draft("archive-r002", "r2"))
+        taskStore.setCompleted(reseeded.id, true)
+        archiveStore.archive(reseeded.id)
+        assertEquals(1, db.archivedTaskDao().allIds().size)
+
+        applier.apply(
+            BackupImport(BackupEnvelope(tasks = emptyList(), archivedTasks = null), "2.1.0", 0),
+            ImportMode.REPLACE,
+        )
+        assertEquals(1, db.archivedTaskDao().allIds().size)
+    }
+
+    @Test
+    fun mergeMode_existingArchiveRowWinsOnCollision() = runTest {
+        val local = taskStore.add(draft("collide-a01", "local"))
+        taskStore.setCompleted(local.id, true)
+        archiveStore.archive(local.id)
+
+        val imported = ArchivedTask(task = draft(local.id, "imported"), archivedAt = fixed.instant())
+        applier.apply(
+            BackupImport(BackupEnvelope(tasks = emptyList(), archivedTasks = listOf(imported)), "2.1.0", 0),
+            ImportMode.MERGE,
+        )
+
+        assertEquals("local", db.archivedTaskDao().byId(local.id)?.title)
+    }
+
+    @Test
+    fun mergeMode_neverAdoptsSingletons() = runTest {
+        db.notificationSettingsDao().upsert(
+            NotificationSettingsEntity(
+                enabled = true, defaultReminder = 15, soundEnabled = true,
+                quietHoursStart = null, quietHoursEnd = null, permissionAsked = false,
+                updatedAt = 1_000L,
+            ),
+        )
+        val imported = BackupNotificationSettings(
+            enabled = false, defaultReminder = 45, soundEnabled = false,
+            quietHoursStart = "22:00", quietHoursEnd = "07:00",
+            permissionAsked = true, updatedAt = fixed.instant(),
+        )
+
+        applier.apply(
+            BackupImport(BackupEnvelope(tasks = emptyList(), notificationSettings = imported), "2.1.0", 0),
+            ImportMode.MERGE,
+        )
+        assertEquals(15, db.notificationSettingsDao().get()?.defaultReminder)
+
+        applier.apply(
+            BackupImport(BackupEnvelope(tasks = emptyList(), notificationSettings = imported), "2.1.0", 0),
+            ImportMode.REPLACE,
+        )
+        assertEquals(45, db.notificationSettingsDao().get()?.defaultReminder)
+    }
+
+    @Test
+    fun importedTombstoneStoresEnqueueNothing() = runTest {
+        taskStore.add(draft("prior-00001", "keep"))
+        val queuedBefore = db.syncQueueDao().pending().size
+
+        val envelope = BackupEnvelope(
+            tasks = emptyList(),
+            archivedTasks = listOf(ArchivedTask(draft("tomb-arch01", "a"), fixed.instant())),
+            deletedTasks = listOf(DeletedTask(draft("tomb-del001", "d"), fixed.instant())),
+            smartViews = listOf(
+                SmartView(
+                    id = "custom-view1", name = "Custom", icon = "star",
+                    criteria = FilterCriteria(), isBuiltIn = false,
+                    createdAt = fixed.instant(), updatedAt = fixed.instant(),
+                ),
+            ),
+            notificationSettings = BackupNotificationSettings(
+                enabled = true, defaultReminder = 20, soundEnabled = true,
+                quietHoursStart = null, quietHoursEnd = null, permissionAsked = false,
+                updatedAt = fixed.instant(),
+            ),
+            archiveSettings = BackupArchiveSettings(enabled = true, archiveAfterDays = 60),
+            appPreferences = BackupAppPreferences(pinnedSmartViewIds = emptyList()),
+        )
+
+        applier.apply(BackupImport(envelope, "2.1.0", 0), ImportMode.MERGE)
+
+        assertEquals(queuedBefore, db.syncQueueDao().pending().size)
+    }
+
+    @Test
+    fun anIdNeverLandsInTwoStores() = runTest {
+        val envelope = BackupEnvelope(
+            tasks = listOf(draft("shared-id01", "active")),
+            archivedTasks = listOf(ArchivedTask(draft("shared-id01", "archived"), fixed.instant())),
+        )
+        applier.apply(BackupImport(envelope, "2.1.0", 0), ImportMode.MERGE)
+
+        assertNotNull(taskStore.get("shared-id01"))
+        assertNull(db.archivedTaskDao().byId("shared-id01"))
+    }
+}
