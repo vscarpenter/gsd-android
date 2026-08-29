@@ -183,7 +183,7 @@ object Interchange {
         )
     }.getOrNull()
 
-    private fun iso(instant: Instant): String =
+    internal fun iso(instant: Instant): String =
         java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
             .format(instant.atZone(java.time.ZoneOffset.UTC))
 
