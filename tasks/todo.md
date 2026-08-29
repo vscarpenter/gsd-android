@@ -30,7 +30,56 @@
   Data Safety answers + permission declarations, listing copy + shot-list, submission checklist.
   Version 0.7.0; Settings reads BuildConfig.
 
-## Resuming From Here — ALL EIGHT PHASES COMPLETE
+## NEXT UP — Cross-platform parity catch-up (2026-08-29, spec revised, implementation not started)
+The web and iOS clients ran a parity push on 2026-08-28/29 that this repo predates. The gaps
+and exact contract values are specified in `docs/2026-08-29-cross-platform-parity-spec.md`
+(which wins over `docs/gsd-android-spec.md` until its final task folds the amendments in);
+the twelve-task implementation plan is `tasks/parity-plan.md`. Headlines: backup envelope
+2.1.0 (seven stores, string version, three-array import cap), trash with 30-day retention
+(Room v1→v2), sync tombstone suppression, the 40-case capture-parser corpus, the anonymous
+feedback contract, and the widened Apple sign-in note. Fixtures are byte-copied from
+`../gsd-taskmanager/tests/fixtures/cross-platform/`. Verified non-gaps (don't re-audit):
+field limits, design tokens, quiet-hours seed (22:00–07:00 matches iOS; web's 08:00 is the
+outlier), wire model, reminder presets.
+
+**2026-08-29 spec verification + revision (done):** a claim-by-claim check against all three
+repos corrected five rules the draft had presented as "shared" sibling behavior — restore now
+preserves original timestamps (faithful undo, matches web+iOS; NOT a fresh `updatedAt`),
+singletons import in replace mode only (merge never adopts another device's configuration),
+erase-clears-trash is attributed to iOS (the web's omission is an upstream bug), the lenient
+per-record import is a declared Android choice (web is all-or-nothing), and the start-of-day
+purge cutoff is iOS's rule (web uses a rolling instant). The plan's Task 5/6/10 code sketches
+and tests were re-aligned to match. Do not re-introduce the fresh-stamp or both-modes-singleton
+behavior; the spec labels every contested rule with its source client.
+
+### Ship path (in order)
+1. **Parity plan Tasks 1–4** (`:core:model`, JVM-only, fast): corpus parser alignment, envelope
+   export/import, cross-platform fixture pair. Gate: `./gradlew :core:model:test` sub-second.
+2. **Tasks 5–8** (`:core:store` + `:core:sync`, emulator needed for instrumented tests): Room
+   v1→v2 trash, backup assembler/applier, trash UI + undo-as-restore, sync tombstone guard.
+3. **Tasks 9–11** (`:app`): feedback payload/API/screen, two-tier Apple note.
+4. **Task 12**: fold amendments into `docs/gsd-android-spec.md`; full sweep
+   (`testDebugUnitTest`, `connectedAndroidTest`, `:app:assembleRelease`).
+5. **Release**: bump 0.7.0 → 0.8.0 (versionCode 8), `:app:bundleRelease`, release smoke.
+6. **Play submission** (owner steps, `docs/play/submission-checklist.md`): can proceed **in
+   parallel** with 1–4 on the existing 0.7.0 draft — the Console review pipeline is the long
+   pole for a first submission; if review clears first, ship 0.7.0 and follow with 0.8.0.
+
+### Upstream follow-ups (not Android's, don't block)
+- Web: `resetEverything` leaves `deletedTasks` + `appPreferences` behind (privacy-shaped).
+- Web: trash-merge import overwrites the local row on id collision (archive rule says skip).
+- iOS: no tombstone-suppression guard on pull/SSE — resurrects archived/trashed ids.
+
+## Resuming From Here (2026-08-29)
+- **Done:** parity spec verified against all three repos and revised (5 blocker rules + accuracy
+  fixes); `tasks/parity-plan.md` re-aligned (Task 5 restore test/impl, Task 6 singleton scope +
+  new merge test, Task 10 structured duplicate-400 check, Task 11 U+2019 copy).
+- **Next:** execute `tasks/parity-plan.md` Task 1 (capture-parser corpus) — TDD, per-task commits.
+- **Blockers:** none for Tasks 1–4; Tasks 5+ need an emulator for `connectedAndroidTest`.
+- **Assumptions (all labeled in the spec):** restore preserves timestamps; singletons
+  replace-only; smart-view `description` is a documented round-trip loss.
+
+## Earlier — ALL EIGHT PHASES COMPLETE
 The spec's roadmap is fully implemented. Remaining work is in `docs/play/submission-checklist.md`:
 all owner steps (deletion URL, signing, release smoke, Console upload, screenshots) plus the
 post-1.0 deferral list. TalkBack with-ears pass is documented in the accessibility audit.
