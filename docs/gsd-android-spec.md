@@ -122,7 +122,9 @@ The PocketBase `tasks` collection schema in §9.1 — snake_case field names, fl
 
 ### 4.4 Import/export JSON
 
-The export document (§8.16) is a shared interchange format across all clients. Same field names (camelCase Task shape), same lenient-import rules.
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
+The export document (§8.16) is a shared interchange format across all clients: a seven-store, versioned envelope — `version` (string `"2.1.0"`), `exportedAt`, `tasks`, `archivedTasks`, `deletedTasks`, `smartViews`, `notificationSettings`, `archiveSettings`, `appPreferences`. Same camelCase Task shape, same lenient-import rules, and the same absent-key-means-untouched semantics across clients.
 
 ### 4.5 Auth providers
 
@@ -340,6 +342,8 @@ Archive is deliberately *inside* Browse, not a fifth destination.
 
 ### 6.4 Deep links
 
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
 Register the **`gsd://` scheme** (intent filters on the main activity). Routes — identical to iOS so widgets, shortcuts, and notifications share one router:
 
 | URL | Opens |
@@ -349,7 +353,7 @@ Register the **`gsd://` scheme** (intent filters on the main activity). Routes �
 | `gsd://quadrant/<quadrant-id>` | Matrix scrolled to that quadrant (ids from §7.8) |
 | `gsd://task/<id>` | that task's editor (fetch directly from the store; cold-start safe) |
 | `gsd://smart-view/<id>` | that smart view's filtered list |
-| `gsd://dashboard` · `gsd://settings` · `gsd://archive` | those surfaces |
+| `gsd://dashboard` · `gsd://settings` · `gsd://archive` · `gsd://trash` | those surfaces (`trash` — §8.20) |
 | `gsd://oauth-callback?...` | reserved for the OAuth flow (§10); the router ignores it |
 
 A deep link arriving before the UI is ready is persisted and consumed on first composition (cold-start). A `task/<id>` link to a task that no longer exists shows a friendly "not found" state, never a blank screen.
@@ -470,7 +474,9 @@ A predicate bundle; all present criteria are **ANDed**. camelCase-Codable:
 
 ### 7.10 Room tables
 
-Mirror the separation used by both sibling clients (Dexie schema v14 / GRDB v1–v5): **`tasks`**, **`archivedTasks`** (same shape + `archivedAt`, a separate table), **`smartViews`**, **`notificationSettings`**, **`archiveSettings`**, **`appPreferences`**, **`syncQueue`** (§9.5), **`syncMetadata`** (cursor + device identity), **`syncHistory`** (§9.7). Collections (`tags`, `subtasks`, `dependencies`, `timeEntries`) are **JSON TEXT columns** (§7.3 encoding), not child tables — matching Dexie/PocketBase/GRDB shapes. Index `quadrant`, `completed`, `updatedAt`, `dueDate`. Versioned Room migrations from day one; a row with an unrecognized enum degrades gracefully (`recurrence` → `none`) rather than failing the fetch.
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
+Mirror the separation used by both sibling clients (Dexie schema v16 / GRDB v6): **`tasks`**, **`archivedTasks`** (same shape + `archivedAt`, a separate table), **`deletedTasks`** (same shape + `deletedAt`, indexed on `deletedAt` — the 30-day trash, §8.20), **`smartViews`**, **`notificationSettings`**, **`archiveSettings`**, **`appPreferences`**, **`syncQueue`** (§9.5), **`syncMetadata`** (cursor + device identity), **`syncHistory`** (§9.7). Collections (`tags`, `subtasks`, `dependencies`, `timeEntries`) are **JSON TEXT columns** (§7.3 encoding), not child tables — matching Dexie/PocketBase/GRDB shapes. Index `quadrant`, `completed`, `updatedAt`, `dueDate`. Versioned Room migrations from day one; a row with an unrecognized enum degrades gracefully (`recurrence` → `none`) rather than failing the fetch. The schema is at **Room v2** — `MIGRATION_1_2` adds `deleted_tasks`, the first real (non-fresh-install) migration, covered by an instrumented migration test.
 
 ### 7.11 Validation
 
@@ -502,6 +508,8 @@ Task card contents: §5.6 — title, description preview with tappable links, ta
 
 ### 8.2 Quick capture + the shorthand parser
 
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`. The 40-case cross-platform corpus (`core/model/src/test/resources/fixtures/cross-platform/capture-parser-corpus.json`, byte-identical to `gsd-taskmanager`/`gsd-iosapp`/the MCP server) is **the** parser contract and supersedes Appendix C's nine vectors; where this section and the corpus ever disagree, the corpus wins.
+
 **Behavior — parser grammar (authoritative, security-relevant):** a single text field accepts a title with inline shorthand parsed on submit:
 
 | Token | Effect | Notes |
@@ -509,12 +517,12 @@ Task card contents: §5.6 — title, description preview with tappable links, ta
 | `!!` | `urgent = true` AND `important = true` | word boundaries; takes precedence over `!` |
 | `!` | `urgent = true` | word boundaries |
 | `*` | `important = true` | word boundaries |
-| `#tag` | adds `tag` (lowercased) | deduplicated; capped at 20 |
-| `http(s)://…` URL | **moved from title to description** | sanitized (below) |
+| `#tag` | adds `tag` (lowercased) | Unicode word characters (letters/marks/digits/underscore to start, `-` as continuation only — a leading hyphen does not parse as a tag); deduplicated case-insensitively; **capped at 20 by truncation** (excess tags drop, the capture is not rejected); over-length tags (>30 chars) drop but still strip from the title |
+| `http(s)://…` URL | **moved from title to description** | sanitized (below); duplicate URLs collapse to one (first occurrence) |
 
-After parsing, the cleaned title has tokens/URLs removed and whitespace collapsed. No flags → the task lands in **Eliminate (Q4)** unless a manual quadrant override is set.
+After parsing, the cleaned title has tokens/URLs removed and whitespace collapsed. Repeated flag tokens (`!! !!`, `! !`) all strip in one pass. No flags → the task lands in **Eliminate (Q4)** unless a manual quadrant override is set.
 
-**URL sanitization (replicate exactly):** accept only `http`/`https`; reject embedded credentials (`user:pass@`); require a valid hostname; reject URLs ≥ 2048 chars; strip trailing sentence punctuation (`, ; : . ! ? )`). Valid URLs append to the description on their own lines (newline-separated from existing text). If removing URLs empties the title but ≥1 URL was found, title becomes **"Review link below"**. Invalid/unsafe URLs stay in the title untouched.
+**URL sanitization (replicate exactly):** accept only `http`/`https`; reject embedded credentials (`user:pass@`); require a valid hostname; reject URLs ≥ 2048 chars; strip trailing sentence punctuation (`, ; : . ! ? )`); extraction is **boundary-anchored** — a URL token is recognized at word boundaries, not greedily mid-word. Valid URLs append to the description on their own lines (newline-separated from existing text), stored as the **trimmed raw string** — never WHATWG-normalized. If removing URLs empties the title but ≥1 URL was found, title becomes **"Review link below"**. Invalid/unsafe URLs stay in the title untouched.
 
 **Android reimagining.**
 - The capture bar (§5.10) shows a **live preview**: the trailing **quadrant chip** rests as "**Auto**" (neutral grid glyph) and switches to the live quadrant name + symbol in its pigment as `!`/`*` are typed; tapping it cycles the manual override `Auto → Q1 → Q2 → Q3 → Q4 → Auto` (Tab cycles it on hardware keyboards). Detected `#tags` render as chips beneath.
@@ -636,25 +644,48 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 
 ### 8.16 Import / export, erase
 
-**Export.** JSON envelope `{ "tasks": [ …full camelCase Task records, rich timeEntries… ], "exportedAt": "<ISO-8601 ms>", "version": 1 }`, pretty-printed with **sorted keys** (§7.3 dates). Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet.
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 
-**Import.** Accept that JSON leniently (§7.3): limits **10,000 tasks / 10 MB** (byte check first). Per-task lenient decode + validation; invalid tasks skipped and counted, reported as "imported N, skipped M". Two modes, chosen after picking a file (`ACTION_OPEN_DOCUMENT`):
-- **Replace** — imported set becomes the store: stamp `updatedAt = now`, enqueue `update` for every imported ID **and `delete` for every existing ID not in the import**, then swap the table atomically.
-- **Merge** — insert alongside existing; colliding IDs get regenerated (collision-checked against existing + imported + already-assigned), with `dependencies` **and `parentTaskId`** remapped through the complete ID map (forward references included). Stamp `updatedAt = now`, enqueue `update` per task.
+**Export — envelope 2.1.0.** A seven-store, versioned JSON document, pretty-printed (2-space indent) with **top-level keys sorted** (an Android/iOS exporter convention; the web emits insertion order — key order is not part of the import contract), dates ISO-8601 fractional-ms:
 
-**Erase all data.** A guarded destructive flow: type **"RESET"** to confirm, with an export-first prompt. Clears tasks, archive, custom views, sync queue, pins, archive settings; cancels reminders; **keeps theme + onboarding flags**. If signed in, it erases **everywhere**: all remote records are deleted first (§9.8); only after remote success does the local wipe proceed.
+| Key | Content |
+|---|---|
+| `version` | the **string** `"2.1.0"` (not an int) |
+| `exportedAt` | ISO-8601 ms |
+| `tasks` | full camelCase Task records, **plus the derived `quadrant`** (§7.8; import still ignores it), rich `timeEntries`, null optionals omitted |
+| `archivedTasks` | Task records + `archivedAt` (ISO) |
+| `deletedTasks` | Task records + `deletedAt` (ISO) — the trash, §8.20 |
+| `smartViews` | custom views only (`isBuiltIn: false`) |
+| `notificationSettings` | singleton, `id: "settings"` |
+| `archiveSettings` | singleton, `id: "settings"` |
+| `appPreferences` | singleton, `id: "preferences"` |
+
+Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet.
+
+**Import — lenient, version-tolerant.** Order of guards: **10 MB UTF-8 byte cap** → structural decode → record-count cap → per-record lenient decode. **The count cap counts all three task-bearing arrays**: `tasks + archivedTasks + deletedTasks ≤ 10,000` (`smartViews` and the singletons are not counted). `version` accepts a string or a number, normalized to string; **absent is accepted and treated as `"1"`** so an old v1 export keeps importing. Every store key beyond `tasks` is **optional**, and **absent ≠ empty**: an absent key leaves the local store untouched in *both* modes; an empty array *present* in the payload clears that store in replace mode. Per-record failures skip-and-count rather than aborting the whole import — a deliberate Android leniency choice in the iOS style (the web's `importPayloadSchema` rejects the entire payload on any invalid record); reported as "imported N, skipped M". Two modes, chosen after picking a file (`ACTION_OPEN_DOCUMENT`):
+
+- **Replace** — `tasks`: stamp `updatedAt = now`, enqueue `update` for every imported ID **and `delete` for every existing ID not in the import**, then swap the table atomically. `archivedTasks`/`deletedTasks` (when present): clear then insert. The three singletons (when present): put — replace is the **only** mode that applies incoming settings.
+- **Merge** — `tasks`: insert alongside existing; colliding IDs get regenerated (collision-checked against existing + imported + already-assigned), with `dependencies` **and `parentTaskId`** remapped through the complete ID map (forward references included); stamp `updatedAt = now`, enqueue `update` per task. `archivedTasks`/`deletedTasks`: insert; **on id collision the existing local row wins** (skip, no remap); an id already present in the imported or local `tasks` is skipped in either tombstone store — an id lives in one store, never both. `smartViews`: upsert by id, never accepting a payload row with `isBuiltIn: true`. The three singletons are **not applied** in merge — merge combines task lists and never adopts another device's configuration.
+- Neither mode enqueues sync operations for `archivedTasks`, `deletedTasks`, `smartViews`, or the singletons — those stores never sync.
+
+Both cross-platform fixtures (`ios-backup-export.json`, `web-backup-2.1.0.json`, byte-identical copies at `core/model/src/test/resources/fixtures/cross-platform/`) round-trip through decode, count validation, and re-export/re-import in the JVM suite.
+
+**Erase all data.** A guarded destructive flow: type **"RESET"** to confirm, with an export-first prompt. Clears tasks, archive, **trash**, custom views, sync queue, pins, archive settings; cancels reminders; **keeps theme + onboarding flags**. Clearing the trash on erase matches iOS (erase "must mean all of it"); the web's `resetEverything` currently omits `deletedTasks`, an upstream bug, not behavior Android copies. If signed in, it erases **everywhere**: all remote records are deleted first (§9.8); only after remote success does the local wipe proceed.
 
 ### 8.17 Settings
+
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 
 Sections in order (Material list groups):
 
 1. **Appearance** — Theme (System/Light/Dark); Show Completed Tasks.
 2. **Sharing** — "Fetch titles for shared links" (default **off**; footer explains it performs a network fetch).
-3. **Account** — signed out: Sign in with Google / Apple / GitHub + a one-line privacy hint; signed in: account email (+ a note when it's an Apple private-relay address), sync status ("Synced · N pending"), health message when unhealthy, **Sync Now**, **Sync History** (screen: totals + the ~50 most recent entries with status/counts/duration), **Sign Out**, **Delete Account…** (§8.21). There is deliberately **no** sync on/off toggle — signing in *is* enabling sync.
+3. **Account** — signed out: Sign in with Google / Apple / GitHub + a one-line privacy hint; signed in: account email, a **two-tier Apple note** when the session's provider is Apple (§10.4) — relay address (`…@privaterelay.appleid.com`): "Signed in with a private relay email — this is a separate account from your web tasks."; any other Apple sign-in: "Signed in with Apple. If you use Google or GitHub on the web, that’s a different account and won’t show the same tasks." — sync status ("Synced · N pending"), health message when unhealthy, **Sync Now**, **Sync History** (screen: totals + the ~50 most recent entries with status/counts/duration), **Sign Out**, **Delete Account…** (§8.21). There is deliberately **no** sync on/off toggle — signing in *is* enabling sync.
 4. **Archive** — auto-archive toggle; "Archive after" 30/60/90; **Archive Now** + status line.
 5. **Notifications** — Enable Reminders; Default Reminder (15m/30m/1h/2h/1d); Sound; Quiet Hours toggle + from/to pickers (default 22:00–07:00); system-permission status row with a contextual **Enable notifications** / **Open system settings** action.
 6. **Data & Storage** — Export (prepare → share/save); Import (file picker → Merge/Replace choice); Erase All Data (§8.16).
-7. **About** — version + build; privacy blurb; Privacy Policy → `https://gsdtaskmanager.com/privacy/`; Contact Support → `gsdapp@vinny.dev`; "How to use GSD" (the Field Guide, §8.19); "Show onboarding again".
+7. **Feedback** — anonymous, opt-in, no auth header, no identifiers beyond the payload: sentiment toggle (up/down), category chips (idea/praise/gripe/bug), message field (≤1000 chars, live count near the limit), a roadmap vote checklist (Android's 8 slugs: `natural-language-dates, calendar-sync, task-templates, weekly-review, focus-timer, task-notes, shared-lists, wear-os`), and a **"What gets sent" preview** rendering the literal payload object, built by the same pure builder that produces the request body so preview and payload cannot drift. The draft persists locally (DataStore) and clears on success; Send is disabled while the draft is empty. Confirmation is calm ("Thanks — sent."); failures keep the draft with a retry affordance. Wire contract: `POST https://api.vinny.io/api/collections/feedback/records`, no Authorization header, no cookies; exactly 7 snake_case keys (`submission_id`, `sentiment`, `category`, `message`, `votes`, `app_version`, `client_submitted_at` — limits in Appendix B), pinned by an exact-keys test. A 2xx is success; a 400 whose body has `data.submission_id.code == "validation_not_unique"` (a duplicate retry of the same draft) also collapses to success.
+8. **About** — version + build; privacy blurb; Privacy Policy → `https://gsdtaskmanager.com/privacy/`; Contact Support → `gsdapp@vinny.dev`; "How to use GSD" (the Field Guide, §8.19); "Show onboarding again".
 
 ### 8.18 Task sharing (outbound)
 
@@ -666,9 +697,20 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 - **Help ("Field Guide"):** a static reference sheet — the board & capture bar; the four quadrants with intent blurbs; quick-add syntax with the example `!! ship the deck #work #q2`; keyboard shortcuts (shown only when a hardware keyboard is relevant); editing/completing/drag; cloud sync (optional); privacy; a link to gsdtaskmanager.com.
 - **About:** mark, tagline "Get the right things done.", version, site link, maker's credit.
 
-### 8.20 Undo delete
+### 8.20 Undo delete & Trash
 
-Deleting a task (swipe, menu, or bulk) **commits immediately** — the row is gone, the sync delete is enqueued (tombstone-safe) — and a **snackbar** appears: `Deleted "<title>"` with **Undo** (~6 s; extended ~12 s when TalkBack is active). Undo **re-creates** the task from a snapshot as a fresh write (new `updatedAt`, LWW-safe against the earlier delete). No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive-permanent-delete still confirm (irreversible at scale).
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
+**Behavior.** Deleting an active task moves the full record to the trash store with `deletedAt = now`, rather than hard-deleting it. The remote `delete` is enqueued *before* the local move, in the same transaction — the enqueue-before-write invariant, extended; if the enqueue fails, the delete aborts. The store invariant is now three-state: a task id lives in exactly one of `tasks`, `archivedTasks`, `deletedTasks`.
+
+- **Retention: 30 days**, using a **start-of-day (local) cutoff 30 days back** — following iOS; the web uses a rolling `now − 30 d` instant instead, an accepted per-client divergence. Purge deletes strictly older than the cutoff (a row whose `deletedAt` sits exactly on it is kept — strict `<`), running on launch and on the periodic maintenance sweep. Purge enqueues nothing.
+- **Restore** re-activates the record **with its original timestamps preserved** — a faithful undo, matching both siblings — and **enqueues `create`**, safe because the remote record was already deleted at trash time (no LWW contest). Reminders for the restored task are rescheduled.
+- **Delete forever** (single row) and **Empty trash** enqueue nothing — the remote record was already deleted when the task entered the trash.
+- Trash contents **never sync** (like the archive): a remote delete arriving via SSE/reconcile removes the local active row directly, without creating a local trash entry — only the deleting device holds the recoverable copy.
+- Archiving is unaffected — a separate store; archive is for completed history, trash for deletions. Restoring from trash returns to active, never to archive.
+- Erase All Data clears the trash too (§8.16).
+
+**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete forever (trailing, confirmed "This can't be undone."), a multi-select bulk bar (Restore / Delete forever), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale).
 
 ### 8.21 Account switching, account deletion, recovery
 
@@ -732,10 +774,13 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 ### 9.4 Pull, cursor, and deletion reconciliation
 
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
 - **Endpoint:** `GET /api/collections/tasks/records?page={n}&perPage=200&sort=updated&filter=updated >= "{cursor}"` (filter URL-encoded; page through **all** pages until `page ≥ totalPages`; response envelope `{page, perPage, totalItems, totalPages, items}`). No owner filter is sent — the server's API rule scopes rows.
 - **Cursor:** the max applied **server `updated`** stamp, stored in the PocketBase space-separated form; first sync uses `"1970-01-01 00:00:00.000Z"`. After a successful sync, advance to `maxApplied − 5 seconds` (the overlap rewind that catches boundary writes). A record whose `updated` is unparseable still applies but doesn't advance the cursor.
 - **Apply loop:** per record — validate; skip malformed (never abort the pull); apply LWW (§9.3); on upsert preserve device-local fields (§9.2). Count remote-won overwrites as `conflictsResolved`.
-- **Deletion reconciliation** (runs **last**, after push, destructive): fetch a fresh full remote index (`task_id` set); delete every local **active** task whose id is absent remotely **and** not present in the sync queue (pending **or** failed items both protect). The archive table is never touched. This is safe only because of the **enqueue-before-write invariant**: every local mutation enqueues its sync operation *before* the row becomes visible.
+- **Tombstone suppression (archive + trash).** Before the LWW upsert, check whether the record's `task_id` is in `archivedTasks` or `deletedTasks`. If so, compare the remote `client_updated_at` against that row's `archivedAt`/`deletedAt` as millisecond instants: remote **strictly newer** → the remote edit wins — remove the tombstone row and apply the record as a normal active upsert (deliberate cross-device resurrection: the user edited it elsewhere after archiving/deleting here); otherwise (older, equal, either timestamp missing or unparseable) → **drop the record, fail closed** — never resurrect on bad data. Without this guard a remote record for a locally-archived-or-trashed task would resurrect as an active duplicate. This mirrors the web's `isRemoteNewerThanArchive` guard, extended to both tombstone stores; iOS's pull/SSE paths do not yet have it (sibling backlog item, not Android's to fix).
+- **Deletion reconciliation** (runs **last**, after push, destructive): fetch a fresh full remote index (`task_id` set); delete every local **active** task whose id is absent remotely **and** not present in the sync queue (pending **or** failed items both protect). The archive and trash tables are never touched. This is safe only because of the **enqueue-before-write invariant**: every local mutation enqueues its sync operation *before* the row becomes visible.
 
 ### 9.5 Push & the sync queue
 
@@ -750,13 +795,15 @@ Push algorithm:
 
 ### 9.6 Realtime (SSE) + cadence safety net
 
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
 Protocol (live-verified):
 1. `GET /api/realtime` with `Accept: text/event-stream`, no auth, no timeout. Frames use `id:`/`event:`/`data:` lines (tolerate no space after the colon; `:` comment lines are heartbeats; an event is delimited by a blank line; multiple `data:` lines join with `\n`).
 2. First frame: `event:PB_CONNECT`, `data:{"clientId":"…"}` — extract the clientId (missing → reconnect).
 3. Subscribe: `POST /api/realtime` with the bare-JWT auth header, JSON body `{"clientId":"<id>","subscriptions":["tasks"]}` → 204.
 4. Task events arrive as `event:tasks`, `data:{"record":{…full record…},"action":"create"|"update"|"delete"}`.
 
-Apply rules: enforce owner **fail-closed** (non-empty `record.owner` must equal the current JWT's user id, else drop). For create/update: **echo-filter** — drop when `record.device_id` equals this device's id; drop when a local **delete** is pending for that `task_id` (don't resurrect); else LWW-upsert with device-local preservation. For delete: drop when *any* queue item is pending for that task (deletes carry the last writer's `device_id`, so they are **not** echo-filtered — the queue check is the guard); else delete locally.
+Apply rules: enforce owner **fail-closed** (non-empty `record.owner` must equal the current JWT's user id, else drop). For create/update: **echo-filter** — drop when `record.device_id` equals this device's id; drop when a local **delete** is pending for that `task_id` (don't resurrect); apply the same **tombstone-suppression** check as the pull apply loop (§9.4) — an archived/deleted `task_id` resurrects only when the incoming `client_updated_at` is strictly newer than the tombstone's `archivedAt`/`deletedAt`; else LWW-upsert with device-local preservation. For delete: drop when *any* queue item is pending for that task (deletes carry the last writer's `device_id`, so they are **not** echo-filtered — the queue check is the guard); else delete locally (no trash entry is created for a remote delete — §8.20).
 
 Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (catch missed events), then reconnect with exponential backoff 1s → cap 30s (healthy stream resets it). **Safety net:** a full sync every **120 s** while active, plus on launch, foreground, network-regained, and a **1.5 s debounced push** after each local mutation. One sync at a time — concurrent triggers coalesce.
 
@@ -796,8 +843,10 @@ Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (c
 
 ### 10.4 Identity caveats
 
-- Cross-provider identity: each OAuth provider identity is a distinct PocketBase user unless the backend links them. A user who signs in with Google on the web and Apple on Android gets **two data spaces**. Surface provider choice clearly; recommend users pick the same provider everywhere.
-- **Apple private relay:** an `…@privaterelay.appleid.com` email means Apple relay — show a gentle note in Settings (it also implies no email-based convergence with other providers).
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
+- **Cross-provider identity — corrected.** Per the pinned PocketBase v0.39.10 source (`apis/record_auth_with_oauth2.go`), email-based auto-linking is **built-in and unconditional**: on sign-in, PocketBase matches an existing `externalAuth` (provider + providerId) first, else falls back to `FindAuthRecordByEmail` on the provider-verified email, else creates a new user. There is no admin-UI setting to flip. A user who signs in with Google on the web and Apple on Android converges to the **same** account whenever both providers report the same verified email — distinct data spaces arise only when the verified emails genuinely differ, chiefly Apple private relay (verified, but unique per app). Surface provider choice clearly regardless; recommend users pick the same provider everywhere as the simplest mental model.
+- **Apple private relay:** an `…@privaterelay.appleid.com` email means Apple relay — show the two-tier account note in Settings (§8.17); it deliberately over-warns for the same-email case, mirroring the shipped iOS copy. It also implies no email-based convergence with other providers, since the relay address is unique per app.
 - Account switching semantics: §8.21.
 
 ---
@@ -961,6 +1010,8 @@ Each phase independently buildable and testable; sync remains the highest-risk p
 
 ## Appendix B — Field limits
 
+> Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
 | Limit | Value |
 |---|---|
 | ID | ≥ 4 chars (emit 21; time entries 8; smart views 12) |
@@ -974,9 +1025,14 @@ Each phase independently buildable and testable; sync remains the highest-risk p
 | Smart-view name | 1–60 chars |
 | Pinned views | max 5 |
 | Share-capture title | clamped to 80 chars |
-| Import | ≤ 10,000 tasks, ≤ 10 MB |
+| Import | counts `tasks + archivedTasks + deletedTasks` ≤ 10,000; ≤ 10 MB |
+| Feedback `submission_id` | 1–64 chars |
+| Feedback `message` | ≤ 1000 chars |
+| Feedback `app_version` | ≤ 20 chars, clamped by truncation |
 
-## Appendix C — Capture-parser test vectors (port as fixtures)
+## Appendix C — Capture-parser test vectors (superseded)
+
+> Amended 2026-08-29 — **superseded by the 40-case cross-platform corpus** (§8.2), `core/model/src/test/resources/fixtures/cross-platform/capture-parser-corpus.json`. The nine vectors below predate the settled Unicode-tag, duplicate-URL, repeated-flag, and boundary-URL decisions in §8.2 and are kept only as a historical sample — do not port them as fixtures; port the corpus.
 
 | Input | Result |
 |---|---|

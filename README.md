@@ -55,6 +55,6 @@ Requires JDK 17 or newer. Gradle provisions its own toolchain.
 
 ## Status
 
-Feature-complete through the spec's eight-phase roadmap, tagged `v0.1.0-phase1` through `v0.7.0-phase7`. Play Store submission is in progress; the checklist lives in [`docs/play/submission-checklist.md`](docs/play/submission-checklist.md).
+Feature-complete through the spec's eight-phase roadmap, tagged `v0.1.0-phase1` through `v0.7.0-phase7`. Play Store submission is in progress; the checklist lives in [`docs/play/submission-checklist.md`](docs/play/submission-checklist.md). The August 2026 cross-platform parity catch-up — backup envelope 2.1.0, a 30-day trash, the shared 40-case capture-parser corpus, and anonymous opt-in feedback — landed 2026-08-29, with fixtures kept byte-identical to the sibling web and iOS repos.
 
 Built by [Vinny Carpenter](https://vinny.dev), with Claude doing the typing.

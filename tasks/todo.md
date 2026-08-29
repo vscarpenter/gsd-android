@@ -30,17 +30,34 @@
   Data Safety answers + permission declarations, listing copy + shot-list, submission checklist.
   Version 0.7.0; Settings reads BuildConfig.
 
-## NEXT UP — Cross-platform parity catch-up (2026-08-29, spec revised, implementation not started)
-The web and iOS clients ran a parity push on 2026-08-28/29 that this repo predates. The gaps
-and exact contract values are specified in `docs/2026-08-29-cross-platform-parity-spec.md`
-(which wins over `docs/gsd-android-spec.md` until its final task folds the amendments in);
-the twelve-task implementation plan is `tasks/parity-plan.md`. Headlines: backup envelope
-2.1.0 (seven stores, string version, three-array import cap), trash with 30-day retention
-(Room v1→v2), sync tombstone suppression, the 40-case capture-parser corpus, the anonymous
-feedback contract, and the widened Apple sign-in note. Fixtures are byte-copied from
-`../gsd-taskmanager/tests/fixtures/cross-platform/`. Verified non-gaps (don't re-audit):
-field limits, design tokens, quiet-hours seed (22:00–07:00 matches iOS; web's 08:00 is the
-outlier), wire model, reminder presets.
+## Cross-platform parity catch-up (2026-08-29) — COMPLETE
+The web and iOS clients ran a parity push on 2026-08-28/29 that this repo predated. The gaps
+and exact contract values were specified in `docs/2026-08-29-cross-platform-parity-spec.md`
+(which won over `docs/gsd-android-spec.md` until Task 12 folded the amendments back in — done,
+see below). Implementation plan: `tasks/parity-plan.md` (all twelve tasks checked off). Fixtures
+are byte-copied from `../gsd-taskmanager/tests/fixtures/cross-platform/`. Verified non-gaps
+(no work needed): field limits, design tokens, quiet-hours seed (22:00–07:00 matches iOS; web's
+08:00 is the outlier), wire model, reminder presets.
+
+**All twelve tasks landed, commits `f64b325..HEAD`:**
+1. Capture-parser corpus alignment — `d381af6`
+2. Backup envelope types + export 2.1.0 — `6b13a32`
+3. Envelope import (lenient, three-array cap) — `a6b8150`, `1af6924`
+4. Cross-platform backup fixture pair — `dca33c5`
+5. Trash — Room v2, `TrashStore`, delete rewiring — `e2ad1cb`, `a52cd41`
+6. Backup assembly + import application across the seven stores — `d86141d`
+7. Trash surfaces (undo = restore, Trash screen, purge scheduling) — `35cca0d`, `e330eba`
+8. Sync tombstone suppression (archive + trash, pull + SSE) — `3e7bf76`
+9. Feedback contract (seven-key payload, 8 Android slugs incl. `wear-os`) — `1fd37ea`
+10. Feedback submission + Settings surface — `018c83b`, `de92e4a`
+11. Two-tier Apple sign-in note — `5ace1c6`
+12. Fold amendments into `docs/gsd-android-spec.md`, README, this file; full verification sweep
+    — this commit
+
+`docs/gsd-android-spec.md` now carries `> Amended 2026-08-29` markers at every touched section
+(§4.4, §7.10, §8.16, §8.20, §9.4, §9.6, §8.2, Appendix C, §8.17, §10.4, §6.4, Appendix B) and
+describes what the shipped code does — it is the spec of record again; the parity spec document
+stays as the dated record of *why*.
 
 **2026-08-29 spec verification + revision (done):** a claim-by-claim check against all three
 repos corrected five rules the draft had presented as "shared" sibling behavior — restore now
@@ -53,29 +70,36 @@ and tests were re-aligned to match. Do not re-introduce the fresh-stamp or both-
 behavior; the spec labels every contested rule with its source client.
 
 ### Ship path (in order)
-1. **Parity plan Tasks 1–4** (`:core:model`, JVM-only, fast): corpus parser alignment, envelope
+1. ✅ **Parity plan Tasks 1–4** (`:core:model`, JVM-only, fast): corpus parser alignment, envelope
    export/import, cross-platform fixture pair. Gate: `./gradlew :core:model:test` sub-second.
-2. **Tasks 5–8** (`:core:store` + `:core:sync`, emulator needed for instrumented tests): Room
+2. ✅ **Tasks 5–8** (`:core:store` + `:core:sync`, emulator needed for instrumented tests): Room
    v1→v2 trash, backup assembler/applier, trash UI + undo-as-restore, sync tombstone guard.
-3. **Tasks 9–11** (`:app`): feedback payload/API/screen, two-tier Apple note.
-4. **Task 12**: fold amendments into `docs/gsd-android-spec.md`; full sweep
+3. ✅ **Tasks 9–11** (`:app`): feedback payload/API/screen, two-tier Apple note.
+4. ✅ **Task 12**: fold amendments into `docs/gsd-android-spec.md`; full sweep
    (`testDebugUnitTest`, `connectedAndroidTest`, `:app:assembleRelease`).
-5. **Release**: bump 0.7.0 → 0.8.0 (versionCode 8), `:app:bundleRelease`, release smoke.
-6. **Play submission** (owner steps, `docs/play/submission-checklist.md`): can proceed **in
-   parallel** with 1–4 on the existing 0.7.0 draft — the Console review pipeline is the long
-   pole for a first submission; if review clears first, ship 0.7.0 and follow with 0.8.0.
+5. ☐ **Release**: bump 0.7.0 → 0.8.0 (versionCode 8), `:app:bundleRelease`, release smoke.
+6. ☐ **Play submission** (owner steps, `docs/play/submission-checklist.md`): the parity work
+   landed on top of the existing 0.7.0 draft; the 0.8.0 bump + bundleRelease + release smoke
+   above are the last engineering steps before Console upload.
 
 ### Upstream follow-ups (not Android's, don't block)
 - Web: `resetEverything` leaves `deletedTasks` + `appPreferences` behind (privacy-shaped).
 - Web: trash-merge import overwrites the local row on id collision (archive rule says skip).
 - iOS: no tombstone-suppression guard on pull/SSE — resurrects archived/trashed ids.
 
-## Resuming From Here (2026-08-29)
-- **Done:** parity spec verified against all three repos and revised (5 blocker rules + accuracy
-  fixes); `tasks/parity-plan.md` re-aligned (Task 5 restore test/impl, Task 6 singleton scope +
-  new merge test, Task 10 structured duplicate-400 check, Task 11 U+2019 copy).
-- **Next:** execute `tasks/parity-plan.md` Task 1 (capture-parser corpus) — TDD, per-task commits.
-- **Blockers:** none for Tasks 1–4; Tasks 5+ need an emulator for `connectedAndroidTest`.
+## Resuming From Here (2026-08-29, post-parity)
+- **Done:** all twelve parity-plan tasks landed and verified (commits `f64b325..HEAD`, listed
+  above); `docs/gsd-android-spec.md` amended and is the spec of record again; `README.md`
+  status paragraph updated. Full verification sweep run — see the Task 12 report
+  (`.superpowers/sdd/parity-plan/task-12-report.md`) for the exact commands and results,
+  including the release-signing gap (owner-held `keystore.properties` not present locally;
+  `:app:assembleRelease` fails only on signing, `:app:assembleDebug` + R8-minified debug both
+  verified green as the substitute evidence).
+- **Next:** version bump 0.7.0 → 0.8.0 (versionCode 8), `:app:bundleRelease` (needs the owner's
+  release keystore), release smoke test, then the remaining Play Console owner steps in
+  `docs/play/submission-checklist.md`.
+- **Blockers:** release signing needs the owner-held `keystore.properties` — not present in this
+  environment; nothing else blocks.
 - **Assumptions (all labeled in the spec):** restore preserves timestamps; singletons
   replace-only; smart-view `description` is a documented round-trip loss.
 
