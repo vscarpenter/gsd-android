@@ -47,14 +47,19 @@ class FeedbackViewModel(
     private val _state = MutableStateFlow(stateFor(FeedbackDraft(submissionId = NanoId.generate())))
     val state: StateFlow<FeedbackUiState> = _state.asStateFlow()
 
+    // Both init's load and edit()/send() run on the same Main-confined dispatcher (standard
+    // ViewModel/viewModelScope assumption), so a plain var is safe here — no atomics needed.
+    private var touched = false
+
     init {
         viewModelScope.launch {
             // The in-memory default already carries a freshly-minted id; only a REAL persisted
-            // draft needs to replace it. Otherwise this late-arriving load would clobber any edit
-            // the caller made between construction and the (async, disk-backed) read completing.
+            // draft needs to replace it, and only if the caller hasn't already touched the screen.
+            // This load is async (real disk IO) and can resolve after in-flight edits — applying it
+            // unconditionally would silently discard whatever the caller did in the meantime.
             when (val stored = prefs.feedbackDraft.first()) {
                 null -> prefs.setFeedbackDraft(_state.value.draft)
-                else -> _state.value = stateFor(stored)
+                else -> if (!touched) _state.value = stateFor(stored)
             }
         }
     }
@@ -63,6 +68,7 @@ class FeedbackViewModel(
         FeedbackUiState(draft = draft, preview = FeedbackPayload.build(draft, appVersion, now()), sendState = sendState)
 
     private fun edit(transform: (FeedbackDraft) -> FeedbackDraft) {
+        touched = true
         val draft = transform(_state.value.draft)
         _state.value = stateFor(draft) // editing after Sent/Failed returns the screen to Idle
         viewModelScope.launch { prefs.setFeedbackDraft(draft) }
@@ -82,6 +88,7 @@ class FeedbackViewModel(
     fun send() {
         val current = _state.value
         if (current.draft.isEmpty || current.sendState == FeedbackSendState.Sending) return
+        touched = true
         _state.value = current.copy(sendState = FeedbackSendState.Sending)
         viewModelScope.launch {
             when (val result = api.submit(current.preview)) {
