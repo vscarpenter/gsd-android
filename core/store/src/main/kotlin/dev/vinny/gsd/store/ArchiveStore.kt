@@ -27,6 +27,9 @@ interface ArchivedTaskDao {
     @Query("DELETE FROM archived_tasks WHERE id = :id")
     suspend fun deleteById(id: String)
 
+    @Query("DELETE FROM archived_tasks WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
+
     @Query("DELETE FROM archived_tasks")
     suspend fun clear()
 }

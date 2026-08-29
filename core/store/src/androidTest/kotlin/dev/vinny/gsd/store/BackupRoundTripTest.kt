@@ -198,4 +198,49 @@ class BackupRoundTripTest {
         assertNotNull(taskStore.get("shared-id01"))
         assertNull(db.archivedTaskDao().byId("shared-id01"))
     }
+
+    @Test
+    fun importSweepsLocalTombstonesForIdsThatBecomeActive_mergeMode() = runTest {
+        // Seed a local trash row and a local archive row.
+        val trashed = taskStore.add(draft("trash-id001", "local-trashed"))
+        taskStore.delete(trashed.id)
+        val archived = taskStore.add(draft("arch-id0001", "local-archived"))
+        taskStore.setCompleted(archived.id, true)
+        archiveStore.archive(archived.id)
+        assertNotNull(db.deletedTaskDao().byId("trash-id001"))
+        assertNotNull(db.archivedTaskDao().byId("arch-id0001"))
+
+        val envelope = BackupEnvelope(
+            tasks = listOf(draft("trash-id001", "now-active-1"), draft("arch-id0001", "now-active-2")),
+        )
+        applier.apply(BackupImport(envelope, "2.1.0", 0), ImportMode.MERGE)
+
+        assertNotNull(taskStore.get("trash-id001"))
+        assertNotNull(taskStore.get("arch-id0001"))
+        assertNull(db.deletedTaskDao().byId("trash-id001"))
+        assertNull(db.archivedTaskDao().byId("arch-id0001"))
+    }
+
+    @Test
+    fun importSweepsLocalTombstonesForIdsThatBecomeActive_replaceModeV1Envelope() = runTest {
+        // Seed a local trash row and a local archive row (different ids from the merge-mode test).
+        val trashed = taskStore.add(draft("trash-id002", "local-trashed"))
+        taskStore.delete(trashed.id)
+        val archived = taskStore.add(draft("arch-id0002", "local-archived"))
+        taskStore.setCompleted(archived.id, true)
+        archiveStore.archive(archived.id)
+        assertNotNull(db.deletedTaskDao().byId("trash-id002"))
+        assertNotNull(db.archivedTaskDao().byId("arch-id0002"))
+
+        // A v1-style envelope: only a tasks array, no tombstone keys at all.
+        val envelope = BackupEnvelope(
+            tasks = listOf(draft("trash-id002", "now-active-1"), draft("arch-id0002", "now-active-2")),
+        )
+        applier.apply(BackupImport(envelope, "1", 0), ImportMode.REPLACE)
+
+        assertNotNull(taskStore.get("trash-id002"))
+        assertNotNull(taskStore.get("arch-id0002"))
+        assertNull(db.deletedTaskDao().byId("trash-id002"))
+        assertNull(db.archivedTaskDao().byId("arch-id0002"))
+    }
 }

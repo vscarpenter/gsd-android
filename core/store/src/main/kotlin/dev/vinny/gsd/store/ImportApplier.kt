@@ -13,6 +13,9 @@ enum class ImportMode { MERGE, REPLACE }
 
 data class ImportSummary(val imported: Int, val skipped: Int)
 
+/** SQLite's default bound-variable limit is 999; chunk `IN (...)` deletes well under it. */
+private const val SQL_IN_CHUNK_SIZE = 500
+
 /**
  * Applies a parsed backup import across all seven stores (P§2.2). Task
  * import reuses TaskStore's existing replace/merge entry points, lifted
@@ -42,6 +45,14 @@ class ImportApplier(
             }
         }
         val activeIds = taskStore.observeTasks().first().map { it.id }.toSet()
+
+        // An id that just became active must not remain a tombstone anywhere else — the
+        // one-store-per-id invariant (P§3) runs both directions, so this sweeps local
+        // archive/trash rows regardless of what the envelope itself carries.
+        activeIds.chunked(SQL_IN_CHUNK_SIZE).forEach { chunk ->
+            db.archivedTaskDao().deleteByIds(chunk)
+            db.deletedTaskDao().deleteByIds(chunk)
+        }
 
         env.archivedTasks?.let { rows ->
             if (mode == ImportMode.REPLACE) db.archivedTaskDao().clear()

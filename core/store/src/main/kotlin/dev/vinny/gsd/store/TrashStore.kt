@@ -28,6 +28,9 @@ interface DeletedTaskDao {
     @Query("DELETE FROM deleted_tasks WHERE id = :id")
     suspend fun deleteById(id: String)
 
+    @Query("DELETE FROM deleted_tasks WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
+
     @Query("DELETE FROM deleted_tasks WHERE deletedAt < :cutoffMs")
     suspend fun purgeOlderThan(cutoffMs: Long): Int
 
