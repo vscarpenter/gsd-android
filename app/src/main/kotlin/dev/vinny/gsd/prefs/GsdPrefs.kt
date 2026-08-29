@@ -22,6 +22,7 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
         val fetchShareTitles = booleanPreferencesKey("fetchShareTitles")
         val lastOwnerId = stringPreferencesKey("lastOwnerId")
         val lastOwnerEmail = stringPreferencesKey("lastOwnerEmail")
+        val lastAuthProvider = stringPreferencesKey("lastAuthProvider")
         val feedbackSubmissionId = stringPreferencesKey("feedbackSubmissionId")
         val feedbackSentiment = stringPreferencesKey("feedbackSentiment")
         val feedbackCategory = stringPreferencesKey("feedbackCategory")
@@ -31,11 +32,19 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
 
     val lastOwnerId: Flow<String?> = dataStore.data.map { it[Keys.lastOwnerId] }
     val lastOwnerEmail: Flow<String?> = dataStore.data.map { it[Keys.lastOwnerEmail] }
+    val lastAuthProvider: Flow<String?> = dataStore.data.map { it[Keys.lastAuthProvider] }
 
     suspend fun setLastOwner(id: String?, email: String?) {
         dataStore.edit { prefs ->
             if (id == null) prefs.remove(Keys.lastOwnerId) else prefs[Keys.lastOwnerId] = id
             if (email == null) prefs.remove(Keys.lastOwnerEmail) else prefs[Keys.lastOwnerEmail] = email
+        }
+    }
+
+    /** The provider of the most recent successful sign-in (spec P§7 two-tier Apple note). */
+    suspend fun setLastAuthProvider(provider: String?) {
+        dataStore.edit { prefs ->
+            if (provider == null) prefs.remove(Keys.lastAuthProvider) else prefs[Keys.lastAuthProvider] = provider
         }
     }
 

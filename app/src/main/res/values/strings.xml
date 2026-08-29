@@ -249,7 +249,8 @@
     <string name="sign_in_google">Sign in with Google</string>
     <string name="sign_in_apple">Sign in with Apple</string>
     <string name="sign_in_github">Sign in with GitHub</string>
-    <string name="account_relay_note">Apple is hiding your email behind a private relay address.</string>
+    <string name="account_note_relay">Signed in with a private relay email — this is a separate account from your web tasks.</string>
+    <string name="account_note_apple">Signed in with Apple. If you use Google or GitHub on the web, that’s a different account and won’t show the same tasks.</string>
     <string name="account_synced">Synced · %1$d pending</string>
     <string name="account_sync_now">Sync Now</string>
     <string name="account_sync_history">Sync History</string>

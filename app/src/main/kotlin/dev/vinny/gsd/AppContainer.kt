@@ -75,6 +75,7 @@ class AppContainer(context: Context) {
         syncCoordinator.lastOwnerId = { prefs.lastOwnerId.first() }
         syncCoordinator.onOwnerConfirmed = { result ->
             prefs.setLastOwner(result.record.id, result.record.email)
+            prefs.setLastAuthProvider(authManager.lastProvider)
         }
         syncCoordinator.start()
     }

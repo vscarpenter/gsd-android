@@ -37,6 +37,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     val pending by container.syncCoordinator.pendingCount.collectAsStateWithLifecycle(initialValue = 0)
     val failed by container.syncCoordinator.failedCount.collectAsStateWithLifecycle(initialValue = 0)
     val email by container.prefs.lastOwnerEmail.collectAsStateWithLifecycle(initialValue = null)
+    val authProvider by container.prefs.lastAuthProvider.collectAsStateWithLifecycle(initialValue = null)
     var deleteOpen by remember { mutableStateOf(false) }
     var signInError by remember { mutableStateOf<String?>(null) }
 
@@ -69,8 +70,12 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
         } else {
             email?.let { address ->
                 Text(address, style = GsdType.body, color = gsd.ink)
-                if (address.endsWith("@privaterelay.appleid.com")) {
-                    Text(stringResource(R.string.account_relay_note), style = GsdType.metadata, color = gsd.ink3)
+                when (accountNote(authProvider, address)) {
+                    AccountNote.RELAY_SEPARATE_ACCOUNT ->
+                        Text(stringResource(R.string.account_note_relay), style = GsdType.metadata, color = gsd.ink3)
+                    AccountNote.APPLE_MAY_DIFFER ->
+                        Text(stringResource(R.string.account_note_apple), style = GsdType.metadata, color = gsd.ink3)
+                    null -> Unit
                 }
             }
             Text(

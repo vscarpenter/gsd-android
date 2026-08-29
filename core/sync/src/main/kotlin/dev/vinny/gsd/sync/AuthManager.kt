@@ -31,6 +31,10 @@ class AuthManager(
 
     private var pending: PendingAuth? = null
 
+    /** The provider of the most recent successful token exchange (spec P§7 two-tier Apple note). */
+    var lastProvider: String? = null
+        private set
+
     suspend fun beginOAuth(providerName: String): PendingAuth {
         val provider = api.authMethods().firstOrNull { it.name == providerName }
             ?: throw UnknownProvider(providerName)
@@ -47,6 +51,7 @@ class AuthManager(
         val result = api.authWithOAuth2(attempt.provider, code, attempt.codeVerifier, redirectUrl)
         if (Jwt.decodePayload(result.token) == null) throw InvalidToken()
         tokens.save(result.token)
+        lastProvider = attempt.provider
         pending = null
         return result
     }
