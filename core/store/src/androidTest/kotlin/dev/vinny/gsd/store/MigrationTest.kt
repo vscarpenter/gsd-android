@@ -4,6 +4,7 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertEquals
 
 class MigrationTest {
     @get:Rule
@@ -22,7 +23,7 @@ class MigrationTest {
             close()
         }
         val db = helper.runMigrationsAndValidate("migration-test", 2, true, GsdDatabase.MIGRATION_1_2)
-        db.query("SELECT COUNT(*) FROM tasks").use { it.moveToFirst(); assert(it.getInt(0) == 1) }
-        db.query("SELECT COUNT(*) FROM deleted_tasks").use { it.moveToFirst(); assert(it.getInt(0) == 0) }
+        db.query("SELECT COUNT(*) FROM tasks").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) }
+        db.query("SELECT COUNT(*) FROM deleted_tasks").use { it.moveToFirst(); assertEquals(0, it.getInt(0)) }
     }
 }
