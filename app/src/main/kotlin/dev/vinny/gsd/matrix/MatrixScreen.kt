@@ -61,7 +61,8 @@ fun MatrixScreen(
     expanded: Boolean = false,
     onNavigate: (String) -> Unit = {},
 ) {
-    val viewModel: MatrixViewModel = viewModel { MatrixViewModel(container.store, container.prefs) }
+    val viewModel: MatrixViewModel =
+        viewModel { MatrixViewModel(container.store, container.prefs, container.trashStore) }
     val captureViewModel: CaptureViewModel = viewModel { CaptureViewModel(container.store) }
     val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
     val sections by viewModel.sections.collectAsStateWithLifecycle()

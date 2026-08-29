@@ -11,13 +11,16 @@ import dev.vinny.gsd.GsdApp
 import java.util.concurrent.TimeUnit
 
 /**
- * The one periodic maintenance job (spec §11.5): auto-archive sweep when
- * enabled. Opportunistic sync joins in Phase 5. Reminders never depend on
- * this — they are pre-scheduled alarms.
+ * The one periodic maintenance job (spec §11.5): trash retention purge
+ * (unconditional, parity spec P§3), then auto-archive sweep when enabled.
+ * Opportunistic sync joins in Phase 5. Reminders never depend on this — they
+ * are pre-scheduled alarms.
  */
 class MaintenanceWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val container = (applicationContext as GsdApp).container
+        // Retention purge (parity spec P§3): unconditional, not user-configurable.
+        container.trashStore.purgeExpired()
         val settings = container.db.archiveSettingsDao().get()
         if (settings?.enabled == true) {
             container.archiveStore.sweep(settings.archiveAfterDays)

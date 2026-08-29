@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Flag
@@ -98,6 +99,7 @@ fun smartViewTint(viewId: String): Color {
 fun BrowseScreen(
     container: AppContainer,
     onOpenArchive: () -> Unit,
+    onOpenTrash: () -> Unit,
     onOpenView: (String) -> Unit,
     onNewView: () -> Unit,
     onEditView: (String) -> Unit,
@@ -105,9 +107,13 @@ fun BrowseScreen(
 ) {
     val viewModel: BrowseViewModel = viewModel { BrowseViewModel(container.store, container.smartViewStore) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val trashed by container.trashStore.observeTrash()
+        .collectAsStateWithLifecycle(initialValue = emptyList())
     BrowseContent(
         state = state,
         onOpenArchive = onOpenArchive,
+        trashCount = trashed.size,
+        onOpenTrash = onOpenTrash,
         onOpenView = onOpenView,
         onNewView = onNewView,
         onTogglePin = viewModel::togglePin,
@@ -121,6 +127,8 @@ fun BrowseScreen(
 fun BrowseContent(
     state: BrowseState,
     onOpenArchive: () -> Unit,
+    trashCount: Int,
+    onOpenTrash: () -> Unit,
     onOpenView: (String) -> Unit,
     onNewView: () -> Unit,
     onTogglePin: (String) -> Unit,
@@ -142,6 +150,26 @@ fun BrowseContent(
             ) {
                 Icon(Icons.Outlined.Inventory2, contentDescription = null, tint = gsd.ink2)
                 Text(stringResource(R.string.browse_archive), style = GsdType.cardTitle, color = gsd.ink)
+            }
+        }
+        item(key = "trash") {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTrash).padding(vertical = 12.dp),
+            ) {
+                Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = gsd.ink2)
+                Text(
+                    stringResource(R.string.trash_row_label),
+                    style = GsdType.cardTitle,
+                    color = gsd.ink,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "$trashCount",
+                    style = GsdType.metadata.copy(fontFeatureSettings = "tnum"),
+                    color = gsd.ink2,
+                )
             }
         }
         section(R.string.browse_pinned, state.pinned, onOpenView, onTogglePin, onEditView, onDeleteView)

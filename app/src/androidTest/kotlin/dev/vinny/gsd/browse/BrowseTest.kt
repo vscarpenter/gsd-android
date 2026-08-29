@@ -43,6 +43,8 @@ class BrowseTest {
                 BrowseContent(
                     state = state,
                     onOpenArchive = {},
+                    trashCount = 0,
+                    onOpenTrash = {},
                     onOpenView = { opened = it },
                     onNewView = {},
                     onTogglePin = {},

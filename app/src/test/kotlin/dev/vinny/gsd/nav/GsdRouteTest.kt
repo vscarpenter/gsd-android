@@ -19,6 +19,7 @@ class GsdRouteTest {
         assertEquals(GsdRoute.Dashboard, GsdRoute.parse("gsd://dashboard"))
         assertEquals(GsdRoute.Settings, GsdRoute.parse("gsd://settings"))
         assertEquals(GsdRoute.Archive, GsdRoute.parse("gsd://archive"))
+        assertEquals(GsdRoute.Trash, GsdRoute.parse("gsd://trash"))
     }
 
     @Test

@@ -21,6 +21,8 @@ class GsdApp : Application() {
         ReminderResync(container.store, container.notificationSettingsStore, container.reminderScheduler)
             .start(appScope)
         container.startSync(appScope, this)
+        // Retention purge at launch (parity spec P§3) — don't wait on the periodic worker.
+        appScope.launch { container.trashStore.purgeExpired() }
         dev.vinny.gsd.notifications.MaintenanceWorker.register(this)
         // Glance is push-updated: snapshot recomputed on every relevant data change (spec §12.1)
         appScope.launch {

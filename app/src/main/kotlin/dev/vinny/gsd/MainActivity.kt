@@ -167,6 +167,7 @@ class MainActivity : ComponentActivity() {
                             is dev.vinny.gsd.nav.GsdRoute.Settings ->
                                 navController.navigate(Destination.SETTINGS.route)
                             is dev.vinny.gsd.nav.GsdRoute.Archive -> navController.navigate("archive")
+                            is dev.vinny.gsd.nav.GsdRoute.Trash -> navController.navigate("trash")
                         }
                         container.palette.pendingRoute.value = null
                     }

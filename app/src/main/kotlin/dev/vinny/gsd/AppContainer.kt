@@ -9,6 +9,7 @@ import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.ImportApplier
 import dev.vinny.gsd.store.SmartViewStore
 import dev.vinny.gsd.store.TaskStore
+import dev.vinny.gsd.store.TrashStore
 import java.time.Clock
 import kotlinx.coroutines.flow.first
 
@@ -26,6 +27,8 @@ class AppContainer(context: Context) {
     val store: TaskStore = TaskStore(db, clock)
 
     val archiveStore: ArchiveStore = ArchiveStore(db, clock)
+
+    val trashStore: TrashStore = TrashStore(db, clock)
 
     val smartViewStore: SmartViewStore = SmartViewStore(db, clock)
 

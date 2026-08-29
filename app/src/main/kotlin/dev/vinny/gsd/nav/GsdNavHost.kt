@@ -33,6 +33,7 @@ fun GsdNavHost(
             dev.vinny.gsd.browse.BrowseScreen(
                 container = container,
                 onOpenArchive = { navController.navigate("archive") },
+                onOpenTrash = { navController.navigate("trash") },
                 onOpenView = { id -> navController.navigate("browse/view/$id") },
                 onNewView = { navController.navigate("browse/edit") },
                 onEditView = { id -> navController.navigate("browse/edit?id=$id") },
@@ -53,6 +54,9 @@ fun GsdNavHost(
         }
         composable("archive") {
             dev.vinny.gsd.browse.ArchiveScreen(container = container)
+        }
+        composable("trash") {
+            dev.vinny.gsd.browse.TrashScreen(container = container)
         }
         composable(Destination.DASHBOARD.route) {
             dev.vinny.gsd.dashboard.DashboardScreen(
