@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.model.BackupEnvelope
 import dev.vinny.gsd.model.Interchange
 import dev.vinny.gsd.model.MergePlan
 import dev.vinny.gsd.prefs.ThemePref
@@ -75,7 +76,7 @@ fun SettingsScreen(
         if (uri != null) scope.launch(Dispatchers.IO) {
             val tasks = container.store.observeTasks().first()
             context.contentResolver.openOutputStream(uri)?.use { stream ->
-                stream.write(Interchange.export(tasks, Instant.now()).toByteArray())
+                stream.write(Interchange.export(BackupEnvelope(tasks = tasks), Instant.now()).toByteArray())
             }
         }
     }
