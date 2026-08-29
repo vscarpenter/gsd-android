@@ -90,6 +90,9 @@ class SyncEngine(
             result.items.forEachIndexed { index, wire ->
                 val existing = local.taskById(wire.taskId)
                 val incoming = WireMapper.pull(wire, existing) ?: return@forEachIndexed
+                if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
+                    return@forEachIndexed // archived/trashed locally, remote not strictly newer (parity spec P§4)
+                }
                 val apply = when {
                     existing == null -> true
                     incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli() -> {

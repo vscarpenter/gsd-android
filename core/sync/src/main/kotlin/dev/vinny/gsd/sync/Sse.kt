@@ -87,3 +87,20 @@ object SseApplyRules {
         }
     }
 }
+
+/**
+ * The web's isRemoteNewerThanArchive rule (parity spec P§4), applied to both
+ * tombstone stores: only a remote edit STRICTLY newer than the local
+ * archive/trash moment may resurrect a task; equal, older, missing, or
+ * unparseable never does — the tombstone stands, fail closed. Shared by
+ * SyncEngine's pull-apply loop (same module) and the app's SSE apply path
+ * (SyncCoordinator.applyRealtime, a different Gradle module) — public, not
+ * internal, so both call sites can reach it.
+ */
+suspend fun resolveTombstone(local: SyncLocalStore, taskId: String, remoteUpdatedAtMs: Long?): Boolean {
+    val tombstoneMs = local.tombstoneAtMs(taskId) ?: return true // no tombstone: apply normally
+    if (remoteUpdatedAtMs == null) return false // fail closed
+    if (remoteUpdatedAtMs <= tombstoneMs) return false // suppressed
+    local.removeTombstone(taskId) // deliberate resurrection, exactly once
+    return true
+}

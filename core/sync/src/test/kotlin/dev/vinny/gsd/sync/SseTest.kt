@@ -1,9 +1,38 @@
 package dev.vinny.gsd.sync
 
+import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.store.SyncQueueEntity
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+
+/** Minimal fake for the SSE apply path's tombstone guard — only tombstoneAtMs/removeTombstone matter here. */
+private class FakeSseLocal : SyncLocalStore {
+    val tombstones = mutableMapOf<String, Long>()
+    val removeTombstoneCalls = mutableListOf<String>()
+
+    override suspend fun activeTasks(): List<Task> = emptyList()
+    override suspend fun taskById(id: String): Task? = null
+    override suspend fun upsertFromRemote(task: Task) = Unit
+    override suspend fun deleteFromRemote(id: String) = Unit
+    override suspend fun pendingQueue(): List<SyncQueueEntity> = emptyList()
+    override suspend fun failedQueue(): List<SyncQueueEntity> = emptyList()
+    override suspend fun markQueueItemDone(id: Long) = Unit
+    override suspend fun bumpQueueRetry(id: Long, error: String, attemptAtMs: Long, nowFailed: Boolean) = Unit
+    override suspend fun requeueFailed() = Unit
+    override suspend fun cursor(): String? = null
+    override suspend fun saveCursor(cursor: String) = Unit
+    override suspend fun deviceId(): String = "this-device"
+    override suspend fun insertHistory(entry: SyncHistoryEntry) = Unit
+    override suspend fun tombstoneAtMs(id: String): Long? = tombstones[id]
+    override suspend fun removeTombstone(id: String) {
+        tombstones.remove(id)
+        removeTombstoneCalls += id
+    }
+}
 
 class SseTest {
 
@@ -87,6 +116,39 @@ class SseTest {
                 pendingDeleteTaskIds = emptySet(), pendingAnyTaskIds = setOf("t1"))
                 is SseDecision.Drop,
         )
+    }
+
+    @Test
+    fun `sse guard drops a create-update whose tombstone is not strictly older`() = runTest {
+        val local = FakeSseLocal()
+        local.tombstones["t1"] = 1_000L // archived/trashed at 1000ms
+
+        assertFalse(resolveTombstone(local, "t1", 1_000L)) // equal → drop, fail closed
+
+        assertEquals(1_000L, local.tombstones["t1"]) // tombstone still present
+        assertTrue(local.removeTombstoneCalls.isEmpty())
+    }
+
+    @Test
+    fun `sse guard resurrects when the remote edit is strictly newer than the tombstone`() = runTest {
+        val local = FakeSseLocal()
+        local.tombstones["t1"] = 1_000L
+
+        assertTrue(resolveTombstone(local, "t1", 1_001L))
+
+        assertEquals(listOf("t1"), local.removeTombstoneCalls) // removed exactly once
+        assertNull(local.tombstones["t1"])
+    }
+
+    @Test
+    fun `sse guard never resurrects on an unparseable remote timestamp`() = runTest {
+        val local = FakeSseLocal()
+        local.tombstones["t1"] = 1_000L
+
+        assertFalse(resolveTombstone(local, "t1", null))
+
+        assertEquals(1_000L, local.tombstones["t1"]) // untouched, fail closed
+        assertTrue(local.removeTombstoneCalls.isEmpty())
     }
 
     private fun wire(taskId: String, owner: String, deviceId: String) =

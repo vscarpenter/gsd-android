@@ -43,6 +43,12 @@ interface SyncLocalStore {
     suspend fun saveCursor(cursor: String)
     suspend fun deviceId(): String
     suspend fun insertHistory(entry: SyncHistoryEntry)
+
+    /** archivedAt/deletedAt in epoch millis, or null when the id is not tombstoned. */
+    suspend fun tombstoneAtMs(id: String): Long?
+
+    /** Remove the id from whichever tombstone store holds it (archive or trash). */
+    suspend fun removeTombstone(id: String)
 }
 
 enum class SyncHealth { OFFLINE, SESSION_EXPIRED, FAILED_ITEMS, STALE_QUEUE, OK }

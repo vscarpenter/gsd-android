@@ -77,4 +77,12 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
         )
         db.syncHistoryDao().prune()
     }
+
+    override suspend fun tombstoneAtMs(id: String): Long? =
+        db.archivedTaskDao().byId(id)?.archivedAt ?: db.deletedTaskDao().byId(id)?.deletedAt
+
+    override suspend fun removeTombstone(id: String) {
+        db.archivedTaskDao().deleteById(id)
+        db.deletedTaskDao().deleteById(id)
+    }
 }

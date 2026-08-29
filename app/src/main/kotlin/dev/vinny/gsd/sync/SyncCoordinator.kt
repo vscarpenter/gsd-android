@@ -150,6 +150,9 @@ class SyncCoordinator(
             is SseDecision.ApplyUpsert -> {
                 val existing = local.taskById(event.record.taskId)
                 val incoming = WireMapper.pull(event.record, existing) ?: return
+                if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
+                    return // archived/trashed locally, remote not strictly newer (parity spec P§4)
+                }
                 if (existing == null ||
                     incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli()
                 ) {

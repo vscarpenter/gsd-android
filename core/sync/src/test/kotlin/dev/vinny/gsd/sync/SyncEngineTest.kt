@@ -19,6 +19,8 @@ private class FakeLocal : SyncLocalStore {
     val history = mutableListOf<SyncHistoryEntry>()
     var savedCursor: String? = null
     val remoteDeletes = mutableListOf<String>()
+    val tombstones = mutableMapOf<String, Long>()
+    val removeTombstoneCalls = mutableListOf<String>()
 
     override suspend fun activeTasks(): List<Task> = tasks.values.toList()
     override suspend fun taskById(id: String): Task? = tasks[id]
@@ -45,6 +47,11 @@ private class FakeLocal : SyncLocalStore {
     override suspend fun saveCursor(cursor: String) { savedCursor = cursor }
     override suspend fun deviceId(): String = "this-device"
     override suspend fun insertHistory(entry: SyncHistoryEntry) { history += entry }
+    override suspend fun tombstoneAtMs(id: String): Long? = tombstones[id]
+    override suspend fun removeTombstone(id: String) {
+        tombstones.remove(id)
+        removeTombstoneCalls += id
+    }
 }
 
 private class FakeRemote : SyncRemote {
@@ -159,6 +166,53 @@ class SyncEngineTest {
         engine(remote, local).runSync(false)
         assertEquals("weird", local.tasks["weird"]!!.id)
         assertNull(local.savedCursor)
+    }
+
+    @Test
+    fun `pull drops a record whose tombstone is not strictly older`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        local.tombstones["task1"] = now.toEpochMilli() // archived/trashed at exactly "now"
+        remote.records["r1"] = WireMapper.push(task("task1", "resurrected?", now), "other", "user-1") // equal instant
+
+        engine(remote, local).runSync(false)
+
+        assertTrue("task1" !in local.tasks) // suppressed, never applied
+        assertEquals(now.toEpochMilli(), local.tombstones["task1"]) // tombstone stands
+        assertTrue(local.removeTombstoneCalls.isEmpty())
+    }
+
+    @Test
+    fun `pull resurrects when the remote edit is strictly newer than the tombstone`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        local.tombstones["task1"] = now.minusSeconds(10).toEpochMilli()
+        remote.records["r1"] = WireMapper.push(task("task1", "edited elsewhere", now), "other", "user-1")
+
+        engine(remote, local).runSync(false)
+
+        assertEquals("edited elsewhere", local.tasks["task1"]!!.title)
+        assertEquals(listOf("task1"), local.removeTombstoneCalls) // removed exactly once
+        assertTrue("task1" !in local.tombstones)
+    }
+
+    @Test
+    fun `unparseable remote timestamp never resurrects`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        local.tombstones["task1"] = now.toEpochMilli()
+        remote.listResponder = { _, _ ->
+            TaskListPage(
+                page = 1, totalPages = 1,
+                items = listOf(WireMapper.push(task("task1"), "other", "user-1").copy(clientUpdatedAt = "garbage")),
+                updatedStamps = listOf("garbage"),
+            )
+        }
+
+        engine(remote, local).runSync(false)
+
+        assertTrue("task1" !in local.tasks)
+        assertEquals(now.toEpochMilli(), local.tombstones["task1"]) // untouched, tombstone stands
     }
 
     @Test
