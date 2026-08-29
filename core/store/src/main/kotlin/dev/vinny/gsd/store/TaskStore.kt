@@ -104,7 +104,13 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         }
     }
 
-    /** Removes the task's id from every other task's dependencies first (spec §8.8). */
+    /**
+     * Removes the task's id from every other task's dependencies first (spec §8.8). The
+     * in-transaction row read is null-safe: a benign race (e.g. a same-id SSE delete, or a
+     * double-fired swipe re-entering this transaction) can make the row vanish between the
+     * initial [get] and the transaction — in that case the already-enqueued tombstone is
+     * harmless and the trash move is simply skipped.
+     */
     suspend fun delete(id: String): Task? {
         val snapshot = get(id) ?: return null
         val now = clock.instant()
@@ -121,7 +127,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
                     db.taskDao().upsert(updated)
                 }
             db.syncQueueDao().insert(SyncQueueEntity.tombstone(id, now))
-            db.deletedTaskDao().upsert(checkNotNull(db.taskDao().byId(id)).toDeleted(deletedAt = now.toEpochMilli()))
+            db.taskDao().byId(id)?.let { db.deletedTaskDao().upsert(it.toDeleted(deletedAt = now.toEpochMilli())) }
             db.taskDao().deleteById(id)
         }
         return snapshot

@@ -10,6 +10,9 @@ import dev.vinny.gsd.model.TimeEntry
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -91,6 +94,26 @@ class TaskStoreTest {
         store.delete(blocker.id)
         assertEquals(emptyList(), store.get(blocked.id)!!.dependencies)
         assertTrue(db.syncQueueDao().pending().any { it.operation == SyncOp.DELETE && it.taskId == blocker.id })
+    }
+
+    /**
+     * Reproduces the benign race behind the delete-to-trash crash: two callers (e.g. an SSE
+     * delete and a double-fired swipe) both read the row present outside the transaction, then
+     * race into their own transactions — whichever runs second finds the row already gone. The
+     * fixed code tolerates that; the old `checkNotNull` read crashed instead. Races many distinct
+     * ids to make the interleaving likely without depending on a specific schedule.
+     */
+    @Test
+    fun concurrentDeleteOfSameIdNeverThrows() = runTest {
+        repeat(50) { i ->
+            val id = store.add(draft("racy-$i")).id
+            val results = listOf(
+                async(Dispatchers.Default) { runCatching { store.delete(id) } },
+                async(Dispatchers.Default) { runCatching { store.delete(id) } },
+            ).awaitAll()
+            results.forEach { it.getOrThrow() }
+            assertEquals(1, db.deletedTaskDao().allIds().count { it == id })
+        }
     }
 
     @Test
