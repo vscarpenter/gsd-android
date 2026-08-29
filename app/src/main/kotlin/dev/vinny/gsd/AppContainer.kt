@@ -52,6 +52,8 @@ class AppContainer(context: Context) {
     val api: dev.vinny.gsd.sync.PocketBaseApi =
         dev.vinny.gsd.sync.PocketBaseApi(BACKEND_URL, { tokenStore.cachedToken() })
 
+    val feedbackApi: dev.vinny.gsd.sync.FeedbackApi = dev.vinny.gsd.sync.FeedbackApi(baseUrl = BACKEND_URL)
+
     val authManager: dev.vinny.gsd.sync.AuthManager =
         dev.vinny.gsd.sync.AuthManager(api, tokenStore, clock)
 

@@ -69,10 +69,14 @@ fun GsdNavHost(
                 container = container,
                 onOpenHelp = { navController.navigate("help") },
                 onOpenSyncHistory = { navController.navigate("sync-history") },
+                onOpenFeedback = { navController.navigate("feedback") },
             )
         }
         composable("sync-history") {
             dev.vinny.gsd.settings.SyncHistoryScreen(container = container)
+        }
+        composable("feedback") {
+            dev.vinny.gsd.feedback.FeedbackScreen(container = container)
         }
         composable("help") {
             val gsd = LocalGsdColors.current

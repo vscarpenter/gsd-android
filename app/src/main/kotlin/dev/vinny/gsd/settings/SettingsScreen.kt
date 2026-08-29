@@ -54,6 +54,7 @@ fun SettingsScreen(
     onOpenHelp: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenSyncHistory: () -> Unit = {},
+    onOpenFeedback: () -> Unit = {},
 ) {
     val gsd = LocalGsdColors.current
     val scope = rememberCoroutineScope()
@@ -154,6 +155,7 @@ fun SettingsScreen(
         ActionRow(R.string.settings_export) { exportLauncher.launch("gsd-export.json") }
         ActionRow(R.string.settings_import) { importLauncher.launch(arrayOf("application/json", "text/*")) }
         ActionRow(R.string.settings_erase, tint = gsd.alert) { eraseOpen = true }
+        ActionRow(R.string.settings_feedback, onClick = onOpenFeedback)
 
         GroupLabel(R.string.settings_about)
         Text(
