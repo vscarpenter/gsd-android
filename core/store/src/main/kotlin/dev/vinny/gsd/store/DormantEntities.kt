@@ -42,6 +42,37 @@ data class ArchivedTaskEntity(
     val archivedAt: Long,
 )
 
+@Entity(
+    tableName = "deleted_tasks",
+    indices = [Index("deletedAt")],
+)
+data class DeletedTaskEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val description: String,
+    val urgent: Boolean,
+    val important: Boolean,
+    val quadrant: String,
+    val completed: Boolean,
+    val completedAt: Long?,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val dueDate: Long?,
+    val recurrence: String,
+    val tagsJson: String,
+    val subtasksJson: String,
+    val dependenciesJson: String,
+    val parentTaskId: String?,
+    val notifyBefore: Int?,
+    val notificationEnabled: Boolean,
+    val notificationSent: Boolean,
+    val lastNotificationAt: Long?,
+    val snoozedUntil: Long?,
+    val estimatedMinutes: Int?,
+    val timeEntriesJson: String,
+    val deletedAt: Long,
+)
+
 @Entity(tableName = "smart_views")
 data class SmartViewEntity(
     @PrimaryKey val id: String,

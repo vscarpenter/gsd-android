@@ -121,6 +121,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
                     db.taskDao().upsert(updated)
                 }
             db.syncQueueDao().insert(SyncQueueEntity.tombstone(id, now))
+            db.deletedTaskDao().upsert(checkNotNull(db.taskDao().byId(id)).toDeleted(deletedAt = now.toEpochMilli()))
             db.taskDao().deleteById(id)
         }
         return snapshot

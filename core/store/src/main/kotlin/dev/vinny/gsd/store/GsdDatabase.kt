@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 class SyncOpConverter {
     @TypeConverter
@@ -19,6 +21,7 @@ class SyncOpConverter {
     entities = [
         TaskEntity::class,
         ArchivedTaskEntity::class,
+        DeletedTaskEntity::class,
         SmartViewEntity::class,
         NotificationSettingsEntity::class,
         ArchiveSettingsEntity::class,
@@ -27,7 +30,7 @@ class SyncOpConverter {
         SyncMetadataEntity::class,
         SyncHistoryEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(SyncOpConverter::class)
@@ -36,6 +39,7 @@ abstract class GsdDatabase : RoomDatabase() {
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun archivedTaskDao(): ArchivedTaskDao
     abstract fun archiveSettingsDao(): ArchiveSettingsDao
+    abstract fun deletedTaskDao(): DeletedTaskDao
     abstract fun smartViewDao(): SmartViewDao
     abstract fun appPreferencesDao(): AppPreferencesDao
     abstract fun notificationSettingsDao(): NotificationSettingsDao
@@ -43,9 +47,30 @@ abstract class GsdDatabase : RoomDatabase() {
     abstract fun syncHistoryDao(): SyncHistoryDao
 
     companion object {
+        /** Deletion is recoverable for 30 days (spec §3): active rows move into `deleted_tasks`. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `deleted_tasks` (
+                    `id` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT NOT NULL,
+                    `urgent` INTEGER NOT NULL, `important` INTEGER NOT NULL, `quadrant` TEXT NOT NULL,
+                    `completed` INTEGER NOT NULL, `completedAt` INTEGER, `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL, `dueDate` INTEGER, `recurrence` TEXT NOT NULL,
+                    `tagsJson` TEXT NOT NULL, `subtasksJson` TEXT NOT NULL, `dependenciesJson` TEXT NOT NULL,
+                    `parentTaskId` TEXT, `notifyBefore` INTEGER, `notificationEnabled` INTEGER NOT NULL,
+                    `notificationSent` INTEGER NOT NULL, `lastNotificationAt` INTEGER, `snoozedUntil` INTEGER,
+                    `estimatedMinutes` INTEGER, `timeEntriesJson` TEXT NOT NULL, `deletedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`id`))""",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_deleted_tasks_deletedAt` ON `deleted_tasks` (`deletedAt`)")
+            }
+        }
+
         /** Keeps Room a private concern of this module — callers never see the builder. */
         fun build(context: Context): GsdDatabase =
-            Room.databaseBuilder(context, GsdDatabase::class.java, "gsd.db").build()
+            Room.databaseBuilder(context, GsdDatabase::class.java, "gsd.db")
+                .addMigrations(MIGRATION_1_2)
+                .build()
 
         /** Hermetic store for tests. */
         fun buildInMemory(context: Context): GsdDatabase =

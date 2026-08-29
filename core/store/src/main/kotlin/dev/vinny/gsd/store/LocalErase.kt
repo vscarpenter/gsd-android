@@ -3,15 +3,19 @@ package dev.vinny.gsd.store
 import androidx.room.withTransaction
 
 /**
- * Erase-all-data, local part (spec §8.16): clears tasks, archive, custom
- * views, sync queue, pins, archive settings. Theme and onboarding flags live
- * in DataStore and are deliberately untouched. The remote wipe is Phase 5.
+ * Erase-all-data, local part (spec §8.16): clears tasks, archive, trash,
+ * custom views, sync queue, pins, archive settings. Theme and onboarding
+ * flags live in DataStore and are deliberately untouched. The remote wipe is
+ * Phase 5. Trash inclusion matches iOS's "erase must mean all of it"
+ * (parity spec P§3.1) — the web's omission there is a known upstream bug,
+ * not behavior to copy.
  */
 object LocalErase {
     suspend fun eraseAll(db: GsdDatabase) {
         db.withTransaction {
             db.taskDao().clear()
             db.archivedTaskDao().clear()
+            db.deletedTaskDao().clear()
             db.syncQueueDao().clear()
             db.smartViewDao().clearCustom()
             db.appPreferencesDao().clear()

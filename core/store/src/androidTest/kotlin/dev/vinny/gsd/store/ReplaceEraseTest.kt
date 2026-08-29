@@ -53,6 +53,8 @@ class ReplaceEraseTest {
     @Test
     fun eraseLocalClearsTasksArchiveQueueAndCustomViews() = runTest {
         store.add(draft("task-a-0000000000000", "a"))
+        store.add(draft("task-b-0000000000000", "b"))
+        store.delete("task-b-0000000000000")
         val archive = ArchiveStore(db, fixed)
         val views = SmartViewStore(db, fixed)
         views.seedBuiltInsIfEmpty()
@@ -63,6 +65,7 @@ class ReplaceEraseTest {
 
         assertEquals(0, store.observeTasks().first().size)
         assertEquals(0, archive.observeArchived().first().size)
+        assertEquals(0, db.deletedTaskDao().allIds().size)
         assertEquals(0, db.syncQueueDao().pending().size)
         assertEquals(emptyList(), views.pinned())
         // built-ins survive; custom views are gone
