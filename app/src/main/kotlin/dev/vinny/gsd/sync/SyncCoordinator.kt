@@ -7,6 +7,7 @@ import dev.vinny.gsd.auth.CachedTokenStore
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SyncOp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -232,6 +233,8 @@ class SyncCoordinator(
         val outcome = try {
             auth.ensureFreshToken()
             AccountDeleter(remote, account).delete(userId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (failure: Exception) {
             return DeleteAccountOutcome.ListingFailed
         }
@@ -243,6 +246,8 @@ class SyncCoordinator(
             try {
                 dev.vinny.gsd.store.LocalErase.eraseAll(db)
                 prefs.clearFeedbackDraft()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: Exception) {
                 return DeleteAccountOutcome.LocalEraseIncomplete
             }

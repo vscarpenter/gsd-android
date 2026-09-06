@@ -37,4 +37,8 @@ class ReminderOptionsTest {
         assertEquals(ReminderLabel.Hours(36), ReminderLabel.of(2160))     // 36 h, not 1.5 days
         assertEquals(ReminderLabel.Days(2), ReminderLabel.of(2880))
     }
+
+    @Test
+    fun `a negative offset renders as minutes rather than snapping`() =
+        assertEquals(ReminderLabel.Minutes(-10), ReminderLabel.of(-10))
 }

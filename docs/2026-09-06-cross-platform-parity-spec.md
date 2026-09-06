@@ -1,6 +1,6 @@
 # GSD Android — Cross-Platform Parity Specification (September 2026 round)
 
-> **Status:** approved design 2026-09-06 (owner-approved scope: all four #527 sync rules, skeletons on Dashboard + smart-view lists + Matrix, both feedback polish items). Implementation plan: `tasks/parity-plan-2026-09-06.md`.
+> **Status:** approved design 2026-09-06 (owner-approved scope: all four #527 sync rules, skeletons on Dashboard + smart-view lists + Matrix, both feedback polish items). Implementation plan: `tasks/parity-plan-2026-09-06.md`. Landed 2026-09-06 on branch feat/parity-2026-09 (commits 585a125..4a3d074); the §9 amendments are folded into docs/gsd-android-spec.md, which is the spec of record again — this document remains the dated record of why.
 >
 > **Precedence:** this document wins over `docs/gsd-android-spec.md` for every section it touches until the plan's final task folds the amendments back in (§9). Everything it does not touch stays governed by the main spec and by `docs/2026-08-29-cross-platform-parity-spec.md`.
 

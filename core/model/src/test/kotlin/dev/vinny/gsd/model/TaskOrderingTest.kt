@@ -27,6 +27,21 @@ class TaskOrderingTest {
     }
 
     @Test
+    fun `ALL status uses the active ordering`() {
+        val ordered = TaskOrdering.forList(
+            listOf(
+                task("undated-old", 0),
+                task("due-later", 10, due = t0.plusSeconds(7_200)),
+                task("undated-new", 20),
+                task("due-soon-old", 30, due = t0.plusSeconds(3_600)),
+                task("due-soon-new", 40, due = t0.plusSeconds(3_600)),
+            ),
+            status = FilterStatus.ALL,
+        )
+        assertEquals(listOf("due-soon-new", "due-soon-old", "due-later", "undated-new", "undated-old"), ordered.map { it.title })
+    }
+
+    @Test
     fun `completed lists sort completedAt descending, nulls last, then newest first`() {
         val ordered = TaskOrdering.forList(
             listOf(
