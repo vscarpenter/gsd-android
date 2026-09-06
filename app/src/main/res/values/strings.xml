@@ -54,12 +54,18 @@
     <string name="repeat_monthly">Monthly</string>
     <string name="reminder_none">None</string>
     <string name="reminder_at_time">At time of event</string>
-    <string name="reminder_5m">5 minutes before</string>
-    <string name="reminder_15m">15 minutes before</string>
-    <string name="reminder_30m">30 minutes before</string>
-    <string name="reminder_1h">1 hour before</string>
-    <string name="reminder_2h">2 hours before</string>
-    <string name="reminder_1d">1 day before</string>
+    <plurals name="reminder_minutes_before">
+        <item quantity="one">%1$d minute before</item>
+        <item quantity="other">%1$d minutes before</item>
+    </plurals>
+    <plurals name="reminder_hours_before">
+        <item quantity="one">%1$d hour before</item>
+        <item quantity="other">%1$d hours before</item>
+    </plurals>
+    <plurals name="reminder_days_before">
+        <item quantity="one">%1$d day before</item>
+        <item quantity="other">%1$d days before</item>
+    </plurals>
     <string name="snooze_15m">15 minutes</string>
     <string name="snooze_30m">30 minutes</string>
     <string name="snooze_1h">1 hour</string>

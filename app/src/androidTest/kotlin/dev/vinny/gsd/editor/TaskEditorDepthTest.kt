@@ -3,6 +3,10 @@ package dev.vinny.gsd.editor
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -118,5 +122,29 @@ class TaskEditorDepthTest {
         }
         // "Next week" also exists as a due-date preset chip; the menu adds a second node
         rule.onAllNodesWithText("Next week").assertCountEquals(2)
+    }
+
+    @Test
+    fun offListStoredReminderRendersAndSurvivesAnUntouchedSave() {
+        val stored = Task(title = "synced", urgent = true, important = true, createdAt = t0, updatedAt = t0,
+            dueDate = t0.plusSeconds(86_400), notifyBefore = 45)
+        var saved: Task? = null
+        rule.setContent { GsdTheme { ReminderSection(draft = stored, onEdit = { edit -> saved = edit(stored) }) } }
+        rule.onNodeWithTag("reminder_row").assertTextEquals("45 minutes before")
+        rule.onNodeWithTag("reminder_row").performClick()
+        rule.onNodeWithText("30 minutes before").assertIsDisplayed()
+        // "45 minutes before" also names the current row label, so scope to the open dropdown's popup
+        val offListOption = hasText("45 minutes before").and(hasAnyAncestor(isPopup()))
+        rule.onNode(offListOption).assertIsDisplayed()                 // offered in sorted position
+        rule.onNodeWithText("1 hour before").assertIsDisplayed()
+        rule.onNode(offListOption).performClick()
+        assertEquals(45, saved?.notifyBefore)                          // choosing it again changes nothing
+    }
+
+    @Test
+    fun reminderLabelsFollowTheSharedFormula() {
+        val stored = Task(title = "x", urgent = true, important = true, createdAt = t0, updatedAt = t0, dueDate = t0, notifyBefore = 2160)
+        rule.setContent { GsdTheme { ReminderSection(draft = stored, onEdit = {}) } }
+        rule.onNodeWithTag("reminder_row").assertTextEquals("36 hours before")
     }
 }

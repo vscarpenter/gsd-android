@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,8 @@ import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.DuePreset
 import dev.vinny.gsd.model.NanoId
 import dev.vinny.gsd.model.Recurrence
+import dev.vinny.gsd.model.ReminderLabel
+import dev.vinny.gsd.model.ReminderOptions
 import dev.vinny.gsd.model.Subtask
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TimeTracking
@@ -82,38 +85,30 @@ internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     }
 }
 
-private val reminderOptions: List<Pair<Int?, Int>> = listOf(
-    null to R.string.reminder_none,
-    0 to R.string.reminder_at_time,
-    5 to R.string.reminder_5m,
-    15 to R.string.reminder_15m,
-    30 to R.string.reminder_30m,
-    60 to R.string.reminder_1h,
-    120 to R.string.reminder_2h,
-    1440 to R.string.reminder_1d,
-)
+@Composable
+private fun reminderLabel(minutes: Int?): String = when (val label = minutes?.let(ReminderLabel::of)) {
+    null -> stringResource(R.string.reminder_none)
+    ReminderLabel.AtTime -> stringResource(R.string.reminder_at_time)
+    is ReminderLabel.Minutes -> pluralStringResource(R.plurals.reminder_minutes_before, label.count, label.count)
+    is ReminderLabel.Hours -> pluralStringResource(R.plurals.reminder_hours_before, label.count, label.count)
+    is ReminderLabel.Days -> pluralStringResource(R.plurals.reminder_days_before, label.count, label.count)
+}
 
 @Composable
 internal fun ReminderSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     val gsd = LocalGsdColors.current
     var open by remember { mutableStateOf(false) }
-    val currentLabel = reminderOptions.firstOrNull { it.first == draft.notifyBefore }?.second
-        ?: R.string.reminder_none
+    val options: List<Int?> = listOf(null) + ReminderOptions.including(draft.notifyBefore)
     Box {
         Text(
-            stringResource(currentLabel),
-            style = GsdType.body,
-            color = gsd.tint,
+            reminderLabel(draft.notifyBefore), style = GsdType.body, color = gsd.tint,
             modifier = Modifier.clickable { open = true }.testTag("reminder_row").padding(vertical = 4.dp),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            reminderOptions.forEach { (minutes, labelRes) ->
+            options.forEach { minutes ->
                 DropdownMenuItem(
-                    text = { Text(stringResource(labelRes), style = GsdType.body) },
-                    onClick = {
-                        open = false
-                        onEdit { it.copy(notifyBefore = minutes) }
-                    },
+                    text = { Text(reminderLabel(minutes), style = GsdType.body) },
+                    onClick = { open = false; onEdit { it.copy(notifyBefore = minutes) } },
                 )
             }
         }
