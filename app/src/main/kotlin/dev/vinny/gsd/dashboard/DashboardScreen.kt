@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,33 +34,51 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.editor.TaskEditorSheet
+import dev.vinny.gsd.editor.TaskEditorViewModel
 import dev.vinny.gsd.model.Analytics
 import dev.vinny.gsd.model.DashboardStats
+import dev.vinny.gsd.model.DeadlineStatus
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.BadgeStyle
+import dev.vinny.gsd.ui.StatusBadge
 import java.time.Instant
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 @Composable
 fun DashboardScreen(container: AppContainer, onOpenOverdue: () -> Unit, modifier: Modifier = Modifier) {
     val tasks by container.store.observeTasks().collectAsStateWithLifecycle(initialValue = null)
     var window by remember { mutableIntStateOf(7) }
+    val now = remember(tasks) { Instant.now() }
+    val zone = ZoneId.systemDefault()
     val stats = remember(tasks, window) {
-        Analytics.compute(tasks.orEmpty(), window, Instant.now(), ZoneId.systemDefault())
+        Analytics.compute(tasks.orEmpty(), window, now, zone)
     }
+    val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
+    val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
     DashboardContent(
         stats = stats,
         window = window,
         onWindowChange = { window = it },
         onOpenOverdue = onOpenOverdue,
         loaded = tasks != null,
+        now = now,
+        zone = zone,
         modifier = modifier,
+        onOpenTask = { editorViewModel.openExisting(it) },
     )
+    if (editorDraft != null) {
+        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+    }
 }
 
 @Composable
@@ -68,6 +88,8 @@ fun DashboardContent(
     onWindowChange: (Int) -> Unit,
     onOpenOverdue: () -> Unit,
     loaded: Boolean,
+    now: Instant,
+    zone: ZoneId,
     modifier: Modifier = Modifier,
     onOpenTask: (String) -> Unit = {},
 ) {
@@ -106,7 +128,7 @@ fun DashboardContent(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatCard(
                 stringResource(R.string.dashboard_rate),
-                "${(stats.completionRate * 100).toInt()}%",
+                Analytics.percent(stats.completionRate),
                 Modifier.weight(1f),
             )
             StatCard(
@@ -131,6 +153,13 @@ fun DashboardContent(
             values = stats.activeByQuadrant.mapValues { it.value.toFloat() },
             format = { "${it.toInt()}" },
         )
+        Column(
+            modifier = Modifier.fillMaxWidth().clip(GsdShapes.card).background(gsd.surface).border(1.dp, gsd.hairline, GsdShapes.card).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(stringResource(R.string.dashboard_completion_by_quadrant), style = GsdType.quadrantTitle, color = gsd.ink)
+            QuadrantCompletionRings(stats.quadrantStats, stats.completionRate)
+        }
         if (stats.topTags.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.dashboard_top_tags).uppercase(), style = GsdType.caption, color = gsd.ink3)
@@ -152,8 +181,23 @@ fun DashboardContent(
         if (stats.upcoming.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.dashboard_upcoming).uppercase(), style = GsdType.caption, color = gsd.ink3)
-                stats.upcoming.forEach { task ->
-                    Text(task.title, style = GsdType.subhead, color = gsd.ink)
+                val formatter = remember(zone) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withZone(zone) }
+                stats.upcoming.forEachIndexed { index, task ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable { onOpenTask(task.id) }.padding(vertical = 10.dp),
+                    ) {
+                        Text(task.title, style = GsdType.subhead, color = gsd.ink, modifier = Modifier.weight(1f))
+                        task.dueDate?.let { due ->
+                            when (DeadlineStatus.of(due, now, zone)) {
+                                DeadlineStatus.TODAY -> StatusBadge(stringResource(R.string.dashboard_badge_today), BadgeStyle.NEUTRAL)
+                                DeadlineStatus.OVERDUE -> StatusBadge(stringResource(R.string.dashboard_badge_overdue), BadgeStyle.ALERT)
+                                DeadlineStatus.UPCOMING -> Unit
+                            }
+                            Text(formatter.format(due), style = GsdType.metadata, color = gsd.ink3, maxLines = 1)
+                        }
+                    }
+                    if (index < stats.upcoming.lastIndex) HorizontalDivider(color = gsd.hairline)
                 }
             }
         }

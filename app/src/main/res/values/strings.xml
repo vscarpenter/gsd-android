@@ -174,6 +174,13 @@
     <string name="dashboard_top_tags">Top tags</string>
     <string name="dashboard_time_by_quadrant">Time by quadrant</string>
     <string name="dashboard_upcoming">Upcoming deadlines</string>
+    <string name="dashboard_completion_by_quadrant">Completion by Quadrant</string>
+    <string name="dashboard_rings_complete">complete</string>
+    <string name="dashboard_rings_a11y">Completion rings, %1$s of all tasks complete</string>
+    <string name="dashboard_rings_legend">%1$s: %2$s complete</string>
+    <string name="dashboard_rings_legend_none">%1$s: no tasks</string>
+    <string name="dashboard_badge_today">Today</string>
+    <string name="dashboard_badge_overdue">Overdue</string>
     <string name="settings_sharing">Sharing</string>
     <string name="settings_fetch_titles">Fetch titles for shared links</string>
     <string name="settings_fetch_titles_footer">Fetching a page title performs a network request.</string>
