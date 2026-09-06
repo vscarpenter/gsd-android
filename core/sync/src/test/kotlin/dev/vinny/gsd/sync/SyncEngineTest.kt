@@ -340,6 +340,22 @@ class SyncEngineTest {
     }
 
     @Test
+    fun `a pending update is skipped and its retry bumped when the remote version is unparseable`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val t = Task(title = "edit", urgent = true, important = true, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH.plusSeconds(10))
+        local.tasks[t.id] = t
+        local.queue += SyncQueueEntity(id = 1, taskId = t.id, operation = SyncOp.UPDATE, timestamp = 0, payloadJson = TaskJson.encode(t))
+        remote.records["rec-1"] = WireTask(taskId = t.id, clientUpdatedAt = "not-a-date")
+        val result = SyncEngine(remote, local, Clock.fixed(Instant.EPOCH.plusSeconds(60), ZoneOffset.UTC), throttleMs = 0) { "owner" }.runSync(false)
+        assertEquals(0, result.pushed)
+        assertEquals("not-a-date", remote.records.getValue("rec-1").clientUpdatedAt)   // untouched
+        val row = local.queue.single()
+        assertEquals(1, row.retryCount)
+        assertEquals("Remote task version is missing or malformed", row.lastError)
+        assertEquals("pending", row.status)
+    }
+
+    @Test
     fun `health precedence`() {
         assertEquals(SyncHealth.OFFLINE, Health.evaluate(true, 0, 1, 5, null))
         assertEquals(SyncHealth.SESSION_EXPIRED, Health.evaluate(false, 1, 2, 5, null))

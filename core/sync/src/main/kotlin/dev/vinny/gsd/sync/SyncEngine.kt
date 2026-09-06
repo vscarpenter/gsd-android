@@ -19,6 +19,8 @@ data class SyncResult(
     val error: String? = null,
 )
 
+class MalformedRemoteVersion : Exception("Remote task version is missing or malformed")
+
 /**
  * The last-write-wins sync engine (spec §9.3–§9.5): pull → push → deletion
  * reconciliation, one run at a time. Every rule here is exercised by JVM
@@ -141,6 +143,10 @@ class SyncEngine(
                             continue
                         }
                         val remoteEntry = index[item.taskId]
+                        if (remoteEntry != null && remoteEntry.second == null) {
+                            // a missing or malformed remote version may protect, never authorize overwrite (S§8.2)
+                            throw MalformedRemoteVersion()
+                        }
                         val remoteStamp = remoteEntry?.second
                         if (remoteStamp != null && remoteStamp.toEpochMilli() > payload.updatedAt.toEpochMilli()) {
                             local.markQueueItemDone(item.id) // LWW payload guard: pull delivers remote (spec §9.3)
