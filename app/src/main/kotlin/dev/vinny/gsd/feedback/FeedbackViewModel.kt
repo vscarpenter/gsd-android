@@ -9,6 +9,7 @@ import dev.vinny.gsd.model.NanoId
 import dev.vinny.gsd.model.Sentiment
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.sync.FeedbackApi
+import dev.vinny.gsd.sync.FeedbackFailure
 import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +23,7 @@ sealed interface FeedbackSendState {
     data object Idle : FeedbackSendState
     data object Sending : FeedbackSendState
     data object Sent : FeedbackSendState
-    data class Failed(val message: String) : FeedbackSendState
+    data class Failed(val kind: FeedbackFailure) : FeedbackSendState
 }
 
 data class FeedbackUiState(
@@ -100,7 +101,7 @@ class FeedbackViewModel(
                 }
                 is FeedbackApi.Result.Failed -> {
                     // draft (and its submission id) is kept as-is so a retry collapses server-side
-                    _state.value = stateFor(current.draft, FeedbackSendState.Failed(result.message))
+                    _state.value = stateFor(current.draft, FeedbackSendState.Failed(result.kind))
                 }
             }
         }

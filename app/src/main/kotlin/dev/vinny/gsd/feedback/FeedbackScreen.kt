@@ -36,6 +36,7 @@ import dev.vinny.gsd.model.FeedbackCategory
 import dev.vinny.gsd.model.FeedbackPayload
 import dev.vinny.gsd.model.Roadmap
 import dev.vinny.gsd.model.Sentiment
+import dev.vinny.gsd.sync.FeedbackFailure
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import kotlinx.serialization.json.Json
@@ -166,7 +167,17 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
 
         when (sendState) {
             FeedbackSendState.Sent -> Text(stringResource(R.string.feedback_sent), style = GsdType.body, color = gsd.success)
-            is FeedbackSendState.Failed -> Text(stringResource(R.string.feedback_failed), style = GsdType.body, color = gsd.alert)
+            is FeedbackSendState.Failed -> Text(
+                stringResource(
+                    when (sendState.kind) {
+                        FeedbackFailure.OFFLINE -> R.string.feedback_failed_offline
+                        FeedbackFailure.RATE_LIMITED -> R.string.feedback_failed_rate_limited
+                        FeedbackFailure.SERVER -> R.string.feedback_failed_server
+                        FeedbackFailure.REJECTED -> R.string.feedback_failed_rejected
+                    },
+                ),
+                style = GsdType.body, color = gsd.alert,
+            )
             else -> Unit
         }
     }

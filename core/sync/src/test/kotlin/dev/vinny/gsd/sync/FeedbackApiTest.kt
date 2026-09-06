@@ -82,4 +82,28 @@ class FeedbackApiTest {
         server.shutdown()
         assertTrue(api.submit(payload) is FeedbackApi.Result.Failed)
     }
+
+    @Test
+    fun rateLimitMapsToRateLimited() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(429).setBody("""{"message":"Feedback capacity is temporarily full."}"""))
+        assertEquals(FeedbackApi.Result.Failed(FeedbackFailure.RATE_LIMITED), api.submit(payload))
+    }
+
+    @Test
+    fun serverErrorMapsToServer() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(500))
+        assertEquals(FeedbackApi.Result.Failed(FeedbackFailure.SERVER), api.submit(payload))
+    }
+
+    @Test
+    fun otherBadRequestIsRejected() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(400).setBody("""{"data":{"message":{"code":"validation_required"}}}"""))
+        assertEquals(FeedbackApi.Result.Failed(FeedbackFailure.REJECTED), api.submit(payload))
+    }
+
+    @Test
+    fun transportFailureMapsToOffline() = runBlocking {
+        server.shutdown()
+        assertEquals(FeedbackApi.Result.Failed(FeedbackFailure.OFFLINE), api.submit(payload))
+    }
 }

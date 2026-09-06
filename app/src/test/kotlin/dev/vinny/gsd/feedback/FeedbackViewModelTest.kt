@@ -6,6 +6,7 @@ import dev.vinny.gsd.model.FeedbackPayload
 import dev.vinny.gsd.model.Sentiment
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.sync.FeedbackApi
+import dev.vinny.gsd.sync.FeedbackFailure
 import java.io.File
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -119,5 +120,68 @@ class FeedbackViewModelTest {
 
         assertTrue(afterFailure.sendState is FeedbackSendState.Failed)
         assertEquals(beforeSend, afterFailure.draft) // nothing lost, same submission id for the retry
+    }
+
+    @Test
+    fun `a rate-limited send surfaces RATE_LIMITED and keeps the draft and submission id`() = runBlocking {
+        viewModel.setSentiment(Sentiment.UP)
+        viewModel.setMessage("busy server")
+        val beforeSend = viewModel.state.value.draft
+
+        server.enqueue(MockResponse().setResponseCode(429))
+        viewModel.send()
+        val afterFailure = awaitResult()
+
+        assertEquals(FeedbackSendState.Failed(FeedbackFailure.RATE_LIMITED), afterFailure.sendState)
+        assertEquals(beforeSend, afterFailure.draft)
+        assertEquals(beforeSend.submissionId, afterFailure.draft.submissionId)
+    }
+
+    @Test
+    fun `a 5xx send surfaces SERVER and keeps the draft and submission id`() = runBlocking {
+        viewModel.setSentiment(Sentiment.DOWN)
+        viewModel.setMessage("server trouble")
+        val beforeSend = viewModel.state.value.draft
+
+        server.enqueue(MockResponse().setResponseCode(503))
+        viewModel.send()
+        val afterFailure = awaitResult()
+
+        assertEquals(FeedbackSendState.Failed(FeedbackFailure.SERVER), afterFailure.sendState)
+        assertEquals(beforeSend, afterFailure.draft)
+        assertEquals(beforeSend.submissionId, afterFailure.draft.submissionId)
+    }
+
+    @Test
+    fun `a rejected send surfaces REJECTED and keeps the draft and submission id`() = runBlocking {
+        viewModel.setSentiment(Sentiment.UP)
+        viewModel.setMessage("bad request")
+        val beforeSend = viewModel.state.value.draft
+
+        server.enqueue(
+            MockResponse().setResponseCode(400)
+                .setBody("""{"data":{"message":{"code":"validation_required"}}}"""),
+        )
+        viewModel.send()
+        val afterFailure = awaitResult()
+
+        assertEquals(FeedbackSendState.Failed(FeedbackFailure.REJECTED), afterFailure.sendState)
+        assertEquals(beforeSend, afterFailure.draft)
+        assertEquals(beforeSend.submissionId, afterFailure.draft.submissionId)
+    }
+
+    @Test
+    fun `an offline send surfaces OFFLINE and keeps the draft and submission id`() = runBlocking {
+        viewModel.setSentiment(Sentiment.DOWN)
+        viewModel.setMessage("no network")
+        val beforeSend = viewModel.state.value.draft
+
+        server.shutdown()
+        viewModel.send()
+        val afterFailure = awaitResult()
+
+        assertEquals(FeedbackSendState.Failed(FeedbackFailure.OFFLINE), afterFailure.sendState)
+        assertEquals(beforeSend, afterFailure.draft)
+        assertEquals(beforeSend.submissionId, afterFailure.draft.submissionId)
     }
 }

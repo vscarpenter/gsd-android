@@ -12,6 +12,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
+enum class FeedbackFailure { OFFLINE, RATE_LIMITED, SERVER, REJECTED }
+
 /**
  * Anonymous opt-in feedback (parity spec P§6.1–§6.2): posts to the public feedback
  * collection with NO Authorization header, ever — the payload carries no account,
@@ -23,7 +25,7 @@ class FeedbackApi(
 ) {
     sealed interface Result {
         data object Sent : Result
-        data class Failed(val message: String) : Result
+        data class Failed(val kind: FeedbackFailure) : Result
     }
 
     private val jsonType = "application/json".toMediaType()
@@ -42,11 +44,13 @@ class FeedbackApi(
                     response.isSuccessful -> Result.Sent
                     // an earlier attempt with the same submission_id already landed — treat as success (P§6.1)
                     response.code == 400 && isDuplicateSubmission(body) -> Result.Sent
-                    else -> Result.Failed("HTTP ${response.code}")
+                    response.code == 429 -> Result.Failed(FeedbackFailure.RATE_LIMITED)
+                    response.code >= 500 -> Result.Failed(FeedbackFailure.SERVER)
+                    else -> Result.Failed(FeedbackFailure.REJECTED)
                 }
             }
         } catch (error: IOException) {
-            Result.Failed(error.message ?: "Network error")
+            Result.Failed(FeedbackFailure.OFFLINE)
         }
     }
 

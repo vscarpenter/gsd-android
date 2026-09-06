@@ -221,6 +221,7 @@ fun SettingsScreen(
                                 if (remoteWipe.isFailure) return@launch
                             }
                             LocalErase.eraseAll(container.db)
+                            container.prefs.clearFeedbackDraft()
                         }
                     },
                     enabled = confirmText == "RESET",

@@ -198,7 +198,10 @@
     <string name="feedback_disclosure_privacy">No account, no device id, no task content.</string>
     <string name="feedback_send">Send feedback</string>
     <string name="feedback_sent">Thanks — sent.</string>
-    <string name="feedback_failed">Couldn\'t send — try again.</string>
+    <string name="feedback_failed_offline">Couldn\'t reach the server. Your draft is saved — try again when you\'re online.</string>
+    <string name="feedback_failed_rate_limited">Too many submissions right now. Your draft is saved — try again later.</string>
+    <string name="feedback_failed_server">The server had a problem. Your draft is saved — try again shortly.</string>
+    <string name="feedback_failed_rejected">The server refused this submission. Your draft is saved.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_privacy_blurb">Local-only by default. Your tasks never leave this device unless you sign in to sync.</string>
     <string name="settings_field_guide">How to use GSD</string>

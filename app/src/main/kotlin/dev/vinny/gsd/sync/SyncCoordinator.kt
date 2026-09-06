@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import dev.vinny.gsd.auth.CachedTokenStore
+import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SyncOp
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +36,7 @@ class SyncCoordinator(
     private val local: SyncLocalStore,
     private val sse: SseClient,
     private val scope: CoroutineScope,
+    private val prefs: GsdPrefs,
 ) {
     private val foreground = MutableStateFlow(false)
     private val syncRequests = MutableSharedFlow<Boolean>(extraBufferCapacity = 16)
@@ -228,7 +230,10 @@ class SyncCoordinator(
         db.syncQueueDao().clear()
         auth.signOut()
         _signedIn.value = false
-        if (eraseLocal) dev.vinny.gsd.store.LocalErase.eraseAll(db)
+        if (eraseLocal) {
+            dev.vinny.gsd.store.LocalErase.eraseAll(db)
+            prefs.clearFeedbackDraft()
+        }
         return outcome
     }
 }

@@ -70,7 +70,7 @@ class AppContainer(context: Context) {
 
     fun startSync(scope: kotlinx.coroutines.CoroutineScope, context: Context) {
         syncCoordinator = dev.vinny.gsd.sync.SyncCoordinator(
-            context, syncEngine, authManager, tokenStore, db, syncLocal, sseClient, scope,
+            context, syncEngine, authManager, tokenStore, db, syncLocal, sseClient, scope, prefs,
         )
         syncCoordinator.lastOwnerId = { prefs.lastOwnerId.first() }
         syncCoordinator.onOwnerConfirmed = { result ->
