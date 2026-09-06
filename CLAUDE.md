@@ -4,6 +4,6 @@ Native Android GSD Task Manager (Kotlin + Jetpack Compose).
 
 - **Behavior authority:** `docs/gsd-android-spec.md` — every rule, limit, token, and protocol detail. When code and spec disagree, the spec wins.
 - **Process authority:** `docs/coding-standards.md` — TDD red/green/refactor, conventional commits, task tiers.
-- **Plan:** `tasks/plan.md` · progress in `tasks/todo.md` · Play submission in `docs/play/`.
+- **Plan:** `tasks/plan.md` (phases 0–7, complete) · `tasks/parity-plan.md` (Aug 2026 parity catch-up, complete 2026-08-29) · `tasks/parity-plan-2026-09-06.md` (Sept 2026 parity round 2, **current work** — its spec `docs/2026-09-06-cross-platform-parity-spec.md` wins over the main spec for the sections it touches until the plan's final task folds them in) · progress in `tasks/todo.md` · Play submission in `docs/play/` (0.8.0 in closed testing; tester gate open).
 - Modules: `:core:model` (pure JVM — keep it Android-free), `:core:store` (Room), `:core:sync` (PocketBase), `:app`.
 - Fast gate: `./gradlew :core:model:test` — keep it sub-second.
