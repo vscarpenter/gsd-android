@@ -26,6 +26,8 @@ sealed interface DeleteAccountOutcome {
     data object PartialAuthRejected : DeleteAccountOutcome
     /** Some tasks were deleted, then another failure or the pass budget ran out; the account survives. */
     data object PartialRetry : DeleteAccountOutcome
+    /** Cloud account was deleted and the queue/session already cleared, but the local erase step threw. */
+    data object LocalEraseIncomplete : DeleteAccountOutcome
 }
 
 data class SyncHistoryEntry(

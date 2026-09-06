@@ -1,17 +1,21 @@
 package dev.vinny.gsd.sync
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 private class FakeAccount : AccountRemote {
     var routeStatus: Int? = 204          // null = transport failure
+    var routeThrowsCancellation = false
     var userDeleted = false
     var rejectUserDelete = false
     val routeCalls = mutableListOf<Unit>()
     override suspend fun deleteAccountViaRoute() {
         routeCalls += Unit
+        if (routeThrowsCancellation) throw CancellationException("cancelled")
         when (val s = routeStatus) {
             204 -> Unit
             null -> throw java.io.IOException("offline")
@@ -74,5 +78,11 @@ class AccountDeleterTest {
         tasks.listResponder = { page, _ -> TaskListPage(page, 1, 1, listOf(WireTask(id = "ghost", taskId = "g")), listOf("")) }
         assertEquals(DeleteAccountOutcome.PartialRetry, AccountDeleter(tasks, account, 0).delete("u1"))
         assertTrue(!account.userDeleted)
+    }
+
+    @Test
+    fun `a cancellation from the route rethrows instead of becoming an outcome`() = runTest {
+        val tasks = FakeRemote(); val account = FakeAccount().apply { routeThrowsCancellation = true }
+        assertFailsWith<CancellationException> { AccountDeleter(tasks, account, 0).delete("u1") }
     }
 }

@@ -221,18 +221,31 @@ class SyncCoordinator(
         db.syncQueueDao().clear()
     }
 
-    /** §8.4/§8.21 order: server route first, bounded fallback, then the token. */
+    /**
+     * §8.4/§8.21 order: server route first, bounded fallback, then the token.
+     * Never throws: a missing user id, a failed token refresh, or any failure inside
+     * [AccountDeleter.delete] means nothing changed, so it reports [DeleteAccountOutcome.ListingFailed]
+     * rather than letting the caller mistake a pre-flight failure for a completed erase.
+     */
     suspend fun deleteAccount(remote: SyncRemote, account: AccountRemote, eraseLocal: Boolean): DeleteAccountOutcome {
-        val userId = auth.currentUserId() ?: throw PocketBaseApi.Unauthorized(401)
-        auth.ensureFreshToken()
-        val outcome = AccountDeleter(remote, account).delete(userId)
+        val userId = auth.currentUserId() ?: return DeleteAccountOutcome.ListingFailed
+        val outcome = try {
+            auth.ensureFreshToken()
+            AccountDeleter(remote, account).delete(userId)
+        } catch (failure: Exception) {
+            return DeleteAccountOutcome.ListingFailed
+        }
         if (outcome != DeleteAccountOutcome.Deleted) return outcome
         db.syncQueueDao().clear()
         auth.signOut()
         _signedIn.value = false
         if (eraseLocal) {
-            dev.vinny.gsd.store.LocalErase.eraseAll(db)
-            prefs.clearFeedbackDraft()
+            try {
+                dev.vinny.gsd.store.LocalErase.eraseAll(db)
+                prefs.clearFeedbackDraft()
+            } catch (failure: Exception) {
+                return DeleteAccountOutcome.LocalEraseIncomplete
+            }
         }
         return outcome
     }

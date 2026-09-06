@@ -46,15 +46,12 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     fun deleteAccount(eraseLocal: Boolean) {
         deleteOpen = false
         scope.launch {
-            deletionMessage = try {
-                when (container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = eraseLocal)) {
-                    DeleteAccountOutcome.Deleted -> null
-                    DeleteAccountOutcome.ListingFailed -> R.string.account_delete_listing_failed
-                    DeleteAccountOutcome.PartialAuthRejected -> R.string.account_delete_partial_auth
-                    DeleteAccountOutcome.PartialRetry -> R.string.account_delete_partial_retry
-                }
-            } catch (failure: Exception) {
-                R.string.account_delete_local_incomplete
+            deletionMessage = when (container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = eraseLocal)) {
+                DeleteAccountOutcome.Deleted -> null
+                DeleteAccountOutcome.ListingFailed -> R.string.account_delete_listing_failed
+                DeleteAccountOutcome.PartialAuthRejected -> R.string.account_delete_partial_auth
+                DeleteAccountOutcome.PartialRetry -> R.string.account_delete_partial_retry
+                DeleteAccountOutcome.LocalEraseIncomplete -> R.string.account_delete_local_incomplete
             }
         }
     }

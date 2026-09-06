@@ -1,5 +1,6 @@
 package dev.vinny.gsd.sync
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 /**
@@ -20,6 +21,8 @@ class AccountDeleter(
             return DeleteAccountOutcome.Deleted
         } catch (absent: PocketBaseApi.HttpError) {
             if (absent.code != 404) return DeleteAccountOutcome.ListingFailed
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (transport: Exception) {
             return DeleteAccountOutcome.ListingFailed
         }
@@ -27,14 +30,29 @@ class AccountDeleter(
         repeat(MAX_PASSES) {
             val listing = try {
                 BoundedListing.collect(EPOCH, tasks::listTasks)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: Exception) {
                 return if (erasedAny) partial(failure) else DeleteAccountOutcome.ListingFailed
             }
             if (listing.isEmpty()) {
-                return try { account.deleteUser(userId); DeleteAccountOutcome.Deleted } catch (failure: Exception) { partial(failure) }
+                return try {
+                    account.deleteUser(userId)
+                    DeleteAccountOutcome.Deleted
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    partial(failure)
+                }
             }
             for (wire in listing) {
-                try { tasks.deleteTask(wire.id) } catch (failure: Exception) { return if (erasedAny) partial(failure) else DeleteAccountOutcome.ListingFailed }
+                try {
+                    tasks.deleteTask(wire.id)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    return if (erasedAny) partial(failure) else DeleteAccountOutcome.ListingFailed
+                }
                 erasedAny = true
                 if (throttleMs > 0) delay(throttleMs)
             }
