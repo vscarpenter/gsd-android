@@ -95,6 +95,23 @@ behavior; the spec labels every contested rule with its source client.
 - Web: trash-merge import overwrites the local row on id collision (archive rule says skip).
 - iOS: no tombstone-suppression guard on pull/SSE — resurrects archived/trashed ids.
 
+## Cross-platform parity catch-up — round 2 (2026-09-06) — SPEC + PLAN APPROVED, NOT STARTED
+The siblings kept shipping after the August round: iOS #16 (`18dd222`, 2026-09-01 — completion
+rings, day-based deadline status, Browse root search, first-frame skeletons), the off-list
+reminder rule (iOS #12 / web #520), and the web's 2026-09-04 security review (#527 — smart-view
+bounds, bounded fail-closed remote scans, three-verdict remote-absence rule, malformed-version
+push guard, route-first account deletion, erase completeness). Audited claim-by-claim 2026-09-06;
+fixtures still byte-identical in all three repos. Owner approved the full scope the same day.
+- **Spec:** `docs/2026-09-06-cross-platform-parity-spec.md` (wins over the main spec for the
+  sections it touches until the plan's Task 15 folds them in).
+- **Plan:** `tasks/parity-plan-2026-09-06.md` — 15 TDD tasks, module order, one commit each.
+- **Declared absences (do not flag):** the web's Review verdict (#519) and feedback nudge (#525).
+- **Pre-existing Android gaps the audit surfaced** (fixed by the plan): instant-based dashboard
+  "upcoming" hides a task due earlier today; upcoming rows are inert; editor shows "None" for an
+  off-list reminder; push overwrites a remote record with an unparseable version; no palette
+  feedback action; erase leaves the feedback draft; smart-view import skips are uncounted.
+- **Branch:** `docs/parity-2026-09` (spec `b7772f3`, plan on top). Not pushed.
+
 ## Resuming From Here (2026-09-06, Play closed test)
 - **Where the release is:** 0.8.0 (versionCode 8) is live on the Closed testing – Alpha track
   since 2026-08-29 5:33 PM, one country/region, 9,295 supported devices. Production is
