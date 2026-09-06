@@ -211,14 +211,7 @@ class SyncCoordinator(
         if (!_signedIn.value) return // signed-out is a silent no-op
         auth.ensureFreshToken()
         if (auth.currentUserId() == null) throw PocketBaseApi.Unauthorized(401)
-        var page = 1
-        val recordIds = mutableListOf<String>()
-        while (true) {
-            val result = remote.listTasks(page, "1970-01-01 00:00:00.000Z")
-            recordIds += result.items.map { it.id }
-            if (result.page >= result.totalPages) break
-            page = result.page + 1
-        }
+        val recordIds = BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks).map { it.id }
         recordIds.forEach { recordId ->
             remote.deleteTask(recordId)
             delay(100)

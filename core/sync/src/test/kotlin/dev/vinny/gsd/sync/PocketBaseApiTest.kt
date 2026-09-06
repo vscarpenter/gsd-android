@@ -43,11 +43,18 @@ class PocketBaseApiTest {
         val recorded = server.takeRequest()
         val path = recorded.path!!
         assertTrue("perPage=200" in path)
-        assertTrue("sort=updated" in path)
+        assertEquals("updated,id", recorded.requestUrl!!.queryParameter("sort"))
         assertTrue("filter=" in path)
         assertTrue("%22" in path || "\"" !in path) // quotes URL-encoded
         assertEquals(1, result.totalPages)
         assertEquals("t1", result.items.single().taskId)
+    }
+
+    @Test
+    fun `list decodes totalItems from the envelope`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"page":1,"perPage":200,"totalItems":7,"totalPages":1,"items":[]}"""))
+        val result = api.listTasks(page = 1, updatedCursor = "1970-01-01 00:00:00.000Z")
+        assertEquals(7, result.totalItems)
     }
 
     @Test

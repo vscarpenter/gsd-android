@@ -327,6 +327,19 @@ class SyncEngineTest {
     }
 
     @Test
+    fun `an over-cap remote listing aborts the run and deletes nothing locally`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val t = Task(title = "keep me", urgent = true, important = true, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH)
+        local.tasks[t.id] = t
+        remote.listResponder = { page, _ -> TaskListPage(page = page, totalPages = 1, totalItems = 10_001, items = emptyList(), updatedStamps = emptyList()) }
+        val result = SyncEngine(remote, local, Clock.fixed(Instant.EPOCH, ZoneOffset.UTC), throttleMs = 0) { "owner" }.runSync(false)
+        assertEquals("error", result.status)
+        assertTrue(result.error!!.contains("exceeds cap"))
+        assertEquals(listOf(t.id), local.tasks.keys.toList())   // reconciliation never ran
+        assertTrue(local.remoteDeletes.isEmpty())
+    }
+
+    @Test
     fun `health precedence`() {
         assertEquals(SyncHealth.OFFLINE, Health.evaluate(true, 0, 1, 5, null))
         assertEquals(SyncHealth.SESSION_EXPIRED, Health.evaluate(false, 1, 2, 5, null))

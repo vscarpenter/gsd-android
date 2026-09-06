@@ -84,9 +84,7 @@ class SyncEngine(
         var conflicts = 0
         var maxApplied: Instant? = null
         val cursor = local.cursor() ?: "1970-01-01 00:00:00.000Z"
-        var page = 1
-        while (true) {
-            val result = remote.listTasks(page, cursor)
+        BoundedListing.collect(cursor, remote::listTasks) { result ->
             result.items.forEachIndexed { index, wire ->
                 val existing = local.taskById(wire.taskId)
                 val incoming = WireMapper.pull(wire, existing) ?: return@forEachIndexed
@@ -109,26 +107,14 @@ class SyncEngine(
                     }
                 }
             }
-            if (result.page >= result.totalPages) break
-            page = result.page + 1
         }
         maxApplied?.let { local.saveCursor(PbDates.cursorAfter(it)) }
         return pulled to conflicts
     }
 
-    private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> {
-        val index = mutableMapOf<String, Pair<String, Instant?>>()
-        var page = 1
-        while (true) {
-            val result = remote.listTasks(page, "1970-01-01 00:00:00.000Z")
-            result.items.forEach { wire ->
-                index[wire.taskId] = wire.id to PbDates.parse(wire.clientUpdatedAt)
-            }
-            if (result.page >= result.totalPages) break
-            page = result.page + 1
-        }
-        return index
-    }
+    private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> =
+        BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks)
+            .associateTo(mutableMapOf()) { wire -> wire.taskId to (wire.id to PbDates.parse(wire.clientUpdatedAt)) }
 
     /** Returns pushed count to permanently-failed-this-drain count. */
     private suspend fun push(): Pair<Int, Int> {

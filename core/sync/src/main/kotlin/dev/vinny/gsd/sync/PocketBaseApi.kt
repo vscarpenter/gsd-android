@@ -23,6 +23,7 @@ data class TaskListPage(
     val items: List<WireTask>,
     /** raw `updated` stamps aligned with items — the pull cursor source */
     val updatedStamps: List<String>,
+    val totalItems: Int = items.size,
 )
 
 @Serializable
@@ -79,7 +80,7 @@ class PocketBaseApi(
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
         val filter = URLEncoder.encode("updated >= \"$updatedCursor\"", "UTF-8")
         val raw = execute(
-            request("/api/collections/tasks/records?page=$page&perPage=200&sort=updated&filter=$filter")
+            request("/api/collections/tasks/records?page=$page&perPage=200&sort=updated,id&filter=$filter")
                 .get().build(),
         )
         val envelope = Json.parseToJsonElement(raw).jsonObject
@@ -92,6 +93,7 @@ class PocketBaseApi(
         return TaskListPage(
             page = envelope["page"]?.jsonPrimitive?.int ?: page,
             totalPages = envelope["totalPages"]?.jsonPrimitive?.int ?: 1,
+            totalItems = envelope["totalItems"]?.jsonPrimitive?.int ?: decoded.size,
             items = decoded.map { it.first },
             updatedStamps = decoded.map { it.second },
         )
