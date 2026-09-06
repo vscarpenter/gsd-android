@@ -32,6 +32,7 @@ import dev.vinny.gsd.matrix.TaskRowWithMenu
 import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.SmartView
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TaskOrdering
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import java.time.Instant
@@ -76,7 +77,9 @@ fun ViewListContent(
     val now = Instant.now()
     val zone = ZoneId.systemDefault()
     val effective = if (query.isEmpty()) view.criteria else view.criteria.copy(searchQuery = query)
-    val matches = allTasks?.filter { effective.matches(it, allTasks, now, zone) }
+    val matches = allTasks
+        ?.filter { effective.matches(it, allTasks, now, zone) }
+        ?.let { TaskOrdering.forList(it, effective.status) }
     Column(modifier = modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Text(view.name, style = GsdType.quadrantTitle, color = smartViewTint(view.id),
             modifier = Modifier.padding(vertical = 12.dp))
@@ -95,14 +98,17 @@ fun ViewListContent(
         if (matches == null) {
             TaskListSkeleton()
         } else if (matches.isEmpty()) {
-            val emptyRes = when {
-                query.isNotEmpty() -> R.string.view_empty_search
-                view.id == "overdue" -> R.string.view_empty_overdue
-                view.id == "weeks-wins" -> R.string.view_empty_wins
-                else -> R.string.view_empty_generic
-            }
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(emptyRes), style = GsdType.subhead, color = gsd.ink2)
+            if (query.isNotEmpty()) {
+                SearchMissEmptyState(query.trim())
+            } else {
+                val emptyRes = when (view.id) {
+                    "overdue" -> R.string.view_empty_overdue
+                    "weeks-wins" -> R.string.view_empty_wins
+                    else -> R.string.view_empty_generic
+                }
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                    Text(stringResource(emptyRes), style = GsdType.subhead, color = gsd.ink2)
+                }
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {

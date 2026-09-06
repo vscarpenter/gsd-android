@@ -1,15 +1,20 @@
 package dev.vinny.gsd.browse
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AdsClick
@@ -29,6 +34,7 @@ import androidx.compose.material.icons.outlined.Label
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material.icons.outlined.Warning
@@ -45,16 +51,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.editor.TaskEditorSheet
+import dev.vinny.gsd.editor.TaskEditorViewModel
+import dev.vinny.gsd.matrix.TaskBadges
+import dev.vinny.gsd.matrix.TaskRowActions
+import dev.vinny.gsd.matrix.TaskRowWithMenu
+import dev.vinny.gsd.model.DependencyGraph
+import dev.vinny.gsd.model.FilterCriteria
+import dev.vinny.gsd.model.FilterStatus
+import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TaskOrdering
+import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import java.time.Instant
+import java.time.ZoneId
 
 /** Icon token → vector for both built-ins (§5.7) and the 10 curated custom options. */
 val smartViewIcons: Map<String, ImageVector> = mapOf(
@@ -106,7 +128,10 @@ fun BrowseScreen(
     modifier: Modifier = Modifier,
 ) {
     val viewModel: BrowseViewModel = viewModel { BrowseViewModel(container.store, container.smartViewStore) }
+    val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
+    val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val trashed by container.trashStore.observeTrash()
         .collectAsStateWithLifecycle(initialValue = emptyList())
     BrowseContent(
@@ -119,8 +144,18 @@ fun BrowseScreen(
         onTogglePin = viewModel::togglePin,
         onEditView = onEditView,
         onDeleteView = viewModel::deleteCustom,
+        tasks = tasks,
+        rowActions = { task ->
+            TaskRowActions(
+                onEdit = { editorViewModel.openExisting(task.id) },
+                onToggleComplete = { viewModel.toggleCompleted(task.id) },
+            )
+        },
         modifier = modifier,
     )
+    if (editorDraft != null) {
+        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+    }
 }
 
 @Composable
@@ -134,57 +169,146 @@ fun BrowseContent(
     onTogglePin: (String) -> Unit,
     onEditView: (String) -> Unit,
     onDeleteView: (String) -> Unit,
+    tasks: List<Task>? = null,
+    rowActions: (Task) -> TaskRowActions = { TaskRowActions() },
     modifier: Modifier = Modifier,
 ) {
     val gsd = LocalGsdColors.current
+    var query by remember { mutableStateOf("") }
+    val trimmed = query.trim()
+    Column(modifier = modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 4.dp)) {
+            if (query.isEmpty()) {
+                Text(stringResource(R.string.browse_search_hint), style = GsdType.subhead, color = gsd.ink3)
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                textStyle = GsdType.subhead.copy(color = gsd.ink),
+                modifier = Modifier.fillMaxWidth().testTag("browse_search"),
+            )
+        }
+        if (trimmed.isNotEmpty()) {
+            BrowseSearchResults(
+                query = trimmed,
+                allTasks = tasks.orEmpty(),
+                rowActions = rowActions,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                item(key = "archive") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenArchive).padding(vertical = 12.dp),
+                    ) {
+                        Icon(Icons.Outlined.Inventory2, contentDescription = null, tint = gsd.ink2)
+                        Text(stringResource(R.string.browse_archive), style = GsdType.cardTitle, color = gsd.ink)
+                    }
+                }
+                item(key = "trash") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTrash).padding(vertical = 12.dp),
+                    ) {
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = gsd.ink2)
+                        Text(
+                            stringResource(R.string.trash_row_label),
+                            style = GsdType.cardTitle,
+                            color = gsd.ink,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "$trashCount",
+                            style = GsdType.metadata.copy(fontFeatureSettings = "tnum"),
+                            color = gsd.ink2,
+                        )
+                    }
+                }
+                section(R.string.browse_pinned, state.pinned, onOpenView, onTogglePin, onEditView, onDeleteView)
+                section(R.string.browse_built_in, state.builtIn, onOpenView, onTogglePin, onEditView, onDeleteView)
+                section(R.string.browse_custom, state.custom, onOpenView, onTogglePin, onEditView, onDeleteView)
+                item(key = "new-view") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = onNewView).padding(vertical = 12.dp),
+                    ) {
+                        Icon(Icons.Outlined.Add, contentDescription = null, tint = gsd.tint)
+                        Text(stringResource(R.string.browse_new_view), style = GsdType.body, color = gsd.tint)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Root search over every active task, shared list order (spec §3.4). */
+@Composable
+fun BrowseSearchResults(
+    query: String,
+    allTasks: List<Task>,
+    rowActions: (Task) -> TaskRowActions,
+    modifier: Modifier = Modifier,
+) {
+    val now = Instant.now()
+    val zone = ZoneId.systemDefault()
+    val criteria = FilterCriteria(status = FilterStatus.ACTIVE, searchQuery = query)
+    val matches = TaskOrdering.forList(allTasks.filter { criteria.matches(it, allTasks, now, zone) }, FilterStatus.ACTIVE)
+    if (matches.isEmpty()) {
+        SearchMissEmptyState(query, modifier)
+        return
+    }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+        contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item(key = "archive") {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenArchive).padding(vertical = 12.dp),
-            ) {
-                Icon(Icons.Outlined.Inventory2, contentDescription = null, tint = gsd.ink2)
-                Text(stringResource(R.string.browse_archive), style = GsdType.cardTitle, color = gsd.ink)
-            }
+        items(matches, key = { it.id }) { task ->
+            val badges = TaskBadges(
+                blocked = DependencyGraph.uncompletedBlockers(allTasks, task).size,
+                blocking = DependencyGraph.blocking(allTasks, task).size,
+            )
+            TaskRowWithMenu(task = task, badges = badges, actions = rowActions(task))
         }
-        item(key = "trash") {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTrash).padding(vertical = 12.dp),
-            ) {
-                Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = gsd.ink2)
-                Text(
-                    stringResource(R.string.trash_row_label),
-                    style = GsdType.cardTitle,
-                    color = gsd.ink,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    "$trashCount",
-                    style = GsdType.metadata.copy(fontFeatureSettings = "tnum"),
-                    color = gsd.ink2,
-                )
-            }
+    }
+}
+
+/** §5.10 empty state for a search miss; shared by Browse search and the in-view search (S§3.4). */
+@Composable
+fun SearchMissEmptyState(query: String, modifier: Modifier = Modifier) {
+    val gsd = LocalGsdColors.current
+    Column(
+        modifier = modifier.fillMaxWidth().padding(top = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier.size(60.dp).clip(GsdShapes.input).background(gsd.sunken),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Search, contentDescription = null, tint = gsd.ink3, modifier = Modifier.size(28.dp))
         }
-        section(R.string.browse_pinned, state.pinned, onOpenView, onTogglePin, onEditView, onDeleteView)
-        section(R.string.browse_built_in, state.builtIn, onOpenView, onTogglePin, onEditView, onDeleteView)
-        section(R.string.browse_custom, state.custom, onOpenView, onTogglePin, onEditView, onDeleteView)
-        item(key = "new-view") {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onNewView).padding(vertical = 12.dp),
-            ) {
-                Icon(Icons.Outlined.Add, contentDescription = null, tint = gsd.tint)
-                Text(stringResource(R.string.browse_new_view), style = GsdType.body, color = gsd.tint)
-            }
-        }
+        Text(
+            stringResource(R.string.search_empty_title, query),
+            style = GsdType.quadrantTitle,
+            color = gsd.ink,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            stringResource(R.string.search_empty_body),
+            style = GsdType.subhead,
+            color = gsd.ink2,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 280.dp),
+        )
     }
 }
 
