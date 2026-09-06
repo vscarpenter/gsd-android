@@ -46,10 +46,10 @@ class MatrixViewModel(
     prefs: GsdPrefs,
     private val trashStore: TrashStore,
 ) : ViewModel() {
-    val sections: StateFlow<List<QuadrantSectionState>> =
+    val sections: StateFlow<List<QuadrantSectionState>?> =
         combine(store.observeTasks(), prefs.showCompleted) { tasks, showCompleted ->
             buildSections(tasks, showCompleted)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), buildSections(emptyList()))
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun toggleCompleted(id: String) {
         viewModelScope.launch {

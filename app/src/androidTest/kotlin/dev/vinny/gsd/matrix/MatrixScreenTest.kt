@@ -67,6 +67,13 @@ class MatrixScreenTest {
     }
 
     @Test
+    fun nullSectionsShowsSkeletonNotEmptyPrompt() {
+        rule.setContent { GsdTheme { MatrixList(sections = null, onToggleComplete = {}, onOpen = {}) } }
+        rule.onNodeWithContentDescription("Loading").assertIsDisplayed()
+        rule.onNodeWithText("No fires right now.").assertDoesNotExist()
+    }
+
+    @Test
     fun completedSortBelowIncompleteAndCountIsActiveOnly() {
         val sections = buildSections(
             listOf(

@@ -2,6 +2,7 @@ package dev.vinny.gsd.dashboard
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import dev.vinny.gsd.model.Analytics
@@ -36,7 +37,7 @@ class DashboardTest {
                     window = 7,
                     onWindowChange = {},
                     onOpenOverdue = { overdueOpened = true },
-                    isEmpty = false,
+                    loaded = true,
                 )
             }
         }
@@ -52,9 +53,49 @@ class DashboardTest {
         rule.setContent {
             GsdTheme {
                 DashboardContent(stats = stats, window = 7, onWindowChange = {},
-                    onOpenOverdue = {}, isEmpty = true)
+                    onOpenOverdue = {}, loaded = true)
             }
         }
         rule.onNodeWithText("No stats yet").assertIsDisplayed()
+    }
+
+    // Split into two tests, not one with setContent called twice: this Compose-test BOM
+    // throws IllegalStateException on a second setContent call within the same test.
+    @Test
+    fun loadingShowsSkeletonNotEmptyState() {
+        val stats = Analytics.compute(emptyList(), 7, now, ZoneOffset.UTC)
+        rule.setContent {
+            GsdTheme {
+                DashboardContent(
+                    stats = stats,
+                    window = 7,
+                    onWindowChange = {},
+                    onOpenOverdue = {},
+                    loaded = false,
+                    onOpenTask = {},
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Loading").assertIsDisplayed()
+        rule.onNodeWithText("No stats yet").assertDoesNotExist()
+    }
+
+    @Test
+    fun loadedEmptyShowsEmptyStateNotSkeleton() {
+        val stats = Analytics.compute(emptyList(), 7, now, ZoneOffset.UTC)
+        rule.setContent {
+            GsdTheme {
+                DashboardContent(
+                    stats = stats,
+                    window = 7,
+                    onWindowChange = {},
+                    onOpenOverdue = {},
+                    loaded = true,
+                    onOpenTask = {},
+                )
+            }
+        }
+        rule.onNodeWithText("No stats yet").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Loading").assertDoesNotExist()
     }
 }

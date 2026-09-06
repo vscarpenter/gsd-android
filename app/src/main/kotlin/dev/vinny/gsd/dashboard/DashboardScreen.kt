@@ -46,17 +46,17 @@ import java.time.ZoneId
 
 @Composable
 fun DashboardScreen(container: AppContainer, onOpenOverdue: () -> Unit, modifier: Modifier = Modifier) {
-    val tasks by container.store.observeTasks().collectAsStateWithLifecycle(initialValue = emptyList())
+    val tasks by container.store.observeTasks().collectAsStateWithLifecycle(initialValue = null)
     var window by remember { mutableIntStateOf(7) }
     val stats = remember(tasks, window) {
-        Analytics.compute(tasks, window, Instant.now(), ZoneId.systemDefault())
+        Analytics.compute(tasks.orEmpty(), window, Instant.now(), ZoneId.systemDefault())
     }
     DashboardContent(
         stats = stats,
         window = window,
         onWindowChange = { window = it },
         onOpenOverdue = onOpenOverdue,
-        isEmpty = tasks.isEmpty(),
+        loaded = tasks != null,
         modifier = modifier,
     )
 }
@@ -67,11 +67,16 @@ fun DashboardContent(
     window: Int,
     onWindowChange: (Int) -> Unit,
     onOpenOverdue: () -> Unit,
-    isEmpty: Boolean,
+    loaded: Boolean,
     modifier: Modifier = Modifier,
+    onOpenTask: (String) -> Unit = {},
 ) {
     val gsd = LocalGsdColors.current
-    if (isEmpty) {
+    if (!loaded) {
+        DashboardSkeleton(modifier = modifier)
+        return
+    }
+    if (stats.active + stats.completed == 0) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(stringResource(R.string.dashboard_empty), style = GsdType.quadrantTitle, color = gsd.ink2)
         }

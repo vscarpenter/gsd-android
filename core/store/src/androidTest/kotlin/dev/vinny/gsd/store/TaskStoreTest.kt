@@ -122,4 +122,14 @@ class TaskStoreTest {
         assertEquals(0, store.observeTasks().first().size)
         assertEquals(0, db.syncQueueDao().pending().size)
     }
+
+    /**
+     * Regression pin (parity T11): the first snapshot from `observeTasks()` arrives even with
+     * no rows — Room emits the initial query rather than waiting for a write — so a `null`
+     * initial value on a StateFlow wrapping this flips to the loaded empty list immediately.
+     */
+    @Test
+    fun observeTasksEmitsEmptyListOnFreshDatabase() = runTest {
+        assertEquals(emptyList(), store.observeTasks().first())
+    }
 }

@@ -161,6 +161,7 @@
     <string name="bulk_result_failed">Updated %1$d, failed %2$d</string>
     <string name="cd_select_mode">Select tasks</string>
     <string name="dashboard_empty">No stats yet</string>
+    <string name="skeleton_loading">Loading</string>
     <string name="dashboard_overdue_banner">%1$d overdue — review the backlog</string>
     <string name="dashboard_active">Active</string>
     <string name="dashboard_completed">Completed</string>

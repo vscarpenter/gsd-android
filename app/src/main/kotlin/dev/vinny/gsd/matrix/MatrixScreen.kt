@@ -166,7 +166,7 @@ fun MatrixScreen(
                 )
             }
             if (selectionMode && selection.isNotEmpty()) {
-                val selectedTags = sections.flatMap { it.tasks }
+                val selectedTags = sections.orEmpty().flatMap { it.tasks }
                     .filter { it.id in selection }
                     .flatMap { it.tags }
                     .distinct()
@@ -177,14 +177,19 @@ fun MatrixScreen(
                 )
             }
             if (expanded) {
-                MatrixGrid(
-                    sections = sections,
-                    onToggleComplete = onToggle,
-                    onOpen = editorViewModel::openExisting,
-                    onDropToQuadrant = viewModel::moveToQuadrant,
-                    onDelete = { viewModel.delete(it.id) },
-                    modifier = Modifier.weight(1f),
-                )
+                val currentSections = sections
+                if (currentSections == null) {
+                    MatrixSkeleton(expanded = true, modifier = Modifier.weight(1f))
+                } else {
+                    MatrixGrid(
+                        sections = currentSections,
+                        onToggleComplete = onToggle,
+                        onOpen = editorViewModel::openExisting,
+                        onDropToQuadrant = viewModel::moveToQuadrant,
+                        onDelete = { viewModel.delete(it.id) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             } else {
                 MatrixList(
                     sections = sections,
@@ -280,13 +285,17 @@ fun MatrixScreen(
 /** Compact-width matrix: a vertical stack of quadrant sections (spec §6.1). */
 @Composable
 fun MatrixList(
-    sections: List<QuadrantSectionState>,
+    sections: List<QuadrantSectionState>?,
     onToggleComplete: (dev.vinny.gsd.model.Task) -> Unit,
     onOpen: (String) -> Unit,
     modifier: Modifier = Modifier,
     onDelete: (dev.vinny.gsd.model.Task) -> Unit = {},
     rowActions: ((dev.vinny.gsd.model.Task) -> TaskRowActions)? = null,
 ) {
+    if (sections == null) {
+        MatrixSkeleton(modifier = modifier)
+        return
+    }
     val allVisible = sections.flatMap { it.tasks }
     LazyColumn(
         modifier = modifier.fillMaxSize(),

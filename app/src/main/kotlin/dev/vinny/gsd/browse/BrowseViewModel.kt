@@ -56,6 +56,10 @@ class BrowseViewModel(
             buildBrowseState(views, pins, tasks, Instant.now(), ZoneId.systemDefault())
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseState())
 
+    /** `null` until the first snapshot loads — lets a smart-view list tell "loading" from "empty" (S§4.2). */
+    val tasks: StateFlow<List<Task>?> =
+        store.observeTasks().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun togglePin(id: String) {
         viewModelScope.launch {
             val current = smartViews.pinned()

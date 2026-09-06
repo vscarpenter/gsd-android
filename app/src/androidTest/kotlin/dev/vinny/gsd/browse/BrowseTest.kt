@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
@@ -72,5 +73,17 @@ class BrowseTest {
             }
         }
         rule.onNodeWithText("Nothing overdue").assertIsDisplayed()
+    }
+
+    @Test
+    fun viewListShowsSkeletonWhileTasksNotLoaded() {
+        val overdue = BuiltInSmartViews.all.first { it.id == "overdue" }
+        rule.setContent {
+            GsdTheme {
+                ViewListContent(view = overdue, allTasks = null, rowActions = { TaskRowActions() })
+            }
+        }
+        rule.onNodeWithContentDescription("Loading").assertIsDisplayed()
+        rule.onNodeWithText("Nothing here").assertDoesNotExist()
     }
 }

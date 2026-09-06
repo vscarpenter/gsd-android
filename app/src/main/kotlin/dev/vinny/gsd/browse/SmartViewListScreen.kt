@@ -47,7 +47,7 @@ fun SmartViewListScreen(container: AppContainer, viewId: String, modifier: Modif
     val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
     val view = (state.pinned + state.builtIn + state.custom).map { it.view }.firstOrNull { it.id == viewId }
         ?: return
-    val allTasks by editorViewModel.allTasks.collectAsStateWithLifecycle()
+    val allTasks by browseViewModel.tasks.collectAsStateWithLifecycle()
     ViewListContent(
         view = view,
         allTasks = allTasks,
@@ -67,7 +67,7 @@ fun SmartViewListScreen(container: AppContainer, viewId: String, modifier: Modif
 @Composable
 fun ViewListContent(
     view: SmartView,
-    allTasks: List<Task>,
+    allTasks: List<Task>?,
     rowActions: (Task) -> TaskRowActions,
     modifier: Modifier = Modifier,
 ) {
@@ -76,7 +76,7 @@ fun ViewListContent(
     val now = Instant.now()
     val zone = ZoneId.systemDefault()
     val effective = if (query.isEmpty()) view.criteria else view.criteria.copy(searchQuery = query)
-    val matches = allTasks.filter { effective.matches(it, allTasks, now, zone) }
+    val matches = allTasks?.filter { effective.matches(it, allTasks, now, zone) }
     Column(modifier = modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Text(view.name, style = GsdType.quadrantTitle, color = smartViewTint(view.id),
             modifier = Modifier.padding(vertical = 12.dp))
@@ -92,7 +92,9 @@ fun ViewListContent(
                 modifier = Modifier.fillMaxWidth().testTag("view_search"),
             )
         }
-        if (matches.isEmpty()) {
+        if (matches == null) {
+            TaskListSkeleton()
+        } else if (matches.isEmpty()) {
             val emptyRes = when {
                 query.isNotEmpty() -> R.string.view_empty_search
                 view.id == "overdue" -> R.string.view_empty_overdue
@@ -106,8 +108,8 @@ fun ViewListContent(
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(matches, key = { it.id }) { task ->
                     val badges = TaskBadges(
-                        blocked = DependencyGraph.uncompletedBlockers(allTasks, task).size,
-                        blocking = DependencyGraph.blocking(allTasks, task).size,
+                        blocked = DependencyGraph.uncompletedBlockers(allTasks.orEmpty(), task).size,
+                        blocking = DependencyGraph.blocking(allTasks.orEmpty(), task).size,
                     )
                     TaskRowWithMenu(task = task, badges = badges, actions = rowActions(task))
                 }
