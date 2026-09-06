@@ -40,6 +40,26 @@ Production requires a closed test with **12 opted-in testers for 14 continuous d
 - Day 14 → Apply for production → Google review (budget several days) → promote the Alpha
   release to Production.
 
+## 0.9.0 mid-window closed-test release (2026-09-06)
+The September parity round shipped as release **9 (0.9.0)** on the same Alpha track — the
+"changes made during testing" answer for the production questionnaire. Bump commit `64e1cd9`.
+- Gates before upload: `:core:model:test` 130 green, `testDebugUnitTest` 120 green, signed
+  `app-release.aab` (6.4 MB) + `app-release.apk` (4.9 MB), aapt2-verified `versionCode=9`
+  `versionName=0.9.0`, jarsigner-verified, V2-signed with the upload cert.
+- Release smoke on the **minified build**, `gsd-test` emulator (API 36): onboarding → capture
+  `!! Smoke test 0.9.0 #release` → Do First with tag → Mark complete → Dashboard rings at
+  100%; no `AndroidRuntime` fatals. Sync and reminders were not exercised (no credentials on
+  the emulator). The Pixel was left alone — it runs the Play-signed build, which an upload-key
+  APK cannot replace.
+- Console: uploaded via Create new release → 9 (0.9.0), release notes in `<en-US>`, Save →
+  Publishing overview → Send 1 change for review at 3:04 PM CDT (submission #3). Only warning: native code
+  without debug symbols (same advisory as 0.8.0). Device coverage unchanged (5,439 phones,
+  3,791 tablets). Status after submit: **Changes in review**, quick checks up to 14 min, then
+  Google review (typically < 7 days for a closed-test update).
+- The developer account is **VinnyCarpenter** (ID 6801639637564019543), reachable from
+  vscarpenter@gmail.com's Console session; the other account on the chooser ("Vinny
+  Carpenter") is a 2021-closed shell — pick the second one.
+
 ## Owner steps
 Play Console account: **vinnycarpenterdev@gmail.com**.
 
@@ -63,9 +83,10 @@ Play Console account: **vinnycarpenterdev@gmail.com**.
    ```
    Enroll in Play App Signing at app creation so this stays an upload key, not the app key.
 3. ~~**Build the bundle**~~ — done 2026-08-29: signed 0.8.0 `app-release.aab` (versionCode 8).
-4. **Release smoke on the minified build** — install the release build on the Pixel and walk
-   capture → complete → sync → reminder once. Not recorded as done; the closed-test window is
-   the time to do it.
+4. **Release smoke on the minified build** — done 2026-09-06 on the emulator for 0.9.0
+   (capture → complete → dashboard; see the 0.9.0 block above). Still unwalked on a signed
+   build: sync and a reminder firing — do them from the Play-installed build on the Pixel once
+   0.9.0 publishes.
 5. ~~**Play Console upload**~~ — done 2026-08-29: 0.8.0 published to Closed testing – Alpha.
    Remaining: the closed-test gate above (12 testers × 14 days), then "Apply for production".
 6. ~~**Screenshots**~~ — done 2026-07-19 (see step 1).

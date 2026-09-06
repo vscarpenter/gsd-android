@@ -157,7 +157,7 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
 ## Resuming From Here (2026-09-06, parity round 2 landed)
-- **Merge state:** merged to local `main` 2026-09-06 (fast-forward), **not pushed**; the comprehension check was skipped at the owner's direction.
+- **Merge state:** merged to `main` 2026-09-06 (fast-forward) and pushed (`origin/main` = `8105427`); the comprehension check was skipped at the owner's direction.
 - **Done:** all fifteen tasks of the September parity round landed on branch `feat/parity-2026-09`
   (the commits listed above, `585a125` through this one), each TDD'd and reviewed clean. `docs/gsd-android-spec.md`
   is amended and is the spec of record again; `README.md`'s status paragraph, this file, and
@@ -166,12 +166,10 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   **The branch is not merged and not pushed.**
 - **Next (owner decisions, in order):**
   1. Merge `feat/parity-2026-09` into `main` (or open a PR — nothing has been pushed yet).
-  2. Decide whether to ship a **mid-window closed-test release** of this round. The version has
-     **not** been bumped: `versionName` still reads 0.8.0 / `versionCode` 8, the build already on
-     the Alpha track. A release needs a bump, a signed `.aab`, and a Console upload. Spec S§10
-     leaves this an owner call; the production questionnaire's "changes made" answer is the
-     argument for it (see the Play block below).
-  3. Release smoke on a device is still unrecorded (2026-08-29 ship-path item 6).
+  2. ✅ **Mid-window closed-test release shipped 2026-09-06** as 0.9.0 / versionCode 9
+     (bump `64e1cd9`) — see the Play block below.
+  3. ✅ Release smoke done on the emulator (minified 0.9.0: capture → complete → dashboard);
+     sync + reminder on a signed build still unwalked — do it from the Play install on the Pixel.
 - **Blockers:** none.
 - **Assumptions:** the declared absences in spec S§1.2 (listed above) stay absent by decision —
   a future parity audit must not flag them as gaps. `tasks/implementation-notes.md` was not used
@@ -190,7 +188,14 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   message carries both links; recruiting post on r/AndroidClosedTesting (reciprocal — test
   the other developers' apps back and stay opted in); PR #1 (Claude Code GitHub workflows)
   merged; `CLAUDE_CODE_OAUTH_TOKEN` secret confirmed present.
-- **Next:** watch the Dashboard opted-in count daily; record the date it reaches 12; on
+- **Done 2026-09-06 (afternoon) — 0.9.0 to Alpha:** version bumped to 0.9.0 / versionCode 9
+  (`64e1cd9`), `testDebugUnitTest` 120 green, signed `.aab` + `.apk` built and aapt2/jarsigner
+  verified, minified build smoke-tested on the `gsd-test` emulator, bundle uploaded to Closed
+  testing – Alpha as release 9 (0.9.0) with `<en-US>` notes, saved, and **sent for review at
+  3:04 PM CDT** (submission #3, Submission activity: "In review"). Until Google publishes it, testers
+  still get 8 (0.8.0). Details: `docs/play/submission-checklist.md` § 0.9.0.
+- **Next:** check Publishing overview for the 0.9.0 review outcome (a closed-test update is
+  usually quick); then watch the Dashboard opted-in count daily; record the date it reaches 12; on
   day 14 submit the production questionnaire (how testers were recruited, how they used the
   app, feedback received, changes made — keep the Reddit thread and group replies as
   evidence; a mid-window closed-test release with a small fix is a strong answer). After
