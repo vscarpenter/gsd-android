@@ -7,6 +7,7 @@ enum class PaletteAction(val label: String) {
     NEW_TASK("New task"),
     TOGGLE_SHOW_COMPLETED("Toggle show completed"),
     TOGGLE_THEME("Toggle theme"),
+    SEND_FEEDBACK("Send feedback"),
 }
 
 enum class PaletteNav(val label: String) {

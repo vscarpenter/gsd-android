@@ -261,6 +261,7 @@ fun MatrixScreen(
                             },
                         )
                     }
+                    dev.vinny.gsd.palette.PaletteAction.SEND_FEEDBACK -> onNavigate("feedback")
                 }
             },
             onNavigate = { nav ->

@@ -44,4 +44,10 @@ class PaletteIndexTest {
         val results = PaletteIndex.query("wkly", listOf(task("weekly review")), emptyList())
         assertEquals(0, results.tasks.size)
     }
+
+    @Test
+    fun `send feedback is an action and matches by substring`() {
+        assertTrue(PaletteAction.SEND_FEEDBACK in PaletteIndex.query("", emptyList(), emptyList()).actions)
+        assertEquals(listOf(PaletteAction.SEND_FEEDBACK), PaletteIndex.query("feedb", emptyList(), emptyList()).actions)
+    }
 }
