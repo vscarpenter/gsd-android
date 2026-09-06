@@ -83,13 +83,43 @@ behavior; the spec labels every contested rule with its source client.
 6. ☐ **Release smoke on a device**: sideload the release APK (`adb install -r` — a debug-signed
    install must be uninstalled first, which wipes local data; back up or sync first) and walk
    the new surfaces (trash, feedback, restore-syncs-as-create, v1→v2 migration on upgrade).
-7. ☐ **Play submission** (owner steps, `docs/play/submission-checklist.md`): upload the 0.8.0
-   `.aab` to internal testing; the parity work supersedes the 0.7.0 draft.
+7. ✅ **Play submission** (2026-08-29): the 0.8.0 `.aab` went straight to the **Closed testing
+   – Alpha** track (submission #2, Published 5:19 PM; #1 was canceled and resubmitted). Google
+   reviewed and published the release, store listing, app content, and store settings.
+8. ☐ **Closed-test gate** (owner, `docs/play/submission-checklist.md`): 12 opted-in testers for
+   14 continuous days, then "Apply for production". As of 2026-09-06 the Console reports
+   **0 testers opted in**; the clock has not started.
 
 ### Upstream follow-ups (not Android's, don't block)
 - Web: `resetEverything` leaves `deletedTasks` + `appPreferences` behind (privacy-shaped).
 - Web: trash-merge import overwrites the local row on id collision (archive rule says skip).
 - iOS: no tombstone-suppression guard on pull/SSE — resurrects archived/trashed ids.
+
+## Resuming From Here (2026-09-06, Play closed test)
+- **Where the release is:** 0.8.0 (versionCode 8) is live on the Closed testing – Alpha track
+  since 2026-08-29 5:33 PM, one country/region, 9,295 supported devices. Production is
+  Inactive. There is no Google review pending — the closed-test tester gate is the blocker.
+- **Blocker:** the Dashboard's "Apply for production" card shows 0 of 12 testers opted in.
+  Google Group membership (`gsd-android-testers@googlegroups.com`, 4 members) does not count;
+  each tester must tap "Become a tester" at
+  <https://play.google.com/apps/testing/dev.vinny.gsd>, then install from Play. The 14-day
+  clock starts only once 12 accounts are opted in; recruit to ~15 to absorb churn.
+- **Done 2026-09-06:** tester call sent to the group from vscarpenter@gmail.com; group welcome
+  message carries both links; recruiting post on r/AndroidClosedTesting (reciprocal — test
+  the other developers' apps back and stay opted in); PR #1 (Claude Code GitHub workflows)
+  merged; `CLAUDE_CODE_OAUTH_TOKEN` secret confirmed present.
+- **Next:** watch the Dashboard opted-in count daily; record the date it reaches 12; on
+  day 14 submit the production questionnaire (how testers were recruited, how they used the
+  app, feedback received, changes made — keep the Reddit thread and group replies as
+  evidence; a mid-window closed-test release with a small fix is a strong answer). After
+  Google approves production access, promote the Alpha release to Production.
+- **Still open from 2026-08-29:** release smoke on a device (item 6 above) was not recorded as
+  done; the AGP `9.3.0 → 9.3.2` bump is still uncommitted — `gradle/libs.versions.toml` on
+  `main` reads 9.3.0 while the shipped artifacts were built under 9.3.2. Resolve before the
+  next release build.
+- **Unrelated, same developer account:** Travel Times Milwaukee (`com.vinny.traveltimes`)
+  missed its 2026-08-31 target-API-level deadline; updates to that app are blocked until its
+  target SDK is raised. Does not affect GSD.
 
 ## Resuming From Here (2026-08-29, post-parity)
 - **Done:** all twelve parity-plan tasks landed and verified (commits `f64b325..HEAD`, listed
