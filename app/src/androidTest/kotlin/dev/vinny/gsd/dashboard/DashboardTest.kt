@@ -3,6 +3,7 @@ package dev.vinny.gsd.dashboard
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -120,7 +121,7 @@ class DashboardTest {
         rule.onNodeWithContentDescription("Completion rings, 50% of all tasks complete").assertIsDisplayed()
         rule.onNodeWithContentDescription("Do First: 50% complete").assertExists()
         rule.onNodeWithContentDescription("Schedule: no tasks").assertExists()
-        rule.onAllNodesWithText("—").assertCountEquals(3)
+        rule.onAllNodesWithContentDescription("no tasks", substring = true).assertCountEquals(3)
     }
 
     @Test

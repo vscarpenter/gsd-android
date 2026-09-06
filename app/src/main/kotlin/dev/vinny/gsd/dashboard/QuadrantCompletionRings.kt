@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -84,17 +83,19 @@ fun QuadrantCompletionRings(stats: List<QuadrantStat>, overallRate: Float, modif
     }
 }
 
+/** "50%", or an em dash for a quadrant with no tasks yet (S§2.2). Pure — JVM-testable. */
+internal fun legendValue(stat: QuadrantStat): String =
+    if (stat.total == 0) "—" else Analytics.percent(stat.completionRate)
+
 @Composable
 private fun LegendCell(stat: QuadrantStat, modifier: Modifier) {
     val gsd = LocalGsdColors.current
-    val value = if (stat.total == 0) "—" else Analytics.percent(stat.completionRate)
+    val value = legendValue(stat)
     val spoken = if (stat.total == 0) stringResource(R.string.dashboard_rings_legend_none, stat.quadrant.title)
         else stringResource(R.string.dashboard_rings_legend, stat.quadrant.title, Analytics.percent(stat.completionRate))
     Row(
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp),
-        // Merge (not clearAndSetSemantics): a single spoken description for TalkBack, while
-        // leaving the quadrant title and value still individually reachable as merged Text.
-        modifier = modifier.semantics(mergeDescendants = true) { contentDescription = spoken },
+        modifier = modifier.clearAndSetSemantics { contentDescription = spoken },
     ) {
         Box(Modifier.size(11.dp).clip(RoundedCornerShape(3.dp)).background(gsd.accent(stat.quadrant)))
         Text(stat.quadrant.title, style = GsdType.subhead, color = gsd.ink2, modifier = Modifier.weight(1f))
