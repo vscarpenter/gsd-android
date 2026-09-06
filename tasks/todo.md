@@ -157,6 +157,7 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
 ## Resuming From Here (2026-09-06, parity round 2 landed)
+- **Merge state:** merged to local `main` 2026-09-06 (fast-forward), **not pushed**; the comprehension check was skipped at the owner's direction.
 - **Done:** all fifteen tasks of the September parity round landed on branch `feat/parity-2026-09`
   (the commits listed above, `585a125` through this one), each TDD'd and reviewed clean. `docs/gsd-android-spec.md`
   is amended and is the spec of record again; `README.md`'s status paragraph, this file, and
