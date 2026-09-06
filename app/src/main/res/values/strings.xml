@@ -260,6 +260,10 @@
     <string name="account_delete_body">This permanently removes your account and every synced task.</string>
     <string name="account_delete_keep">Delete &amp; keep tasks on this device</string>
     <string name="account_delete_erase">Delete &amp; erase everything</string>
+    <string name="account_delete_listing_failed">Couldn\'t list your synced tasks, so nothing was deleted. Check your connection and try again.</string>
+    <string name="account_delete_partial_auth">Some synced tasks were deleted, but your account is still there. Sign in again, then run Delete account once more.</string>
+    <string name="account_delete_partial_retry">Some synced tasks were deleted, but your account is still there. Try again to finish deleting it.</string>
+    <string name="account_delete_local_incomplete">Cloud account deleted, but local erase was incomplete. Use Erase All Data to retry local cleanup.</string>
     <string name="switch_title">Different account</string>
     <string name="switch_body">You signed in with a different account than last time, and there are tasks on this device.</string>
     <string name="switch_keep">Keep my tasks</string>

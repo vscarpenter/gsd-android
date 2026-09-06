@@ -58,7 +58,8 @@ private class FakeLocal : SyncLocalStore {
     }
 }
 
-private class FakeRemote : SyncRemote {
+// internal (not private): AccountDeleterTest reuses this fake across files in the module.
+internal class FakeRemote : SyncRemote {
     val records = mutableMapOf<String, WireTask>() // recordId -> wire
     var listResponder: ((Int, String) -> TaskListPage)? = null
     var failOnTaskIds = mutableSetOf<String>()

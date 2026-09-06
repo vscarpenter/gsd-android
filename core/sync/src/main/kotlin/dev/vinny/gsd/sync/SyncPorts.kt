@@ -11,6 +11,23 @@ interface SyncRemote {
     suspend fun deleteTask(recordId: String)
 }
 
+/** The two account-level calls deletion needs, separated from the task listing (S§8.4). */
+interface AccountRemote {
+    /** `DELETE /api/gsd/account`; throws `PocketBaseApi.HttpError(404, …)` where the hook is not deployed. */
+    suspend fun deleteAccountViaRoute()
+    suspend fun deleteUser(userId: String)
+}
+
+sealed interface DeleteAccountOutcome {
+    data object Deleted : DeleteAccountOutcome
+    /** Nothing was deleted; the listing (or the route's transport) failed first. */
+    data object ListingFailed : DeleteAccountOutcome
+    /** Some tasks were deleted, then the session was rejected; the account survives. */
+    data object PartialAuthRejected : DeleteAccountOutcome
+    /** Some tasks were deleted, then another failure or the pass budget ran out; the account survives. */
+    data object PartialRetry : DeleteAccountOutcome
+}
+
 data class SyncHistoryEntry(
     val timestamp: Long,
     val status: String,

@@ -51,7 +51,7 @@ class PocketBaseApi(
     private val baseUrl: String,
     private val token: () -> String?,
     private val client: OkHttpClient = OkHttpClient(),
-) : SyncRemote {
+) : SyncRemote, AccountRemote {
     class RateLimited : Exception("HTTP 429")
     class Unauthorized(code: Int) : Exception("HTTP $code")
     class HttpError(val code: Int, body: String) : Exception("HTTP $code: ${body.take(200)}")
@@ -160,7 +160,11 @@ class PocketBaseApi(
         return lenient.decodeFromString(AuthResult.serializer(), raw)
     }
 
-    suspend fun deleteUser(userId: String) {
+    override suspend fun deleteAccountViaRoute() {
+        execute(request("/api/gsd/account").delete().build())
+    }
+
+    override suspend fun deleteUser(userId: String) {
         execute(request("/api/collections/users/records/$userId").delete().build())
     }
 }

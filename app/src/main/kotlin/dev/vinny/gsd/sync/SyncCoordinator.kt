@@ -219,13 +219,16 @@ class SyncCoordinator(
         db.syncQueueDao().clear()
     }
 
-    /** §8.21 order: remote records first, then the user record, then the token. */
-    suspend fun deleteAccount(remote: SyncRemote, api: PocketBaseApi, eraseLocal: Boolean) {
+    /** §8.4/§8.21 order: server route first, bounded fallback, then the token. */
+    suspend fun deleteAccount(remote: SyncRemote, account: AccountRemote, eraseLocal: Boolean): DeleteAccountOutcome {
         val userId = auth.currentUserId() ?: throw PocketBaseApi.Unauthorized(401)
-        eraseRemote(remote)
-        api.deleteUser(userId)
+        auth.ensureFreshToken()
+        val outcome = AccountDeleter(remote, account).delete(userId)
+        if (outcome != DeleteAccountOutcome.Deleted) return outcome
+        db.syncQueueDao().clear()
         auth.signOut()
         _signedIn.value = false
         if (eraseLocal) dev.vinny.gsd.store.LocalErase.eraseAll(db)
+        return outcome
     }
 }

@@ -85,6 +85,22 @@ class PocketBaseApiTest {
     }
 
     @Test
+    fun `the account route reports a 404 when the hook is not deployed`(): Unit = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(404))
+        val failure = assertFailsWith<PocketBaseApi.HttpError> { api.deleteAccountViaRoute() }
+        assertEquals(404, failure.code)
+    }
+
+    @Test
+    fun `the account route succeeds with 204 and carries the auth header`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(204))
+        api.deleteAccountViaRoute()
+        val recorded = server.takeRequest()
+        assertEquals("DELETE", recorded.method)
+        assertEquals("raw-jwt-token", recorded.getHeader("Authorization"))
+    }
+
+    @Test
     fun `429 raises the typed rate-limit error`(): Unit = runBlocking {
         server.enqueue(MockResponse().setResponseCode(429))
         assertFailsWith<PocketBaseApi.RateLimited> {

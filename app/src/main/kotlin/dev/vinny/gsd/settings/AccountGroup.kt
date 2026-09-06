@@ -23,6 +23,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.sync.DeleteAccountOutcome
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import kotlinx.coroutines.launch
@@ -40,6 +41,23 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     val authProvider by container.prefs.lastAuthProvider.collectAsStateWithLifecycle(initialValue = null)
     var deleteOpen by remember { mutableStateOf(false) }
     var signInError by remember { mutableStateOf<String?>(null) }
+    var deletionMessage by remember { mutableStateOf<Int?>(null) }
+
+    fun deleteAccount(eraseLocal: Boolean) {
+        deleteOpen = false
+        scope.launch {
+            deletionMessage = try {
+                when (container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = eraseLocal)) {
+                    DeleteAccountOutcome.Deleted -> null
+                    DeleteAccountOutcome.ListingFailed -> R.string.account_delete_listing_failed
+                    DeleteAccountOutcome.PartialAuthRejected -> R.string.account_delete_partial_auth
+                    DeleteAccountOutcome.PartialRetry -> R.string.account_delete_partial_retry
+                }
+            } catch (failure: Exception) {
+                R.string.account_delete_local_incomplete
+            }
+        }
+    }
 
     fun launchProvider(provider: String) {
         scope.launch {
@@ -92,6 +110,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
                 scope.launch { container.syncCoordinator.signOut() }
             }
             AccountAction(R.string.account_delete, tint = gsd.alert) { deleteOpen = true }
+            deletionMessage?.let { Text(stringResource(it), style = GsdType.subhead, color = gsd.alert) }
         }
     }
 
@@ -102,22 +121,12 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
             text = { Text(stringResource(R.string.account_delete_body), style = GsdType.body) },
             confirmButton = {
                 Column {
-                    TextButton(onClick = {
-                        deleteOpen = false
-                        scope.launch {
-                            runCatching {
-                                container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = false)
-                            }
-                        }
-                    }) { Text(stringResource(R.string.account_delete_keep)) }
-                    TextButton(onClick = {
-                        deleteOpen = false
-                        scope.launch {
-                            runCatching {
-                                container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = true)
-                            }
-                        }
-                    }) { Text(stringResource(R.string.account_delete_erase), color = gsd.alert) }
+                    TextButton(onClick = { deleteAccount(eraseLocal = false) }) {
+                        Text(stringResource(R.string.account_delete_keep))
+                    }
+                    TextButton(onClick = { deleteAccount(eraseLocal = true) }) {
+                        Text(stringResource(R.string.account_delete_erase), color = gsd.alert)
+                    }
                 }
             },
             dismissButton = {
