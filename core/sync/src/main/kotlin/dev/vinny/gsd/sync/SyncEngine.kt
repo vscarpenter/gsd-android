@@ -187,13 +187,25 @@ class SyncEngine(
         return pushed to failures
     }
 
-    /** Destructive, runs LAST; safe only because of enqueue-before-write (spec §9.4). */
+    /**
+     * Destructive, runs LAST; safe only because of enqueue-before-write (spec §9.4).
+     * Three verdicts per task absent from the remote index (S§8.3): a pending queue
+     * row PROTECTs it (still trying to push); a failed-only row means the content
+     * never reached the server, so it is ABANDONed to trash instead of erased; no
+     * queue row at all means the remote delete already landed, so it is APPLYed locally.
+     */
     private suspend fun reconcileDeletions() {
         val remoteIds = fetchRemoteIndex().keys
-        val protected = (local.pendingQueue() + local.failedQueue()).map { it.taskId }.toSet()
-        local.activeTasks()
-            .filter { it.id !in remoteIds && it.id !in protected }
-            .forEach { local.deleteFromRemote(it.id) }
+        val pending = local.pendingQueue().map { it.taskId }.toSet()
+        val failed = local.failedQueue().map { it.taskId }.toSet()
+        val now = clock.instant().toEpochMilli()
+        local.activeTasks().filter { it.id !in remoteIds }.forEach { task ->
+            when {
+                task.id in pending -> Unit                          // PROTECT
+                task.id in failed -> local.abandonToTrash(task.id, now)  // ABANDON
+                else -> local.deleteFromRemote(task.id)            // APPLY
+            }
+        }
     }
 
     suspend fun requeueFailed() = local.requeueFailed()

@@ -5,6 +5,7 @@ import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SyncHistoryEntity
 import dev.vinny.gsd.store.SyncMetadataEntity
 import dev.vinny.gsd.store.SyncQueueEntity
+import dev.vinny.gsd.store.abandonToTrash
 import dev.vinny.gsd.store.toEntity
 import dev.vinny.gsd.store.toTask
 import java.util.UUID
@@ -23,6 +24,8 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
     override suspend fun upsertFromRemote(task: Task) = db.taskDao().upsert(task.toEntity())
 
     override suspend fun deleteFromRemote(id: String) = db.taskDao().deleteById(id)
+
+    override suspend fun abandonToTrash(id: String, deletedAtMs: Long) = db.abandonToTrash(id, deletedAtMs)
 
     override suspend fun pendingQueue(): List<SyncQueueEntity> = db.syncQueueDao().pending()
 

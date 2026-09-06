@@ -21,11 +21,15 @@ private class FakeLocal : SyncLocalStore {
     val remoteDeletes = mutableListOf<String>()
     val tombstones = mutableMapOf<String, Long>()
     val removeTombstoneCalls = mutableListOf<String>()
+    val trashed = mutableMapOf<String, Long>()
 
     override suspend fun activeTasks(): List<Task> = tasks.values.toList()
     override suspend fun taskById(id: String): Task? = tasks[id]
     override suspend fun upsertFromRemote(task: Task) { tasks[task.id] = task }
     override suspend fun deleteFromRemote(id: String) { tasks.remove(id); remoteDeletes += id }
+    override suspend fun abandonToTrash(id: String, deletedAtMs: Long) {
+        tasks.remove(id); trashed[id] = deletedAtMs; queue.removeAll { it.taskId == id }
+    }
     override suspend fun pendingQueue(): List<SyncQueueEntity> = queue.filter { it.status == "pending" }
     override suspend fun failedQueue(): List<SyncQueueEntity> = queue.filter { it.status == "failed" }
     override suspend fun markQueueItemDone(id: Long) { queue.removeAll { it.id == id } }
@@ -120,6 +124,42 @@ class SyncEngineTest {
 
     private fun engine(remote: FakeRemote, local: FakeLocal) =
         SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+    private fun engineAt(remote: FakeRemote, local: FakeLocal, epochSeconds: Long) =
+        SyncEngine(remote, local, Clock.fixed(Instant.ofEpochSecond(epochSeconds), ZoneOffset.UTC), throttleMs = 0) { "owner" }
+
+    @Test
+    fun `absent remotely with a pending row is protected`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val t = Task(title = "p", urgent = true, important = true, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH)
+        local.tasks[t.id] = t
+        local.queue += SyncQueueEntity(id = 1, taskId = t.id, operation = SyncOp.UPDATE, timestamp = 0, payloadJson = TaskJson.encode(t), retryCount = 1, lastAttemptAt = 0)
+        remote.failOnTaskIds += t.id   // push fails, row stays pending
+        engineAt(remote, local, 1).runSync(false)
+        assertTrue(t.id in local.tasks); assertTrue(local.trashed.isEmpty())
+    }
+
+    @Test
+    fun `absent remotely with only failed rows is abandoned to trash and its queue rows removed`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val t = Task(title = "f", urgent = true, important = true, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH)
+        local.tasks[t.id] = t
+        local.queue += SyncQueueEntity(id = 1, taskId = t.id, operation = SyncOp.CREATE, timestamp = 0, payloadJson = TaskJson.encode(t), status = "failed")
+        engineAt(remote, local, 123).runSync(false)
+        assertNull(local.tasks[t.id])
+        assertEquals(123_000L, local.trashed[t.id])
+        assertTrue(local.queue.none { it.taskId == t.id })
+        assertTrue(local.remoteDeletes.isEmpty())   // not the APPLY path
+    }
+
+    @Test
+    fun `absent remotely with no rows is deleted locally without a trash entry`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val t = Task(title = "gone", urgent = true, important = true, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH)
+        local.tasks[t.id] = t
+        engineAt(remote, local, 1).runSync(false)
+        assertEquals(listOf(t.id), local.remoteDeletes); assertTrue(local.trashed.isEmpty())
+    }
 
     @Test
     fun `pull applies remote-newer, no-ops equal, keeps local-newer`() = runTest {
@@ -292,15 +332,16 @@ class SyncEngineTest {
         local.tasks["kept-remote"] = task("kept-remote")
         local.tasks["gone-remote"] = task("gone-remote")
         local.tasks["protected-pending"] = task("protected-pending")
-        local.tasks["protected-failed"] = task("protected-failed")
+        local.tasks["abandoned-failed"] = task("abandoned-failed")
         local.queue += queueItem(1, local.tasks["protected-pending"]!!, SyncOp.CREATE)
-        local.queue += queueItem(2, local.tasks["protected-failed"]!!, SyncOp.CREATE,
+        local.queue += queueItem(2, local.tasks["abandoned-failed"]!!, SyncOp.CREATE,
             retryCount = 5, status = "failed")
 
         engine(remote, local).runSync(false)
-        assertEquals(listOf("gone-remote"), local.remoteDeletes)
-        assertTrue("protected-pending" in local.tasks)
-        assertTrue("protected-failed" in local.tasks)
+        assertEquals(listOf("gone-remote"), local.remoteDeletes) // APPLY: no queue rows at all
+        assertTrue("protected-pending" in local.tasks) // PROTECT: pending row
+        assertNull(local.tasks["abandoned-failed"]) // ABANDON: only failed rows
+        assertTrue("abandoned-failed" in local.trashed)
     }
 
     @Test

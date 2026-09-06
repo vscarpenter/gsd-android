@@ -75,6 +75,18 @@ class TrashStore(private val db: GsdDatabase, private val clock: Clock) {
     }
 }
 
+/**
+ * ABANDON verdict (S§8.3): a task whose only queue rows have exhausted retries
+ * never reached the server — move it to trash instead of deleting it outright,
+ * so it stays recoverable. Enqueues nothing; the delete never happened remotely.
+ */
+suspend fun GsdDatabase.abandonToTrash(id: String, deletedAtMs: Long) = withTransaction {
+    val row = taskDao().byId(id) ?: return@withTransaction
+    deletedTaskDao().upsert(row.toDeleted(deletedAtMs))
+    taskDao().deleteById(id)
+    syncQueueDao().deleteForTask(id)
+}
+
 internal fun TaskEntity.toDeleted(deletedAt: Long): DeletedTaskEntity = DeletedTaskEntity(
     id = id, title = title, description = description, urgent = urgent, important = important,
     quadrant = quadrant, completed = completed, completedAt = completedAt, createdAt = createdAt,

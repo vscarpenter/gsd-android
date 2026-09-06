@@ -123,6 +123,21 @@ class TrashStoreTest {
     }
 
     @Test
+    fun abandonToTrashMovesTaskToTrashAndDropsItsQueueRowsEnqueueingNothing() = runTest {
+        val task = seedTask("trash-task-05")
+        // seedTask's own CREATE is pending; add a second pending row for the same task.
+        db.syncQueueDao().insert(SyncQueueEntity.tombstone(task.id, clock.instant()))
+        assertEquals(2, db.syncQueueDao().countForTask(task.id))
+
+        db.abandonToTrash(task.id, 5_000L)
+
+        assertEquals(5_000L, db.deletedTaskDao().byId(task.id)?.deletedAt)
+        assertNull(db.taskDao().byId(task.id))
+        assertEquals(0, db.syncQueueDao().countForTask(task.id))
+        assertTrue(db.syncQueueDao().pending().isEmpty()) // nothing enqueued
+    }
+
+    @Test
     fun deleteForeverAndEmptyEnqueueNothing() = runTest {
         val t1 = seedTask("trash-task-03")
         val t2 = seedTask("trash-task-04")

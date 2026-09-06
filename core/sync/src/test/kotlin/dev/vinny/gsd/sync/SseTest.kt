@@ -18,6 +18,7 @@ private class FakeSseLocal : SyncLocalStore {
     override suspend fun taskById(id: String): Task? = null
     override suspend fun upsertFromRemote(task: Task) = Unit
     override suspend fun deleteFromRemote(id: String) = Unit
+    override suspend fun abandonToTrash(id: String, deletedAtMs: Long) = Unit
     override suspend fun pendingQueue(): List<SyncQueueEntity> = emptyList()
     override suspend fun failedQueue(): List<SyncQueueEntity> = emptyList()
     override suspend fun markQueueItemDone(id: Long) = Unit

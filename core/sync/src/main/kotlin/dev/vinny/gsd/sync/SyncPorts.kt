@@ -34,6 +34,9 @@ interface SyncLocalStore {
     suspend fun taskById(id: String): Task?
     suspend fun upsertFromRemote(task: Task)
     suspend fun deleteFromRemote(id: String)
+
+    /** ABANDON verdict (S§8.3): the content never reached the server — keep it recoverable. */
+    suspend fun abandonToTrash(id: String, deletedAtMs: Long)
     suspend fun pendingQueue(): List<SyncQueueEntity>
     suspend fun failedQueue(): List<SyncQueueEntity>
     suspend fun markQueueItemDone(id: Long)
