@@ -20,10 +20,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 data class TaskListPage(
     val page: Int,
     val totalPages: Int,
+    val totalItems: Int = items.size,
     val items: List<WireTask>,
     /** raw `updated` stamps aligned with items — the pull cursor source */
     val updatedStamps: List<String>,
-    val totalItems: Int = items.size,
 )
 
 @Serializable
