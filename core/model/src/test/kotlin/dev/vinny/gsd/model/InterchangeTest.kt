@@ -240,4 +240,45 @@ class InterchangeTest {
         assertEquals(listOf(newA.id), newB.dependencies)
         assertEquals(newA.id, newB.parentTaskId)
     }
+
+    @Test
+    fun `a smart view over a bound is skipped and counted`() {
+        val longName = "n".repeat(81)
+        val raw = """{"version":"2.1.0","tasks":[],"smartViews":[
+            {"id":"ok","name":"Fine","icon":"bolt","isBuiltIn":false,"criteria":{},
+             "createdAt":"2026-07-19T12:00:00.000Z","updatedAt":"2026-07-19T12:00:00.000Z"},
+            {"id":"bad","name":"$longName","icon":"bolt","isBuiltIn":false,"criteria":{},
+             "createdAt":"2026-07-19T12:00:00.000Z","updatedAt":"2026-07-19T12:00:00.000Z"}]}"""
+        val import = Interchange.parse(raw)
+        assertEquals(listOf("ok"), import.envelope.smartViews?.map { it.id })
+        assertEquals(1, import.skipped)
+    }
+
+    @Test
+    fun `a malformed smart view row now counts as skipped`() {
+        val raw = """{"version":"2.1.0","tasks":[],"smartViews":[{"id":"x"}]}"""
+        assertEquals(1, Interchange.parse(raw).skipped)
+    }
+
+    @Test
+    fun `pinned ids are truncated to five valid entries on import`() {
+        val ids = (1..7).map { "\"v$it\"" } + "\"\"" + "\"" + "x".repeat(129) + "\""
+        val raw = """{"version":"2.1.0","tasks":[],"appPreferences":{"id":"preferences","pinnedSmartViewIds":[${ids.joinToString(",")}]}}"""
+        assertEquals(listOf("v1", "v2", "v3", "v4", "v5"), Interchange.parse(raw).envelope.appPreferences?.pinnedSmartViewIds)
+    }
+
+    @Test
+    fun `export clips smart views at 100 in createdAt then id order`() {
+        val base = Instant.parse("2026-07-19T12:00:00.000Z")
+        val views = (0 until 105).map { i ->
+            SmartView("v${105 - i}", "V$i", "bolt", FilterCriteria(), false, base.plusSeconds((i % 3).toLong()), base)
+        }
+        val json = Interchange.export(BackupEnvelope(tasks = emptyList(), smartViews = views), exportedAt = base)
+        val emitted = Json.parseToJsonElement(json).jsonObject.getValue("smartViews").jsonArray
+        assertEquals(100, emitted.size)
+        val firstThree = emitted.take(3).map { it.jsonObject.getValue("id").jsonPrimitive.content }
+        assertEquals(listOf("v102", "v105", "v12"), firstThree)
+        val emittedIds = emitted.map { it.jsonObject.getValue("id").jsonPrimitive.content }.toSet()
+        listOf("v85", "v88", "v91", "v94", "v97").forEach { assertTrue(it !in emittedIds) }
+    }
 }

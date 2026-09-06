@@ -15,6 +15,7 @@ import dev.vinny.gsd.model.Task
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -242,5 +243,21 @@ class BackupRoundTripTest {
         assertNotNull(taskStore.get("arch-id0002"))
         assertNull(db.deletedTaskDao().byId("trash-id002"))
         assertNull(db.archivedTaskDao().byId("arch-id0002"))
+    }
+
+    @Test
+    fun importAdmitsOneHundredNewViewsAndSkipsTheRest_overwriteAtCapIsFree() = runTest {
+        val t0 = Instant.parse("2026-07-19T12:00:00.000Z")
+        fun view(id: String, name: String = id) =
+            SmartView(id, name, "bolt", FilterCriteria(), false, t0, t0)
+        // seed one existing custom view so an overwrite can be observed
+        db.smartViewDao().upsert(view("existing", "Old name").toEntity())
+        val incoming = (1..100).map { view("new$it") } + view("existing", "New name") + view("new101")
+        val summary = applier.apply(BackupImport(BackupEnvelope(tasks = emptyList(), smartViews = incoming), "2.1.0", 0), ImportMode.MERGE)
+        val stored = db.smartViewDao().observeAll().first().filter { !it.isBuiltIn }
+        assertEquals(101, stored.size)                          // existing + 100 new
+        assertEquals("New name", stored.first { it.id == "existing" }.name)
+        assertNull(stored.firstOrNull { it.id == "new101" })   // the 101st new id is skipped
+        assertEquals(1, summary.skipped)
     }
 }

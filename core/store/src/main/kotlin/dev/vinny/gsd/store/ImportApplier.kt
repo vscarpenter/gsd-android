@@ -5,6 +5,7 @@ import dev.vinny.gsd.model.BackupArchiveSettings
 import dev.vinny.gsd.model.BackupImport
 import dev.vinny.gsd.model.BackupNotificationSettings
 import dev.vinny.gsd.model.MergePlan
+import dev.vinny.gsd.model.SmartViewLimits
 import dev.vinny.gsd.model.TaskJson
 import java.time.Clock
 import kotlinx.coroutines.flow.first
@@ -32,6 +33,7 @@ class ImportApplier(
 ) {
     suspend fun apply(import: BackupImport, mode: ImportMode): ImportSummary {
         val env = import.envelope
+        var skipped = import.skipped
         val imported = when (mode) {
             ImportMode.REPLACE -> {
                 taskStore.replaceAll(env.tasks)
@@ -71,7 +73,14 @@ class ImportApplier(
 
         env.smartViews?.let { views ->
             if (mode == ImportMode.REPLACE) db.smartViewDao().clearCustom()
-            views.filter { !it.isBuiltIn }.forEach { db.smartViewDao().upsert(it.toEntity()) }
+            val existingIds = db.smartViewDao().observeAll().first().filter { !it.isBuiltIn }.map { it.id }.toMutableSet()
+            var admitted = 0
+            views.filter { !it.isBuiltIn }.forEach { view ->
+                val isNew = view.id !in existingIds
+                if (isNew && admitted >= SmartViewLimits.MAX_SMART_VIEWS) { skipped++; return@forEach }
+                db.smartViewDao().upsert(view.toEntity())
+                if (isNew) { existingIds += view.id; admitted++ }
+            }
         }
 
         if (mode == ImportMode.REPLACE) { // merge never adopts another device's configuration (P§2.2)
@@ -80,7 +89,7 @@ class ImportApplier(
             env.appPreferences?.let { db.appPreferencesDao().upsert(it.toEntity()) }
         }
 
-        return ImportSummary(imported, import.skipped)
+        return ImportSummary(imported, skipped)
     }
 }
 

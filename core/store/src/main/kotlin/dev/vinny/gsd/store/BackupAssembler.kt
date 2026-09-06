@@ -6,6 +6,7 @@ import dev.vinny.gsd.model.BackupArchiveSettings
 import dev.vinny.gsd.model.BackupEnvelope
 import dev.vinny.gsd.model.BackupNotificationSettings
 import dev.vinny.gsd.model.DeletedTask
+import dev.vinny.gsd.model.SmartViewLimits
 import dev.vinny.gsd.model.TaskJson
 import java.time.Instant
 import kotlinx.coroutines.flow.first
@@ -28,7 +29,8 @@ class BackupAssembler(private val db: GsdDatabase) {
             tasks = db.taskDao().all().map { it.toTask() },
             archivedTasks = archivedRows.map { ArchivedTask(it.toTask(), Instant.ofEpochMilli(it.archivedAt)) },
             deletedTasks = deletedRows.map { DeletedTask(it.toTask(), Instant.ofEpochMilli(it.deletedAt)) },
-            smartViews = viewRows.filter { !it.isBuiltIn }.map { it.toSmartView() },
+            smartViews = viewRows.filter { !it.isBuiltIn }.map { it.toSmartView() }
+                .sortedWith(compareBy({ it.createdAt }, { it.id })).take(SmartViewLimits.MAX_SMART_VIEWS),
             notificationSettings = BackupNotificationSettings(
                 enabled = notification.enabled,
                 defaultReminder = notification.defaultReminder,

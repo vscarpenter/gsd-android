@@ -39,7 +39,10 @@ object Interchange {
             envelope.deletedTasks?.let { rows ->
                 put("deletedTasks", JsonArray(rows.map { taskRecord(it.task, "deletedAt" to iso(it.deletedAt)) }))
             }
-            envelope.smartViews?.let { views -> put("smartViews", JsonArray(views.map { smartViewRecord(it) })) }
+            envelope.smartViews?.let { views ->
+                val clipped = views.sortedWith(compareBy({ it.createdAt }, { it.id })).take(SmartViewLimits.MAX_SMART_VIEWS)
+                put("smartViews", JsonArray(clipped.map { smartViewRecord(it) }))
+            }
             envelope.notificationSettings?.let { put("notificationSettings", notificationRecord(it)) }
             envelope.archiveSettings?.let {
                 put("archiveSettings", buildJsonObject {
@@ -125,7 +128,10 @@ object Interchange {
                     TaskJson.decodeOrNull(el)?.let { DeletedTask(it, timestamp(el, "deletedAt")) }
                         ?: run { skipped++; null }
                 },
-                smartViews = root["smartViews"]?.jsonArray?.mapNotNull(::smartViewOrNull),
+                smartViews = root["smartViews"]?.jsonArray?.mapNotNull { el ->
+                    smartViewOrNull(el)?.takeIf { SmartViewLimits.violation(it) == null }
+                        ?: run { skipped++; null }
+                },
                 notificationSettings = root["notificationSettings"]?.let(::notificationOrNull),
                 archiveSettings = root["archiveSettings"]?.let(::archiveSettingsOrNull),
                 appPreferences = root["appPreferences"]?.let(::appPreferencesOrNull),
@@ -179,7 +185,10 @@ object Interchange {
     private fun appPreferencesOrNull(element: JsonElement): BackupAppPreferences? = runCatching {
         val obj = element.jsonObject
         BackupAppPreferences(
-            pinnedSmartViewIds = obj.getValue("pinnedSmartViewIds").jsonArray.map { it.jsonPrimitive.content },
+            pinnedSmartViewIds = obj.getValue("pinnedSmartViewIds").jsonArray
+                .map { it.jsonPrimitive.content }
+                .filter { it.isNotEmpty() && it.length <= SmartViewLimits.ID_MAX }
+                .take(SmartViewLimits.PINNED_MAX),
         )
     }.getOrNull()
 
