@@ -68,8 +68,8 @@ data class FilterCriteria(
             !(task.completed && task.completedAt?.isBefore(sevenDaysAgo) == false)
         ) return false
         if (readyToWork && (task.completed || DependencyGraph.isBlocked(allTasks, task))) return false
-        if (searchQuery.isNotEmpty()) {
-            val q = searchQuery.lowercase()
+        val q = searchQuery.trim().lowercase()
+        if (q.isNotEmpty()) {
             val haystacks = sequenceOf(task.title, task.description) +
                 task.tags.asSequence() + task.subtasks.asSequence().map { it.title }
             if (haystacks.none { q in it.lowercase() }) return false

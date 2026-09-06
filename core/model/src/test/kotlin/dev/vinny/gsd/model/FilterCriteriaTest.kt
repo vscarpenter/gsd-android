@@ -139,4 +139,12 @@ class FilterCriteriaTest {
         assertFalse(matches(view.criteria, task(urgent = true, important = true, completed = true)))
         assertFalse(matches(view.criteria, task()))
     }
+
+    @Test
+    fun `search query is trimmed and whitespace-only matches everything`() {
+        val task = Task(title = "Ship the deck", urgent = true, important = true, createdAt = now, updatedAt = now)
+        assertTrue(FilterCriteria(searchQuery = "  deck ").matches(task, listOf(task), now, zone))
+        assertTrue(FilterCriteria(searchQuery = "   ").matches(task, listOf(task), now, zone))
+        assertFalse(FilterCriteria(searchQuery = "  slides ").matches(task, listOf(task), now, zone))
+    }
 }
