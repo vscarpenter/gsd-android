@@ -85,4 +85,47 @@ class AnalyticsTest {
         assertEquals(2, stats.upcoming.size)
         assertEquals(now.plusSeconds(100_000), stats.upcoming.first().dueDate)
     }
+
+    @Test
+    fun `quadrant stats are always four, Q1 to Q4, completed over total, all time`() {
+        val stats = Analytics.compute(
+            listOf(
+                task(urgent = true, important = true),
+                task(urgent = true, important = true, completed = true, completedAt = now),
+                task(urgent = false, important = true, completed = true, completedAt = now.minusSeconds(40L * 86_400)),
+            ),
+            windowDays = 7, now = now, zone = zone,
+        )
+        assertEquals(Quadrant.entries.toList(), stats.quadrantStats.map { it.quadrant })
+        val q1 = stats.quadrantStats[0]
+        assertEquals(2, q1.total); assertEquals(1, q1.completed); assertEquals(1, q1.active)
+        assertEquals(0.5f, q1.completionRate)
+        val q2 = stats.quadrantStats[1]
+        assertEquals(1f, q2.completionRate) // a 40-day-old completion still counts: no window
+        assertEquals(0f, stats.quadrantStats[3].completionRate) // empty quadrant → 0, not NaN
+    }
+
+    @Test
+    fun `percent rounds half up and never truncates`() {
+        assertEquals("68%", Analytics.percent(0.675f))
+        assertEquals("67%", Analytics.percent(2f / 3f))
+        assertEquals("0%", Analytics.percent(0f))
+        assertEquals("100%", Analytics.percent(1f))
+    }
+
+    @Test
+    fun `upcoming is day-based, includes a task due earlier today, and tie-breaks newest first`() {
+        val zone = java.time.ZoneId.of("America/Chicago")
+        val nine = java.time.LocalDateTime.of(2026, 6, 3, 9, 0).atZone(zone).toInstant()
+        val midnight = java.time.LocalDateTime.of(2026, 6, 3, 0, 0).atZone(zone).toInstant()
+        val tomorrow = java.time.LocalDateTime.of(2026, 6, 4, 12, 0).atZone(zone).toInstant()
+        val yesterday = java.time.LocalDateTime.of(2026, 6, 2, 12, 0).atZone(zone).toInstant()
+        val older = Task(title = "older", urgent = false, important = false, createdAt = nine.minusSeconds(600), updatedAt = nine, dueDate = tomorrow)
+        val newer = Task(title = "newer", urgent = false, important = false, createdAt = nine.minusSeconds(60), updatedAt = nine, dueDate = tomorrow)
+        val earlierToday = Task(title = "today", urgent = false, important = false, createdAt = nine, updatedAt = nine, dueDate = midnight)
+        val late = Task(title = "late", urgent = false, important = false, createdAt = nine, updatedAt = nine, dueDate = yesterday)
+        val stats = Analytics.compute(listOf(older, newer, earlierToday, late), 7, nine, zone)
+        assertEquals(listOf("today", "newer", "older"), stats.upcoming.map { it.title })
+        assertEquals(1, stats.overdueCount)
+    }
 }

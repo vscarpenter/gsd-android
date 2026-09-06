@@ -3,8 +3,15 @@ package dev.vinny.gsd.model
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.math.roundToInt
 
 data class TrendPoint(val day: LocalDate, val created: Int, val completed: Int)
+
+/** Per-quadrant counts over the active table, all-time (S§2.1). `total` = active + completed. */
+data class QuadrantStat(val quadrant: Quadrant, val total: Int, val completed: Int) {
+    val active: Int get() = total - completed
+    val completionRate: Float get() = if (total == 0) 0f else completed.toFloat() / total
+}
 
 data class DashboardStats(
     val active: Int,
@@ -17,6 +24,7 @@ data class DashboardStats(
     val minutesByQuadrant: Map<Quadrant, Int>,
     val upcoming: List<Task>,
     val overdueCount: Int,
+    val quadrantStats: List<QuadrantStat>,
 )
 
 /** The §8.15 metric set, computed from the current task set. No streaks — ever. */
@@ -36,8 +44,8 @@ object Analytics {
         }
         val activeTasks = tasks.filter { !it.completed }
         val upcoming = activeTasks
-            .filter { it.dueDate != null && !it.dueDate!!.isBefore(now) }
-            .sortedBy { it.dueDate }
+            .filter { task -> task.dueDate?.let { !it.atZone(zone).toLocalDate().isBefore(today) } == true }
+            .sortedWith(compareBy<Task> { it.dueDate }.thenByDescending { it.createdAt })
             .take(5)
         return DashboardStats(
             active = active,
@@ -62,6 +70,13 @@ object Analytics {
             overdueCount = activeTasks.count {
                 it.dueDate?.atZone(zone)?.toLocalDate()?.isBefore(today) == true
             },
+            quadrantStats = Quadrant.entries.map { quadrant ->
+                val inQuadrant = tasks.filter { it.quadrant == quadrant }
+                QuadrantStat(quadrant, total = inQuadrant.size, completed = inQuadrant.count { it.completed })
+            },
         )
     }
+
+    /** "68%" — round half up; siblings round, they never truncate (S§2.1). */
+    fun percent(rate: Float): String = "${(rate * 100f).roundToInt()}%"
 }
