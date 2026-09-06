@@ -95,22 +95,86 @@ behavior; the spec labels every contested rule with its source client.
 - Web: trash-merge import overwrites the local row on id collision (archive rule says skip).
 - iOS: no tombstone-suppression guard on pull/SSE — resurrects archived/trashed ids.
 
-## Cross-platform parity catch-up — round 2 (2026-09-06) — SPEC + PLAN APPROVED, NOT STARTED
+## Cross-platform parity catch-up — round 2 (2026-09-06) — COMPLETE
 The siblings kept shipping after the August round: iOS #16 (`18dd222`, 2026-09-01 — completion
 rings, day-based deadline status, Browse root search, first-frame skeletons), the off-list
 reminder rule (iOS #12 / web #520), and the web's 2026-09-04 security review (#527 — smart-view
 bounds, bounded fail-closed remote scans, three-verdict remote-absence rule, malformed-version
 push guard, route-first account deletion, erase completeness). Audited claim-by-claim 2026-09-06;
 fixtures still byte-identical in all three repos. Owner approved the full scope the same day.
-- **Spec:** `docs/2026-09-06-cross-platform-parity-spec.md` (wins over the main spec for the
-  sections it touches until the plan's Task 15 folds them in).
+- **Spec:** `docs/2026-09-06-cross-platform-parity-spec.md` (won over the main spec for the
+  sections it touches until Task 15 folded them in — done, see below).
 - **Plan:** `tasks/parity-plan-2026-09-06.md` — 15 TDD tasks, module order, one commit each.
-- **Declared absences (do not flag):** the web's Review verdict (#519) and feedback nudge (#525).
-- **Pre-existing Android gaps the audit surfaced** (fixed by the plan): instant-based dashboard
-  "upcoming" hides a task due earlier today; upcoming rows are inert; editor shows "None" for an
-  off-list reminder; push overwrites a remote record with an unparseable version; no palette
-  feedback action; erase leaves the feedback draft; smart-view import skips are uncounted.
-- **Branch:** `docs/parity-2026-09` (spec `b7772f3`, plan on top). Not pushed.
+- **Pre-existing Android gaps the audit surfaced** (all fixed by the tasks below): instant-based
+  dashboard "upcoming" hid a task due earlier today; upcoming rows were inert; the editor showed
+  "None" for an off-list reminder; push overwrote a remote record with an unparseable version;
+  the palette had no feedback action; erase left the feedback draft; smart-view import skips were
+  uncounted.
+- **Branch:** `feat/parity-2026-09` (docs `b7772f3`, `07b1b50`, `3886978`, `7d2cab1`, then the
+  code). Not merged, not pushed.
+
+**All fifteen tasks landed** — the sixteen code commits from `585a125` through `d8ef6e5`, the AGP
+pin `e2240cb`, and this docs commit:
+1. Per-quadrant completion stats, `DeadlineStatus`, rounded percent, day-based upcoming — `585a125`
+2. Shared filtered-list ordering (`TaskOrdering.forList`) + trimmed search query — `1e202cd`
+3. `ReminderOptions.including` + `ReminderLabel.of` (off-list offsets, never snapped) — `18aa868`
+4. Smart-view bounds on import/export, every skip counted — `00188fc`
+5. Bounded, fail-closed remote listings driving pull, index, and erase — `b398541`, `55c88a3`
+6. Malformed remote version never authorizes an overwrite — `9fc9cfc`
+7. Three-verdict remote-absence reconciliation (`abandonToTrash`) — `0abc4ee`
+8. Route-first account deletion, bounded fallback, surfaced outcomes — `518dec1`, `e4d4439`
+9. Tiered feedback failure copy; erase clears the saved draft — `25108ec`
+10. "Send feedback" in the command palette — `4f0c12f`
+11. First-frame skeletons on the Matrix, Dashboard, and smart-view lists — `269f10d`
+12. Completion rings, day-based deadline badges, tappable upcoming rows — `03d180c`, `602715e`
+13. Browse root search over every active task, in the shared list order — `e48f0ce`
+14. Editor renders an off-list stored reminder instead of "None" — `d8ef6e5`
+15. AGP `9.3.2` pinned (`e2240cb`); fold amendments into `docs/gsd-android-spec.md`, README,
+    this file, `tasks/lessons.md`; full verification sweep — this commit
+
+`docs/gsd-android-spec.md` now carries `> Amended 2026-09-06` markers at every section S§9 named
+(§5.10, §6.1, §7.9, §8.1, §8.3, §8.13, §8.14, §8.15, §8.16, §8.17, §8.21, §9.4, §9.5, §13.3,
+Appendix B) and describes what the shipped code does — it is the spec of record again; the parity
+document stays the dated record of *why*.
+
+**Verification sweep (2026-09-06, all green, AGP 9.3.2, emulator-pinned where instrumented):**
+
+| Command | Result |
+|---|---|
+| `./gradlew :core:model:test` | **130** tests, 0 failed, 0 skipped — BUILD SUCCESSFUL in ~1 s |
+| `./gradlew testDebugUnitTest` | **119** tests, 0 failed (`:core:sync` 80, `:app` 39; `:core:store` has no JVM unit tests) — BUILD SUCCESSFUL |
+| `ANDROID_SERIAL=emulator-5554 ./gradlew connectedAndroidTest` | **110** instrumented tests, 0 failed, 0 skipped (`:app` 69, `:core:store` 41) — BUILD SUCCESSFUL in 1m 26s |
+| `./gradlew :app:assembleDebug` | BUILD SUCCESSFUL |
+
+`ANDROID_SERIAL` is not optional here: a Pixel 10a is attached over wireless ADB, and without the
+pin the instrumented run installs on the phone instead of the emulator.
+
+**Declared absences (do not flag in a future parity audit)** — spec S§1.2: the web's Review
+verdict + stat rail (#519) and its returning-user feedback nudge (#525, web-only by decision —
+Android, like iOS, keeps Settings and the palette as its only feedback entry points); the iOS
+stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
+`.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
+trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-06, parity round 2 landed)
+- **Done:** all fifteen tasks of the September parity round landed on branch `feat/parity-2026-09`
+  (the commits listed above, `585a125` through this one), each TDD'd and reviewed clean. `docs/gsd-android-spec.md`
+  is amended and is the spec of record again; `README.md`'s status paragraph, this file, and
+  `tasks/lessons.md` are updated. The four-gate sweep is green (table above). The pending AGP
+  `9.3.0 → 9.3.2` bump is committed (`e2240cb`) — it is the version every gate ran under.
+  **The branch is not merged and not pushed.**
+- **Next (owner decisions, in order):**
+  1. Merge `feat/parity-2026-09` into `main` (or open a PR — nothing has been pushed yet).
+  2. Decide whether to ship a **mid-window closed-test release** of this round. The version has
+     **not** been bumped: `versionName` still reads 0.8.0 / `versionCode` 8, the build already on
+     the Alpha track. A release needs a bump, a signed `.aab`, and a Console upload. Spec S§10
+     leaves this an owner call; the production questionnaire's "changes made" answer is the
+     argument for it (see the Play block below).
+  3. Release smoke on a device is still unrecorded (2026-08-29 ship-path item 6).
+- **Blockers:** none.
+- **Assumptions:** the declared absences in spec S§1.2 (listed above) stay absent by decision —
+  a future parity audit must not flag them as gaps. `tasks/implementation-notes.md` was not used
+  this round; it is the earlier phases' ledger (last written in Phase 5) and was left untouched.
 
 ## Resuming From Here (2026-09-06, Play closed test)
 - **Where the release is:** 0.8.0 (versionCode 8) is live on the Closed testing – Alpha track
@@ -131,9 +195,8 @@ fixtures still byte-identical in all three repos. Owner approved the full scope 
   evidence; a mid-window closed-test release with a small fix is a strong answer). After
   Google approves production access, promote the Alpha release to Production.
 - **Still open from 2026-08-29:** release smoke on a device (item 6 above) was not recorded as
-  done; the AGP `9.3.0 → 9.3.2` bump is still uncommitted — `gradle/libs.versions.toml` on
-  `main` reads 9.3.0 while the shipped artifacts were built under 9.3.2. Resolve before the
-  next release build.
+  done. (The AGP `9.3.0 → 9.3.2` bump is **resolved** — committed as `e2240cb` on
+  `feat/parity-2026-09`, 2026-09-06; `main` still reads 9.3.0 until that branch merges.)
 - **Unrelated, same developer account:** Travel Times Milwaukee (`com.vinny.traveltimes`)
   missed its 2026-08-31 target-API-level deadline; updates to that app are blocked until its
   target SDK is raised. Does not affect GSD.

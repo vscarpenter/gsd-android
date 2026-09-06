@@ -307,10 +307,14 @@ The brand mark is a **2×2 grid of four rounded pigment tiles with a white check
 
 ### 5.10 Key component looks
 
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
 - **Capture bar:** a pinned pill — `surface` fill, `hairline` border, the soft card shadow — sitting on `paper`. Placeholder: `Capture a task…  (!!  *  #tag)` in `ink3`. Trailing **quadrant chip** (see §8.2). Parsed `#tag` chips appear beneath in neutral `sunken`/`ink2` (they only take quadrant color once on a card). A quiet "Details" text button in `tint` opens the full editor.
 - **Quadrant header:** a fixed 26dp icon column (shared left edge) with the accent-colored quadrant symbol, the serif 20sp title in the pigment, and a trailing live active-count in monospaced digits (`ink2`).
 - **Empty states:** 60dp `sunken` rounded tile + 28dp icon (`ink3`; tinted only to reassure — e.g. green check for "Nothing overdue"), serif headline, one `ink2` sentence (max width ~280dp), at most one `tint` action. In-context quadrant empties use a dashed `hairlineStrong` border (dash 5), radius 22dp, with tailored copy: Q1 *"No fires right now."* · Q2 *"Nothing scheduled yet."* · Q3 *"Nothing to hand off."* · Q4 *"Nothing to drop."*
 - **Sync status chip:** quiet-until-it-matters — **hidden entirely** when idle, healthy, and nothing pending; spinner while syncing (static sync glyph under reduced motion); pending count with sync glyph; `sync_problem` in `alert` on error, in Ochre for soft health warnings.
+- **Status badge:** a small capsule beside a title — `GsdType.caption` semibold, single line, 8dp × 3dp padding, pill shape. **Two styles only**, by design (color is rationed, so only overdue earns the alert pigment): *neutral* — `ink2` on `sunken`; *alert* — `alert` on `alertWash`. Used by the Dashboard's upcoming rows (§8.15).
+- **Loading skeletons:** first-frame silhouettes shown while a surface's task state is still `null` (§8.1, §8.13, §8.15) — never a spinner, never a minimum display time. Built from one primitive, `SkeletonBlock(height, width = null, shape = GsdShapes.small)`: a `sunken`-filled rounded rectangle that fills the available width when `width` is null. `Modifier.skeletonShimmer()` sweeps **one** light band across the whole composition left→right — band width 50 % of the container, a horizontal gradient `transparent → surface @ 75 % → transparent` (the raised `surface` tone, not white: a white band reads as glare on warm paper and vanishes in dark mode), **1600 ms** linear sweep with a **600 ms** delay before each pass (including the first, so layout settles before anything moves), repeating. The band is masked to the placeholder shapes (`CompositingStrategy.Offscreen` + `BlendMode.SrcIn`) so it never streaks across gaps, and it draws only — it never intercepts touch. Apply it **once**, to the outermost skeleton container. Every skeleton is **one** semantics node (`clearAndSetSemantics`) with `contentDescription` "Loading". Under reduced motion the band is not drawn at all — the skeleton is a static silhouette (§13.3).
 - **Onboarding:** 4 paged, skippable, editorial screens on `paper` (§8.19).
 
 ---
@@ -321,10 +325,12 @@ The app adapts by **window size class**, the Android analog of the iPhone/iPad s
 
 ### 6.1 Compact width (phones)
 
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
 A **bottom navigation bar** with four destinations:
 
 1. **Matrix** — the primary surface: a pinned **capture bar** at top, then the four quadrants as a **vertical stack of quadrant sections** (each a header with live count + its task rows; four quadrants can't be shown legibly at once on a phone). Pull-to-refresh triggers a manual sync when signed in. Top app bar: brand lockup, search/palette button, show-completed toggle, select-mode toggle, sync status chip.
-2. **Browse** — an **Archive** row at top, then Smart Views in sections: **Pinned**, **Built-in**, **Custom**, plus a "+" to create a custom view. Each row shows a live match count. Row swipes: pin/unpin (leading); edit/delete (trailing, custom views only).
+2. **Browse** — a **search field** at the very top ("Search all tasks", §8.14), then an **Archive** row, then Smart Views in sections: **Pinned**, **Built-in**, **Custom**, plus a "+" to create a custom view. Each row shows a live match count. Row swipes: pin/unpin (leading); edit/delete (trailing, custom views only). While the search field holds a non-whitespace query the results list **replaces** the whole Browse list; the field is not a width-gated affordance — Browse is one composable at every size class (§6.2), so the search applies to the rail and drawer layouts too.
 3. **Dashboard** — analytics (§8.15).
 4. **Settings** — §8.17.
 
@@ -452,6 +458,8 @@ Canonical display/iteration order: Q1, Q2, Q3, Q4. Never let the persisted quadr
 
 ### 7.9 FilterCriteria (powers smart views, filters, search)
 
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
 A predicate bundle; all present criteria are **ANDed**. camelCase-Codable:
 
 | Field | Type | Meaning |
@@ -469,6 +477,8 @@ A predicate bundle; all present criteria are **ANDed**. camelCase-Codable:
 | `recentlyCompleted` | Bool | completed AND `completedAt` within last 7 days |
 | `readyToWork` | Bool | incomplete AND no incomplete blocking dependency |
 | `searchQuery` | String | case-insensitive substring across title, description, tags, **and subtask titles** |
+
+`searchQuery` is **trimmed before matching**, and a whitespace-only query matches everything (it behaves exactly like an absent query) — both siblings trim, and without it a stray space silently emptied every list. The trimmed query is one substring: `"foo bar"` matches only a literal `"foo bar"` run inside one field, never two separate tokens. Both sides are lowercased; there is **no diacritic folding** (`e` does not match `é`).
 
 `readyToWork` needs the full task set (to resolve blocker completion).
 
@@ -490,6 +500,8 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 
 ### 8.1 The Matrix
 
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
 **Android reimagining.**
@@ -502,6 +514,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
   - **Long-press** → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete.
 - **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11).
 - **Empty quadrants** show the dashed in-context prompt with tailored copy (§5.10) and an "add to this quadrant" affordance. A fully empty matrix shows "Capture your first task" with an example.
+- **First frame.** `MatrixViewModel.sections` is `StateFlow<List<QuadrantSectionState>?>` whose initial value is **`null`** until Room's first emission; the flag never resets for the ViewModel's lifetime. Gate order: `null` → skeleton; loaded-and-empty → the dashed prompts; else content. "Loaded" means the observer delivered its **first snapshot, even an empty one** — before that, an empty list is indistinguishable from an empty board, which is why cold starts used to flash the four dashed prompts. The **capture bar stays live** through the skeleton (it does not depend on tasks); below it sit four quadrant-section silhouettes in Q1→Q4 order, each a header (26dp icon tile, 120×16dp title bar, 24×12dp count bar) plus **3, 2, 2, 1** card silhouettes — deliberately uneven, because four identical columns read as a loading pattern rather than a preview. Each card silhouette is a 3dp accent-colored spine plus a 14dp title bar and a 10dp metadata bar on a `surface` tile. At expanded width the same silhouettes fill the 2×2 grid cells. There is **no timer and no minimum display time**: if the first snapshot lands within a frame the skeleton is never visibly drawn. Its job is removing the false empty state, not showing a loader. Primitive and shimmer: §5.10.
 - Lists must stay smooth with **hundreds of tasks** (`LazyColumn` keys + stable item contents).
 
 Task card contents: §5.6 — title, description preview with tappable links, tag chips, subtask progress, blocked/blocking badges, relative due date ("in 3 days", "Due today" in Tide, overdue in alert), recurrence glyph, live timer/tracked time, snooze remaining.
@@ -532,6 +545,8 @@ After parsing, the cleaned title has tokens/URLs removed and whitespace collapse
 
 ### 8.3 Task editor
 
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
 **Behavior.** Full create/edit surface for every field; save validates §7.2 limits; save disabled while the title is empty. Editing `dueDate` or `notifyBefore` **resets reminder state** (`notificationSent = false`, clears `lastNotificationAt` and `snoozedUntil`) so the user gets re-notified.
 
 **Android reimagining** — sections in order:
@@ -541,7 +556,7 @@ After parsing, the cleaned title has tokens/URLs removed and whitespace collapse
 - **Notes** (description).
 - **Links** — read-only tappable list auto-detected (http/https) from the notes.
 - **Due date** — toggle + date picker + preset chips (§8.10).
-- **Reminder** — visible only when a due date is set: **None / At time of event / 5 / 15 / 30 minutes / 1 / 2 hours / 1 day before** (defaults to the global default reminder).
+- **Reminder** — visible only when a due date is set: **"None" first, then the seven presets `0, 5, 15, 30, 60, 120, 1440` plus any off-list stored value** (defaults to the global default reminder). The option list is `ReminderOptions.including(stored: Int?)` in `:core:model`: `null` or an already-present value → the presets alone; anything else → the presets **plus `stored`, sorted ascending**. A negative stored value is off-list too — it is rendered, never snapped; the validator, not the picker, owns range rules. **An off-list stored `notifyBefore` renders as its own option rather than snapping to a neighbour**, so opening and saving a task without touching the picker leaves `notifyBefore` byte-for-byte as stored (both siblings honor this; editing never silently rewrites the value). Labels come from one pure formula, `ReminderLabel.of(minutes)` in `:core:model` (a shape mapped to plural string resources in `:app`), in this order: `0` → "At time of event"; `1` → "1 minute before"; `< 60` **or** `minutes % 60 != 0` → "{n} minutes before"; `< 1440` → "{n/60} hour(s) before"; `minutes % 1440 != 0` → "{n/60} hours before"; else "{n/1440} day(s) before". Worked: 5 → "5 minutes before"; 45 → "45 minutes before"; 60 → "1 hour before"; 90 → "90 minutes before" (not "1.5 hours"); 120 → "2 hours before"; 1440 → "1 day before"; 2160 → "36 hours before"; 2880 → "2 days before". "None" writes `notifyBefore = null` and **does not** touch `notificationEnabled` — a declared divergence from the web (which also clears the flag) and iOS (which does both).
 - **Repeat** — Never / Daily / Weekly / Monthly.
 - **Subtasks** — inline checklist: add, toggle, drag-reorder, swipe-delete.
 - **Estimate** — minutes field (1–10080) + "Tracked *Xm* of *Ym*" readout; over-estimate renders in `alert`.
@@ -606,6 +621,8 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 
 ### 8.13 Smart Views & filters
 
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
 **Behavior.** A SmartView bundles FilterCriteria with a name/icon. **Nine built-ins** ship, read-only, with these exact IDs:
 
 | ID | Name | Criteria |
@@ -620,31 +637,78 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 | `recurring` | Recurring Tasks | active, recurrence ∈ {daily, weekly, monthly} |
 | `ready-to-work` | Ready to Work | active, no uncompleted blocker |
 
-Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curated options; the full criteria editor: status segmented control, quadrant multi-select, tags, due-date predicate toggles, date range, recurrence kinds, ready-to-work, search text) and **pin up to 5** views (ordered; pinned surface first everywhere).
+Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curated options; the full criteria editor: status segmented control, quadrant multi-select, tags, due-date predicate toggles, date range, recurrence kinds, ready-to-work, search text) and **pin up to 5** views (ordered; pinned surface first everywhere). Import and export bound the custom-view store — count, id, name, icon, and criteria sizes — per §8.16 and Appendix B.
 
-**Android reimagining.** Browse tab sections on compact; drawer section on expanded (§6). Each view shows a live count; opening one shows the flat filtered list (§8.1 rows) with `.searchable`-style in-list search layered onto the criteria; view-aware empty states (Overdue → green check "Nothing overdue"; Wins → trophy; search-miss message; generic otherwise).
+**Ordering.** Every filtered list — a smart view's list *and* the Browse root search results (§8.14) — renders through one shared rule, `TaskOrdering.forList(tasks, status)` in `:core:model` (adopted from iOS's `TaskFilter`; before this, Android's smart-view list rendered in store order with no defined sort):
+
+- `status == COMPLETED` → `completedAt` **descending, nulls last**; ties by `createdAt` descending.
+- otherwise → `dueDate` **ascending, dated tasks before undated**; ties (same due date, or both undated) by `createdAt` descending — newest first.
+
+**Android reimagining.** Browse tab sections on compact; drawer section on expanded (§6). Each view shows a live count; opening one shows the flat filtered list (§8.1 rows) with `.searchable`-style in-list search layered onto the criteria; view-aware empty states (Overdue → green check "Nothing overdue"; Wins → trophy; search-miss message; generic otherwise). The **search-miss** empty state is one shared composable with one pair of strings, rendered byte-identically here and in the Browse root search (iOS renders them the same way in both places): title `No tasks match "{query}"` (straight double quotes, the query interpolated), message "Try a different word, tag, or quadrant." — the §5.10 empty-state anatomy, 28dp search icon in `ink3`.
+
+**First frame.** `BrowseViewModel.tasks` is `StateFlow<List<Task>?>` with an initial value of **`null`** until Room's first emission, and the smart-view list gates on it exactly as the Matrix does (§8.1): `null` → skeleton; loaded-and-empty → the view-aware empty state; else rows. The list skeleton is six rows in a `surface` container (`GsdShapes.small`, 16dp side margins, 20dp top), each row a 22dp `sunken` circle plus two bars — 14dp tall × **210dp on even rows / 150dp on odd** and 10dp × 96dp — with 16dp × 14dp row padding and 1dp `hairline` dividers inset 50dp from the left. Archive, Trash, and Settings get no skeleton — parity with iOS, and the web's Archive has none either.
 
 ### 8.14 Search & command palette
 
-**Behavior.** Full-text **case-insensitive substring** search across title, description, tags, and subtask titles, live-updating. The command palette matches both **tasks** and **commands** — substring matching (not fuzzy), sectioned results: **Tasks · Smart Views · Actions · Navigation**. Actions: New task, Toggle show completed, Toggle theme. Navigation: Matrix, Dashboard, Archive, Settings, and each smart view.
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
+**Behavior.** Full-text **case-insensitive substring** search across title, description, tags, and subtask titles, live-updating. The command palette matches both **tasks** and **commands** — substring matching (not fuzzy), sectioned results: **Tasks · Smart Views · Actions · Navigation**. Actions: New task, Toggle show completed, Toggle theme, **Send feedback** (navigates to the feedback screen, §8.17 — both siblings expose feedback from the palette). Navigation: Matrix, Dashboard, Archive, Settings, and each smart view.
+
+**Browse root search.** A search field sits at the top of the Browse screen, above the Archive row (§6.1), placeholder **"Search all tasks"**, using the same plain-field treatment as the in-view and archive searches (`GsdType.subhead`, `ink3` hint). It applies at **every** window size class — Browse is one composable and the bottom bar, rail, and drawer all route to it (iOS scopes its equivalent to iPhone only, because iPad and Catalyst replace the Browse tab with a sidebar; Android has no such split).
+
+- **Swap rule.** `query = text.trim()`. Empty → the normal Browse list (Archive, Trash, Pinned, Built-in, Custom, New Smart View). Non-empty → a results list that **replaces the whole Browse list**.
+- **No debounce, no minimum length, no throttle** — one non-whitespace character produces results, recomputed on every keystroke. A whitespace-only query counts as empty.
+- **Nothing is persisted.** The field is plain `remember` state — not saved state, not a ViewModel field, not restored across process death; it clears when the screen leaves composition.
+- **Semantics.** Results are `FilterCriteria(status = ACTIVE, searchQuery = query)` matched against the **full active task set** by the §7.9 rule — title, description, every tag, every subtask title, lowercased both sides, the whole trimmed query as one substring, no diacritic folding. Completed tasks are never returned. There is **no result cap**.
+- **Order.** `TaskOrdering.forList` (§8.13), the same rule a smart-view list uses.
+- **Rows and actions** are the smart-view list's composable and `TaskRowActions`: tap → editor sheet; completion disc → toggle with the usual confetti; blocked/blocking badges computed over the **full** task set, not the filtered one.
+- **Miss** shows the shared search-miss empty state (§8.13). Results show **no skeleton** — they exist only after the task set has loaded; Browse's composable takes the task list as an optional parameter defaulting to `null` (so previews and the Browse-only tests need not supply one), and a query typed before the first snapshot simply matches the empty set and shows the miss state.
 
 **Android reimagining.** Invoked by the toolbar search button on any surface, or Ctrl+K / Ctrl+F on hardware keyboards. Full-screen search surface on compact (keyboard-first); a centered palette dialog on expanded with arrow-key navigation + Enter. Archive keeps its own plain in-list search.
 
 ### 8.15 Analytics dashboard
 
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
 **Behavior (authoritative metric set — computed from the current task set, on demand, off the main thread):**
 - **Stat grid:** Active tasks, Completed tasks, Completion rate (completed ÷ total), total Tracked time. **No streaks, no badges — deliberately removed; do not add.**
 - **Completion trend:** for the selected window (**7 / 30 / 90** days), per-day counts of tasks *created* vs *completed* (line/area chart).
 - **Quadrant distribution:** active-task count per quadrant (donut/bar in the quadrant pigments).
+- **Completion by quadrant:** `DashboardStats.quadrantStats` — **always four entries, Q1→Q4** (`Quadrant.entries` order), each a `QuadrantStat(quadrant, total, completed)` with `active = total - completed` and `completionRate = if (total == 0) 0f else completed / total`. **All-time, no window**: `total` counts every row in the quadrant, active or completed. The input is the active table only — archived and trashed rows never reach `Analytics.compute`, because the store observer reads `tasks`; that exclusion is by construction, matching iOS.
 - **Top tags:** per-tag totals (bar).
 - **Time by quadrant:** tracked minutes per quadrant.
-- **Upcoming deadlines:** next due items (tap → editor). An **overdue banner** (tap → Overdue Backlog view) when overdue > 0.
+- **Upcoming deadlines:** next due items (tap → editor). `upcoming` = active tasks with a due date whose **day** is on or after today, sorted by `dueDate` ascending with a `createdAt` **descending** tie-break (iOS has no explicit tie-break; Android adds one so the order is deterministic), `take(5)`. Day-based, not instant-based: a task due at 00:00 today is still upcoming at 09:00. Overdue tasks stay out of the list — the **overdue banner** (tap → Overdue Backlog view, shown when overdue > 0) owns them.
+- **Deadline status.** `DeadlineStatus { OVERDUE, TODAY, UPCOMING }` with `of(due, now, zone)`: compare `due` and `now` as `LocalDate`s in the injected zone — before today → `OVERDUE`, equal → `TODAY`, else `UPCOMING`. Day-based so it agrees with `overdueCount`, `FilterCriteria.overdue`/`dueToday`, and the card's `dueLabel`, all of which already compare `LocalDate`s. Three states only — no "tomorrow", no "this week"; those stay the card's `dueLabel` vocabulary.
+- **Percent formatting.** One helper, `Analytics.percent(rate) = "${(rate * 100f).roundToInt()}%"` — **rounded, never truncated** — used by the completion-rate stat card, the rings center, and the rings legend.
+- **One clock, one zone.** Every date rule on the Dashboard derives from the single `now`/`zone` pair passed into `Analytics.compute`. The deadline badge is computed from `DashboardStats`, never from a second `Instant.now()` inside a composable.
 
 **Android reimagining.** A stat-card grid (Newsreader numerals) + charts drawn in Compose (Canvas or a light chart lib) using quadrant pigments only; graceful empty state ("No stats yet") when there are no tasks.
+
+**"Completion by Quadrant" rings card.** Positioned after the quadrant-distribution bars and before Top tags. Card chrome: `surface` fill, 1dp `hairline` border, `GsdShapes.card` (22dp), 18dp padding — the StatCard treatment at card radius; title "Completion by Quadrant" in `GsdType.quadrantTitle`, `ink`.
+
+- **Geometry.** Outer size **196dp**, ring width **13dp**, gap **5dp**; ring `i` (0 = Q1, outermost) has diameter `196 − i × 36` → 196, 160, 124, 88. Each ring draws a full-circle track in the quadrant **wash**, then a value arc in the quadrant **accent**, round caps, starting at 12 o'clock and sweeping clockwise by `completionRate × growth × 360°`. All four on one `Canvas`.
+- **Center.** The overall rate via `Analytics.percent(stats.completionRate)` in `GsdType.title` (Newsreader, `tnum`), `ink`, single line, auto-shrunk to fit the ~67dp hole; beneath it the literal lowercase "complete" in `GsdType.caption`, `ink3`.
+- **Legend.** A 2×2 grid under the rings, 8dp spacing; each cell is an 11dp accent swatch (3dp radius), the quadrant title (`GsdType.subhead`, `ink2`), a spacer, then the value (`GsdType.subhead` semibold, `tnum`, `ink`). **The value is an em dash "—" (U+2014) when `total == 0`**, never "0%"; the ring still draws its track.
+- **Motion.** `growth` animates 0→1 with an ease-out over **900 ms** on first composition. Under reduced motion (§13.3) `growth` is 1 from the first frame — no grow-in.
+- **Accessibility.** The rings are **one** semantics node, "Completion rings, {P}% of all tasks complete". Each legend cell is its own node with `clearAndSetSemantics` — so its child text is replaced, not merged — reading "{Quadrant title}: {P}% complete", or "{Quadrant title}: no tasks" when `total == 0`. The spoken value comes from a pure `legendValue(stat)` helper, which is also what the JVM suite pins.
+
+**Upcoming-deadline rows.** Each row: title (`GsdType.subhead`, `ink`, wraps) · badge · date (`GsdType.metadata`, `ink3`, single line, never wraps — the title yields). Date via `DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)` in the device zone. Rows are separated by 1dp `hairline` dividers, stand ≥48dp tall, and **tapping one opens the task editor** (a `TaskEditorSheet` hosted by the Dashboard, as the smart-view list already does). The badge follows `DeadlineStatus.of(dueDate, now, zone)` using the same `now`/`zone` as the stats, and is the §5.10 status capsule:
+
+| Status | Badge |
+|---|---|
+| `TODAY` | "Today" — neutral capsule (`ink2` on `sunken`) |
+| `OVERDUE` | "Overdue" — alert capsule (`alert` on `alertWash`). Kept so the `when` is exhaustive; not a live path, because `upcoming` starts at today |
+| `UPCOMING` | no badge — the date alone says enough |
+
+Completed tasks never appear here (`upcoming` is active-only), so they never carry a badge. The card is hidden when the list is empty.
+
+**First frame.** The Dashboard collects the task observer with an initial value of **`null`** and gates on it exactly as the Matrix does (§8.1): `null` → skeleton; loaded-and-empty → "No stats yet"; else content. The skeleton is 20dp padding and 18dp spacing: a 2-column grid of **four 86dp** blocks (`GsdShapes.input`), then a **270dp** block and a **320dp** block (`GsdShapes.card`).
 
 ### 8.16 Import / export, erase
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+>
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 
 **Export — envelope 2.1.0.** A seven-store, versioned JSON document, pretty-printed (2-space indent) with **top-level keys sorted** (an Android/iOS exporter convention; the web emits insertion order — key order is not part of the import contract), dates ISO-8601 fractional-ms:
 
@@ -655,7 +719,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 | `tasks` | full camelCase Task records, **plus the derived `quadrant`** (§7.8; import still ignores it), rich `timeEntries`, null optionals omitted |
 | `archivedTasks` | Task records + `archivedAt` (ISO) |
 | `deletedTasks` | Task records + `deletedAt` (ISO) — the trash, §8.20 |
-| `smartViews` | custom views only (`isBuiltIn: false`) |
+| `smartViews` | custom views only (`isBuiltIn: false`), **clipped to 100** — ordered `createdAt` ascending then id ascending, a deterministic clip. Android-authored rows satisfy the import bounds by construction (name ≤ 60, curated icons, validated criteria) and imported rows were bounded on the way in, so there is deliberately **no** export-side representability filter |
 | `notificationSettings` | singleton, `id: "settings"` |
 | `archiveSettings` | singleton, `id: "settings"` |
 | `appPreferences` | singleton, `id: "preferences"` |
@@ -668,13 +732,17 @@ Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet.
 - **Merge** — `tasks`: insert alongside existing; colliding IDs get regenerated (collision-checked against existing + imported + already-assigned), with `dependencies` **and `parentTaskId`** remapped through the complete ID map (forward references included); stamp `updatedAt = now`, enqueue `update` per task. `archivedTasks`/`deletedTasks`: insert; **on id collision the existing local row wins** (skip, no remap); an id already present in the imported or local `tasks` is skipped in either tombstone store — an id lives in one store, never both. `smartViews`: upsert by id, never accepting a payload row with `isBuiltIn: true`. The three singletons are **not applied** in merge — merge combines task lists and never adopts another device's configuration.
 - Neither mode enqueues sync operations for `archivedTasks`, `deletedTasks`, `smartViews`, or the singletons — those stores never sync.
 
+**Smart-view bounds on import.** The guard order above is unchanged; within `smartViews` each row is still decoded leniently, and a row is **skipped and counted in `skipped`** (smart-view skips used to be silent) when it fails to decode, carries `isBuiltIn: true`, or violates any bound in Appendix B — id 1–128, name 1–80 (the *import* bound; the editor still caps new names at 60), icon ≤ 64, `criteria.searchQuery` ≤ 600, `criteria.tags` ≤ 200 entries of 1–30 chars each (the count is deliberately not `MAX_TAGS` — a view filters over the whole vocabulary), `criteria.quadrants` and `criteria.recurrence` ≤ 4 entries. Rows are considered in document order against a **cap of 100** custom views: a row whose id already exists locally (merge mode) or was already accepted from this document **overwrites and consumes no cap room**; a genuinely new id spends one; new ids past the cap are skipped and counted. In replace mode the custom store is cleared first, so the first 100 valid rows land. `appPreferences.pinnedSmartViewIds` is truncated to the first **5** valid ids (each 1–128 chars); the singleton is otherwise applied exactly as before (replace mode only). None of this is ever fatal — an over-cap or malformed smart-view store must not abort the tasks, archive, trash, or settings travelling with it. Unknown keys on a smart-view row are **ignored**, a declared divergence: the web's `smartViewSchema` went `.strict()`, Android stays lenient. Android's `SmartView` has no `description` field, so the web's ≤ 600 bound on it is moot here.
+
 Both cross-platform fixtures (`ios-backup-export.json`, `web-backup-2.1.0.json`, byte-identical copies at `core/model/src/test/resources/fixtures/cross-platform/`) round-trip through decode, count validation, and re-export/re-import in the JVM suite.
 
-**Erase all data.** A guarded destructive flow: type **"RESET"** to confirm, with an export-first prompt. Clears tasks, archive, **trash**, custom views, sync queue, pins, archive settings; cancels reminders; **keeps theme + onboarding flags**. Clearing the trash on erase matches iOS (erase "must mean all of it"); the web's `resetEverything` currently omits `deletedTasks`, an upstream bug, not behavior Android copies. If signed in, it erases **everywhere**: all remote records are deleted first (§9.8); only after remote success does the local wipe proceed.
+**Erase all data.** A guarded destructive flow: type **"RESET"** to confirm, with an export-first prompt. Clears tasks, archive, **trash**, custom views, sync queue, pins, archive settings, **and the saved feedback draft together with its submission id**; cancels reminders; **keeps theme, onboarding flags, and the share-title preference**. Both Erase All Data and *Delete account & erase everything* (§8.21) clear the feedback draft in the same step as the local wipe — a reset must not resurrect a draft. Clearing the trash on erase matches iOS (erase "must mean all of it"); the web's `resetEverything` currently omits `deletedTasks`, an upstream bug, not behavior Android copies. If signed in, it erases **everywhere**: all remote records are deleted first (§9.8); only after remote success does the local wipe proceed.
 
 ### 8.17 Settings
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+>
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 
 Sections in order (Material list groups):
 
@@ -684,7 +752,20 @@ Sections in order (Material list groups):
 4. **Archive** — auto-archive toggle; "Archive after" 30/60/90; **Archive Now** + status line.
 5. **Notifications** — Enable Reminders; Default Reminder (15m/30m/1h/2h/1d); Sound; Quiet Hours toggle + from/to pickers (default 22:00–07:00); system-permission status row with a contextual **Enable notifications** / **Open system settings** action.
 6. **Data & Storage** — Export (prepare → share/save); Import (file picker → Merge/Replace choice); Erase All Data (§8.16).
-7. **Feedback** — anonymous, opt-in, no auth header, no identifiers beyond the payload: sentiment toggle (up/down), category chips (idea/praise/gripe/bug), message field (≤1000 chars, live count near the limit), a roadmap vote checklist (Android's 8 slugs: `natural-language-dates, calendar-sync, task-templates, weekly-review, focus-timer, task-notes, shared-lists, wear-os`), and a **"What gets sent" preview** rendering the literal payload object, built by the same pure builder that produces the request body so preview and payload cannot drift. The draft persists locally (DataStore) and clears on success; Send is disabled while the draft is empty. Confirmation is calm ("Thanks — sent."); failures keep the draft with a retry affordance. Wire contract: `POST https://api.vinny.io/api/collections/feedback/records`, no Authorization header, no cookies; exactly 7 snake_case keys (`submission_id`, `sentiment`, `category`, `message`, `votes`, `app_version`, `client_submitted_at` — limits in Appendix B), pinned by an exact-keys test. A 2xx is success; a 400 whose body has `data.submission_id.code == "validation_not_unique"` (a duplicate retry of the same draft) also collapses to success.
+7. **Feedback** — anonymous, opt-in, no auth header, no identifiers beyond the payload: sentiment toggle (up/down), category chips (idea/praise/gripe/bug), message field (≤1000 chars, live count near the limit), a roadmap vote checklist (Android's 8 slugs: `natural-language-dates, calendar-sync, task-templates, weekly-review, focus-timer, task-notes, shared-lists, wear-os`), and a **"What gets sent" preview** rendering the literal payload object, built by the same pure builder that produces the request body so preview and payload cannot drift. The draft persists locally (DataStore) and clears on success; Send is disabled while the draft is empty. Confirmation is calm ("Thanks — sent."). Wire contract: `POST https://api.vinny.io/api/collections/feedback/records`, no Authorization header, no cookies; exactly 7 snake_case keys (`submission_id`, `sentiment`, `category`, `message`, `votes`, `app_version`, `client_submitted_at` — limits in Appendix B), pinned by an exact-keys test. A 2xx is success; a 400 whose body has `data.submission_id.code == "validation_not_unique"` (a duplicate retry of the same draft) also collapses to success.
+
+   **Failure is tiered, and every tier keeps the draft *and its submission id*** so a retry collapses server-side rather than double-filing:
+
+   | Condition | Kind | Copy |
+   |---|---|---|
+   | Transport error (`IOException`) | `OFFLINE` | "Couldn't reach the server. Your draft is saved — try again when you're online." |
+   | HTTP 429 — the PocketBase rate limit **or** the server hook's quota response | `RATE_LIMITED` | "Too many submissions right now. Your draft is saved — try again later." |
+   | HTTP ≥ 500, including the hook's fail-closed 500 | `SERVER` | "The server had a problem. Your draft is saved — try again shortly." |
+   | Any other non-2xx, including a 400 that is **not** the duplicate | `REJECTED` | "The server refused this submission. Your draft is saved." |
+
+   Server-side facts, stated so nobody re-derives them from client behavior: the anonymous-feedback hook enforces 30 requests/minute, a 10,000-record aggregate quota, and **180-day retention**; `client_submitted_at` is an untrusted client clock kept for context only. The disclosure copy needs no change — it already states exactly what is sent, and retention is a server policy, not a payload field.
+
+   **Declared absence.** The web's returning-user feedback nudge (a dismissible sentence under the Review stat rail, gated on tenure, completion count, and send/dismiss cooldowns) is **web-only by decision**. Android, like iOS, keeps **Settings and the command palette (§8.14) as its only feedback entry points**. Parity audits must not flag this.
 8. **About** — version + build; privacy blurb; Privacy Policy → `https://gsdtaskmanager.com/privacy/`; Contact Support → `gsdapp@vinny.dev`; "How to use GSD" (the Field Guide, §8.19); "Show onboarding again".
 
 ### 8.18 Task sharing (outbound)
@@ -714,8 +795,13 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 
 ### 8.21 Account switching, account deletion, recovery
 
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
 - **Account switch:** when a sign-in resolves to a **different** account than the last known owner *and* local active tasks exist, prompt: **"Different account"** — *Keep my tasks* (merge: local tasks seed-upload into the new account), *Start fresh (erase tasks on this device)* (destructive), *Cancel* (signs back out). Archived tasks never trigger the prompt (they don't sync).
-- **Delete account:** confirmation offering *Delete & keep tasks on this device* or *Delete & erase everything* (+ Cancel), warning it's permanent and removes every synced task. Order matters: erase remote records first, then delete the user record (`DELETE /api/collections/users/records/{id}`), then clear the token.
+- **Delete account:** confirmation offering *Delete & keep tasks on this device* or *Delete & erase everything* (+ Cancel), warning it's permanent and removes every synced task. The deletion itself is **route-first with a bounded fallback**, orchestrated by a pure `AccountDeleter` in `:core:sync` over the `SyncRemote` plus a small `AccountRemote` port (`deleteAccountViaRoute()`, `deleteUser(id)`), so the whole outcome matrix runs on JVM fakes:
+  1. **Preferred:** `DELETE /api/gsd/account` with the auth header. **`204`** means the server erased every task and the user in one transaction — proceed to sign-out (and local erase, if that option was chosen). **Only a `404` falls back** (the route is not deployed — true of `api.vinny.io` today, so the fallback is the live production path). Any other failure, **including a transport error, stops with nothing changed locally.**
+  2. **Fallback:** up to **3 passes** of *enumerate* (under §9.4's bounded, fail-closed listing rules) → delete each record with the existing ~100 ms throttle. The **user record (`DELETE /api/collections/users/records/{id}`) is deleted only after a complete listing comes back empty**, then the token is cleared. Retrying is therefore always safe: the user record is never deleted before the task wipe finishes.
+  3. **The outcome is surfaced, always** — the call used to be wrapped in a silent `runCatching`. The outcome line renders **outside the signed-in branch** of the Account group, so it survives the sign-out that a successful deletion performs and the user still sees what happened: listing failed before any delete → "Couldn't list your synced tasks, so nothing was deleted. Check your connection and try again."; some tasks deleted then auth rejected → "Some synced tasks were deleted, but your account is still there. Sign in again, then run Delete account once more."; some tasks deleted then any other failure, or three passes exhausted → "Some synced tasks were deleted, but your account is still there. Try again to finish deleting it."; cloud deleted but the local erase threw → "Cloud account deleted, but local erase was incomplete. Use Erase All Data to retry local cleanup." Success keeps the unchanged sign-out flow. *Delete & erase everything* also clears the saved feedback draft (§8.16).
 - **Database-unavailable recovery:** if the local DB cannot open even after recovery attempts, show a calm full-screen fallback — "Couldn't open your tasks", reassurance (data not deleted; restart; free storage), Contact Support — and **never** start sync or observation against a broken store.
 
 ---
@@ -775,23 +861,37 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 ### 9.4 Pull, cursor, and deletion reconciliation
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+>
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 
-- **Endpoint:** `GET /api/collections/tasks/records?page={n}&perPage=200&sort=updated&filter=updated >= "{cursor}"` (filter URL-encoded; page through **all** pages until `page ≥ totalPages`; response envelope `{page, perPage, totalItems, totalPages, items}`). No owner filter is sent — the server's API rule scopes rows.
+- **Endpoint:** `GET /api/collections/tasks/records?page={n}&perPage=200&sort=updated,id&filter=updated >= "{cursor}"` (filter URL-encoded; page through **all** pages until `page ≥ totalPages`; response envelope `{page, perPage, totalItems, totalPages, items}`). No owner filter is sent — the server's API rule scopes rows. The decoded page is `TaskListPage(page, totalPages, totalItems, items, updatedStamps)` — `totalItems` sits **directly after `totalPages`** and defaults to `items.size`, which is what lets the bounded-listing rules below read it on every walk.
 - **Cursor:** the max applied **server `updated`** stamp, stored in the PocketBase space-separated form; first sync uses `"1970-01-01 00:00:00.000Z"`. After a successful sync, advance to `maxApplied − 5 seconds` (the overlap rewind that catches boundary writes). A record whose `updated` is unparseable still applies but doesn't advance the cursor.
 - **Apply loop:** per record — validate; skip malformed (never abort the pull); apply LWW (§9.3); on upsert preserve device-local fields (§9.2). Count remote-won overwrites as `conflictsResolved`.
 - **Tombstone suppression (archive + trash).** Before the LWW upsert, check whether the record's `task_id` is in `archivedTasks` or `deletedTasks`. If so, compare the remote `client_updated_at` against that row's `archivedAt`/`deletedAt` as millisecond instants: remote **strictly newer** → the remote edit wins — remove the tombstone row and apply the record as a normal active upsert (deliberate cross-device resurrection: the user edited it elsewhere after archiving/deleting here); otherwise (older, equal, either timestamp missing or unparseable) → **drop the record, fail closed** — never resurrect on bad data. Without this guard a remote record for a locally-archived-or-trashed task would resurrect as an active duplicate. This mirrors the web's `isRemoteNewerThanArchive` guard, extended to both tombstone stores; iOS's pull/SSE paths do not yet have it (sibling backlog item, not Android's to fix).
-- **Deletion reconciliation** (runs **last**, after push, destructive): fetch a fresh full remote index (`task_id` set); delete every local **active** task whose id is absent remotely **and** not present in the sync queue (pending **or** failed items both protect). The archive and trash tables are never touched. This is safe only because of the **enqueue-before-write invariant**: every local mutation enqueues its sync operation *before* the row becomes visible.
+- **Bounded, fail-closed listings.** Every full-listing walk — the pull loop, the remote index, remote erase (§9.8), and the account-deletion fallback (§8.21) — goes through one `BoundedListing.collect(...)` with `MAX_REMOTE_TASKS = 10,000` (page size stays 200). It **throws `RemoteListingIncomplete` and never returns partial data** when: `totalItems` exceeds the cap; the returned `page` is not the one requested; `totalItems` changes between pages; a page comes back empty before the last page; the materialized item count exceeds the cap or, at the end, differs from `totalItems`; or the walk sees a **duplicate `task_id`**. Consequences: the pull aborts and the run reports `error`; **deletion reconciliation is skipped for that run** — a partial or over-cap enumeration may never drive deletion; remote erase and account deletion abort before touching anything. The stable tie-break `sort=updated,id` exists so paging cannot reshuffle rows mid-walk.
+- **Deletion reconciliation** (runs **last**, after push, destructive, and **only after a complete listing**): fetch a fresh full remote index (`task_id` set) and classify every local **active** task that is absent from it by the state of its sync-queue rows — the three-verdict rule:
+
+  | Queue state for the task | Verdict | Effect |
+  |---|---|---|
+  | any **pending** row | `PROTECT` | keep it — edit-beats-delete under LWW |
+  | no pending, any **failed** row | `ABANDON` | **move the task to Trash** with `deletedAt = now`, delete all of its queue rows in the same transaction, enqueue nothing |
+  | neither | `APPLY` | delete the local row — no trash entry (§8.20's remote-delete rule stands) |
+
+  `ABANDON` trashes where `APPLY` does not because an abandoned task's content **never reached the server**: the local copy is the only copy, and the retry-exhausted queue row was shielding it forever (or would eventually have let it vanish). Trash keeps it recoverable for 30 days. The port is `SyncLocalStore.abandonToTrash(id, deletedAtMs)`; the Room transaction itself lives in `:core:store` as `GsdDatabase.abandonToTrash(id, deletedAtMs)` over `TaskEntity.toDeleted`, with `RoomSyncLocalStore` delegating to it — the store owns its own transaction boundary. The archive and trash tables are otherwise never touched. All of this is safe only because of the **enqueue-before-write invariant**: every local mutation enqueues its sync operation *before* the row becomes visible.
 
 ### 9.5 Push & the sync queue
+
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 
 Every local mutation (create/update/delete/archive/restore/import/bulk) enqueues a queue row: `{ id, taskId, operation: create|update|delete, timestamp (ms), retryCount, payload (full Task JSON for create/update; null for delete), status: pending|failed, lastError?, lastAttemptAt?, failedAt? }`.
 
 Push algorithm:
-1. **Bulk-fetch the remote index once per push** (list since epoch): map `task_id → (recordId, client_updated_at)` — avoids per-item lookups and 429s.
+1. **Bulk-fetch the remote index once per push** (list since epoch, through the bounded fail-closed walk of §9.4): map `task_id → (recordId, client_updated_at)` — avoids per-item lookups and 429s. If the walk throws `RemoteListingIncomplete`, the push does not proceed on partial data.
 2. Drain pending items oldest-first, each gated by backoff (`retryCount` → wait **5s / 10s / 30s / 60s / 300s**).
-3. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it.
-4. **Throttle ~100 ms between operations.** On HTTP **429, abort the entire push loop** immediately (items stay pending for the next cycle).
-5. Other errors bump `retryCount` + `lastError`; at **5 failures** the item becomes `failed` — kept, surfaced for retry, never dropped. Failed items auto-requeue (reset to pending) on **launch, foreground, network-regained, and manual sync** — deliberately *not* on the periodic cadence or post-mutation pushes, so a poison item can't hammer a rejecting server every two minutes.
+3. **A malformed remote version never authorizes an overwrite.** For a create/update whose task *does* have a record in the remote index, if that record's `client_updated_at` is missing or unparseable (`PbDates.parse` → `null`), the item is **skipped for this drain** — `bumpQueueRetry(…, "Remote task version is missing or malformed", …)`, counting toward the five-failure threshold like any other error — and **no write is issued**. Previously this case fell through to `updateTask`. A missing version may protect or quarantine data; it may not license clobbering it.
+4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it.
+5. **Throttle ~100 ms between operations.** On HTTP **429, abort the entire push loop** immediately (items stay pending for the next cycle).
+6. Other errors bump `retryCount` + `lastError`; at **5 failures** the item becomes `failed` — kept, surfaced for retry, never dropped. Failed items auto-requeue (reset to pending) on **launch, foreground, network-regained, and manual sync** — deliberately *not* on the periodic cadence or post-mutation pushes, so a poison item can't hammer a rejecting server every two minutes.
 
 ### 9.6 Realtime (SSE) + cadence safety net
 
@@ -932,9 +1032,11 @@ Cold start to interactive quickly (baseline profiles); the matrix smooth with hu
 
 ### 13.3 Accessibility (baseline — required)
 
-- **TalkBack:** every interactive element labeled; cards expose a coherent reading order (title, quadrant, due, status) and **custom accessibility actions** for complete/snooze/edit/delete (swipe gestures are not the only path).
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+
+- **TalkBack:** every interactive element labeled; cards expose a coherent reading order (title, quadrant, due, status) and **custom accessibility actions** for complete/snooze/edit/delete (swipe gestures are not the only path). Composite decorations collapse to a single node rather than reading their parts: a loading skeleton is one node labelled "Loading" (§5.10); the completion rings are one node ("Completion rings, {P}% of all tasks complete"); each rings legend cell is its own node reading "{Quadrant title}: {P}% complete" or "{Quadrant title}: no tasks" (§8.15).
 - **Font scale:** `sp` everywhere; layouts reflow at 2× / non-linear scaling; no clipped fixed-height text.
-- **Reduced motion:** confetti and non-essential animation suppressed when animations are disabled (§5.8).
+- **Reduced motion:** confetti and non-essential animation suppressed when animations are disabled (§5.8) — one gate, `ValueAnimator.areAnimatorsEnabled()`, for all of it. It also suppresses the **rings grow-in** (`growth` is 1 from the first frame, §8.15) and the **skeleton shimmer** (the sweeping band is not drawn at all; the silhouette stays static, §5.10). Suppression means *no animation*, not a faster one.
 - **Contrast:** the quadrant accents meet WCAG **AA** against their card backgrounds in both modes (the §5.1 values are pre-verified — don't "brighten" them).
 - **Touch targets ≥ 48dp**; full keyboard operability on hardware keyboards.
 
@@ -1011,6 +1113,8 @@ Each phase independently buildable and testable; sync remains the highest-risk p
 ## Appendix B — Field limits
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+>
+> Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 
 | Limit | Value |
 |---|---|
@@ -1022,13 +1126,27 @@ Each phase independently buildable and testable; sync remains the highest-risk p
 | Dependencies | max 50 |
 | Time entries | max 1000; note ≤ 200 chars |
 | Estimated minutes | 1–10080 (0 = unset) |
-| Smart-view name | 1–60 chars |
+| Smart-view name | 1–60 chars **in the editor** (import accepts up to 80 — see the smart-view bounds below) |
 | Pinned views | max 5 |
 | Share-capture title | clamped to 80 chars |
 | Import | counts `tasks + archivedTasks + deletedTasks` ≤ 10,000; ≤ 10 MB |
 | Feedback `submission_id` | 1–64 chars |
 | Feedback `message` | ≤ 1000 chars |
 | Feedback `app_version` | ≤ 20 chars, clamped by truncation |
+| Remote listing | ≤ 10,000 tasks per full walk (`BoundedListing.MAX_REMOTE_TASKS`), 200 per page — over the cap the walk throws rather than returning partial data (§9.4) |
+
+**Smart-view bounds** (`SmartViewLimits`) — enforced on import, and the count on export (§8.16):
+
+| Limit | Value | Applies to |
+|---|---|---|
+| `MAX_SMART_VIEWS` | **100** | custom views accepted per import, and emitted per export |
+| Smart-view id | 1–128 chars | import |
+| Smart-view name | 1–**80** chars | import (the editor still caps new names at 60) |
+| Smart-view icon | ≤ 64 chars | import |
+| `criteria.searchQuery` | ≤ 600 chars | import |
+| `criteria.tags` | ≤ **200** entries, each 1–30 chars | import — the *count* is deliberately not the 20-tag task limit; a view filters over the whole vocabulary |
+| `criteria.quadrants` / `criteria.recurrence` | ≤ 4 entries each | import |
+| `appPreferences.pinnedSmartViewIds` | ≤ 5 entries, each 1–128 chars | import (truncated, not rejected) |
 
 ## Appendix C — Capture-parser test vectors (superseded)
 
