@@ -62,6 +62,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     fun launchProvider(provider: String) {
         scope.launch {
             signInError = null
+            deletionMessage = null
             try {
                 val pendingAuth = container.authManager.beginOAuth(provider)
                 CustomTabsIntent.Builder().build().launchUrl(context, pendingAuth.url.toUri())
@@ -110,8 +111,11 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
                 scope.launch { container.syncCoordinator.signOut() }
             }
             AccountAction(R.string.account_delete, tint = gsd.alert) { deleteOpen = true }
-            deletionMessage?.let { Text(stringResource(it), style = GsdType.subhead, color = gsd.alert) }
         }
+        // Rendered outside the signed-in branch: a local-erase failure after a successful
+        // remote delete flips signedIn to false before this recomposes, so the message must
+        // survive that transition to stay visible.
+        deletionMessage?.let { Text(stringResource(it), style = GsdType.subhead, color = gsd.alert) }
     }
 
     if (deleteOpen) {
