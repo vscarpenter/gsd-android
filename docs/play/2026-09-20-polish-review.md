@@ -48,7 +48,12 @@ The rule is now "validate what the user types, where they type it", which is wha
 Every state change only normalizes: complete, the recurrence spawn, the quadrant move, snooze, the timers, Duplicate, and bulk Move, Remove tag, and Set due.
 A view model test reproduced the crash first. The run ended with "Process crashed" on `TitleLength`.
 Text limits still count UTF-16 units, as on the web. The Android editor therefore asks the user to shorten an iOS title that holds an emoji before it saves, as the web does.
-S5 remains open.
+
+S5 is fixed on branch `fix/completion-is-a-transition`, stacked on the S6 branch (not merged).
+`setCompleted` now reads the task inside its transaction and treats completion as a transition. A call that asks for the state the task already has writes nothing.
+The finding understated the damage. Eight concurrent completes produced nine tasks where two were expected, so every call spawned an instance.
+A redundant completion also restamped `updatedAt` and `completedAt`, which is the S2 problem again: a no-op tap could win last-write-wins over a newer edit.
+All six data-safety findings, S1 to S6, are now fixed on stacked branches. None is merged.
 
 | # | Finding | Evidence |
 |---|---|---|

@@ -61,3 +61,11 @@
 - **Duplicate moved into the store:** the view model used to build the copy and call `add`. `TaskStore.duplicate(id)` now owns it, as the iOS store does.
 - **Honest red for new API:** `normalize`, `change`, and `duplicate` first went in as stubs over the old behavior, so the tests failed on `TitleLength` and not on a compile error.
 - **Gate detour, not an S6 change:** the first full run failed `PaletteRequestsTest`, an S4 test. My first guess (window focus) was wrong for that test: the log showed the dialog held focus, and `dumpsys input_method` showed the soft keyboard taking the Back press. A second test in `TabNavigationTest` then failed about one combined run in four, and that one was the focus race. Both are fixed in `0e01966`, and the two classes passed 8 combined runs in a row.
+
+## S5 completion is a transition (2026-09-20)
+
+- **Tier:** Standard. One store method and about ten lines. No `tasks/spec.md` change; it still holds the S6 spec.
+- **Sibling check:** the web reads inside its transaction under a per-task lock and spawns only on the false-to-true change. iOS reads the persisted row before it decides. Android read outside the transaction and never compared states.
+- **One step past the web:** a redundant call writes nothing here. The web still restamps `updatedAt` and `completedAt`. The reason is the S2 lesson about bookkeeping writes and last-write-wins.
+- **The race was worse than the review said:** the double-fire test used eight concurrent calls so the red run could not pass by luck. All eight spawned.
+- **Red check for a test written after the fix:** the bulk Done test came after the store change, so I swapped the old `TaskStore.kt` back for one run. It failed with `expected 2 but was 3`, then passed with the fix restored.

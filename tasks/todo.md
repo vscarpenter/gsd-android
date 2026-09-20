@@ -156,6 +156,30 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
+## Resuming From Here (2026-09-20, S5 completion is a transition)
+- **Done:** review finding S5 is fixed on branch `fix/completion-is-a-transition`, stacked on the S6 branch. Not
+  merged, not pushed. The S6 branch is pushed. Tier was Standard: one store method, no new API, and both siblings
+  already guard the spawn.
+  - `TaskStore.setCompleted` reads the row inside the transaction and returns the task untouched when it already
+    has the requested state. No spawn, no restamp, no queue row.
+  - Spec 8.5 is amended.
+- **Proof:** five on-device tests failed first. A redundant completion and bulk Done over a finished task gave
+  `expected 2 but was 3`. Eight concurrent completes gave `expected 2 but was 9`. A redundant completion and a
+  redundant reopen both restamped: `expected 12:00 but was 15:00`. The bulk test was checked against the old store
+  by swapping the file back for one run. Gates are in the block's last line.
+- **Decisions:** a redundant call writes nothing at all. The web still restamps in that case. Android does not,
+  because a restamp from a no-op tap could win last-write-wins over a newer edit, and it would replace the real
+  `completedAt` that the Dashboard reads. Bulk Done counts an already finished task as succeeded.
+- **Not covered by its own test:** the stale notification action. The receiver calls `store.setCompleted(id, true)`
+  and nothing else, so the store tests cover it. An on-device test would have to wait for an absence.
+- **Status of the review:** S1 to S6 and finding 43 are fixed on seven stacked branches. None is merged.
+- **Next:** owner decision to merge the seven branches in order: S1, S2, S3, S4, finding 43, S6, then this one.
+  Then findings 1 to 5, each test-first. Finding 5 (Snooze 1 hour never fires again) is the next data-adjacent one.
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 151
+  on `gsd-test` (`:app` 97, `:core:store` 54), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
+  green. The connected run took 1m 55s.
+
 ## Resuming From Here (2026-09-20, S6 state changes never reject)
 - **Done:** review finding S6 is fixed on branch `fix/state-changes-never-reject`, stacked on the finding 43
   branch. Not merged, not pushed. The design was approved in chat (option "Validate typed input only"), and the
@@ -182,8 +206,8 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 - **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 146
   on `gsd-test` (`:app` 96, `:core:store` 50), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
   green. The first full run failed one S4 test on a soft keyboard race. `0e01966` fixes that test and one more.
-- **Emulator:** `gsd-test` has been up all day, and the connected run grew from about 1m 45s to 4m 48s. Every
-  class slowed down, old ones included. A cold boot should bring it back.
+- **Emulator:** during this change the connected run grew from about 1m 45s to 4m 48s, and every class slowed
+  down. It was back to 1m 55s on the next change with no reboot, so host load is the likelier cause.
 
 ## Resuming From Here (2026-09-20, finding 43 Matrix tab)
 - **Done:** review finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch. Not
