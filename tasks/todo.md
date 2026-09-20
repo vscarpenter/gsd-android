@@ -177,10 +177,10 @@ Everything already done is in the "Resuming From Here" blocks further down.
 
 ### L. Owner decisions and housekeeping
 
-- [ ] Delete the eight merged branches, on origin and locally: `fix/sync-dead-session-guard`,
+- [ ] Delete the nine merged branches, on origin and locally: `fix/sync-dead-session-guard`,
       `fix/reminder-bookkeeping-lww`, `fix/account-switch-keeps-tasks`, `fix/new-task-requests-one-shot`,
       `fix/matrix-tab-after-deep-link`, `fix/state-changes-never-reject`, `fix/completion-is-a-transition`,
-      and `docs/record-review-merges`.
+      `docs/record-review-merges`, and `docs/left-to-do-list`.
 - [ ] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
       seconds with a green check and no review.
 - [ ] Add a note to the workspace `CLAUDE.md` "Field limits" row. The numbers match, but iOS counts characters
