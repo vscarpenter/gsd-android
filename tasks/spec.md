@@ -1,58 +1,60 @@
-# Spec: dead-session sync guard (review finding S1)
+# Spec: account switch keeps tasks and resets the cursor (review finding S3)
 
-Approved in chat on 2026-09-20, identity-check variant. Source: `docs/play/2026-09-20-polish-review.md`, finding S1.
+Approved in chat on 2026-09-20, with the restart guard included. Source: `docs/play/2026-09-20-polish-review.md`, finding S3.
+The S1 spec that lived in this file is in history at `97cb8d3` and `cbe1067`.
 
 ## Goal
 
-A sync run must never delete or trash local tasks unless the server has confirmed, in that same run, that the session belongs to the signed-in owner.
-Today only `push()` checks for an owner. `pull()` and `reconcileDeletions()` run as a guest after a dead session, and an empty guest listing deletes every synced task.
+Signing in to a different account must never delete the tasks the user chose to keep, and it must pull the new account's full history.
+Today `confirmOwner` seeds nothing, so tasks already synced to the old account have no queue rows and reconciliation deletes them.
+The pull cursor is never reset, so the new account's records older than the old cursor never arrive.
 
 ## Inputs and outputs
 
-- `SyncEngine.runSync` resolves the owner once. With no owner it does nothing and returns `status = "error"`, `error = "Not signed in"`, and `notSignedIn = true`.
-- `SyncRemote.confirmIdentity(ownerId)` is new. It returns normally when the server recognizes the session as `ownerId`. It throws otherwise.
-- `PocketBaseApi.confirmIdentity` calls `POST /api/collections/users/auth-refresh` and compares the returned record id. The endpoint needs a valid token, so it cannot pass for a guest whatever the collection rules say. The returned token is ignored.
-- `reconcileDeletions` calls `confirmIdentity` before the first `ABANDON` or `APPLY` verdict. A failure aborts the run with an error and changes nothing.
-- `SyncCoordinator` still refreshes the token before each run. When the run reports `notSignedIn`, it sets `signedIn = false` and `sessionExpired = true`. Signing in again clears the flag.
-- Settings shows `health_expired` above the sign-in options while `sessionExpired` is true.
+- `OwnerChange.adopt(local, previousOwner, newOwner, keepLocalTasks, nowMs)` is new and pure. It acts only when a previous owner exists and differs from the new one.
+  - It clears the pull cursor.
+  - With `keepLocalTasks`, it enqueues one UPDATE row for every active task that has no pending or failed row. The payload is the task as stored, with no restamp.
+- `SyncLocalStore` gains `clearCursor()` and `enqueueUpdate(task, nowMs)`.
+- `SyncCoordinator.confirmOwner` reads the previous owner, erases local data when asked, runs `OwnerChange.adopt`, and only then records the new owner.
+- `SyncCoordinator.start` compares the stored token's user id with the last confirmed owner. When they differ and active tasks exist, it raises `switchPrompt` again and stays signed out until the user answers.
 
 ## Constraints
 
-- `:core:sync` stays free of Android imports. Every rule is a JVM test over fakes or MockWebServer.
-- The steady-state run makes no extra request. The identity call happens only when reconciliation is about to trash or delete.
-- `PROTECT` verdicts need no identity check, because they change nothing.
-- No change to the wire model, the cursor rules, or the three-verdict table.
+- A same-owner sign-in changes nothing. A task deleted on another device while this one was signed out still deletes here.
+- Seeded rows are never restamped, so last-write-wins still decides against anything already in the new account.
+- The seed runs once, at the moment of the decision. It does not depend on the cursor advancing.
+- `:core:sync` stays free of Android imports. The seed and cursor rules are JVM tests over fakes.
 
 ## Edge cases
 
-- Expired token, refresh answers 401: the token clears, the run aborts before any request, and the account shows as signed out with the expired note.
-- Dead token with more than 7 days left: no refresh happens, the server treats the run as a guest, and `confirmIdentity` throws `Unauthorized`. The run reports an error and deletes nothing.
-- The server confirms a different record id: `confirmIdentity` throws and the run deletes nothing.
-- A rate-limited identity call throws `RateLimited`. The run ends with an error and the next run retries.
-- A verified owner with a genuinely empty remote still applies the deletions, so "erase everywhere" from another device keeps working.
-- Transient refresh failures keep the stored token, as spec 10.3 requires. The listing then fails on the network and the run ends before reconciliation.
+- First sign-in on an install: no previous owner, so nothing changes. Local tasks already have queue rows.
+- New owner, no local tasks: no prompt. The cursor still clears, so the full pull runs.
+- "Start fresh": local data is erased first, the cursor clears, and nothing is seeded.
+- "Delete account and keep tasks" followed by a new sign-in: the queue was cleared, so every kept task is seeded.
+- A task with only failed rows keeps those rows. The manual sync that follows a sign-in requeues them.
+- The app dies while the prompt is open: the token is saved and the owner is not. The next launch raises the prompt again instead of syncing. A crash midway through the seed ends the same way, and a second answer seeds the rest.
+- The rebuilt prompt knows the user id from the token and no email. A blank email is stored as no email.
 
 ## Out of scope
 
-- Resetting the pull cursor on sign-out, erase, or owner change (finding S3).
-- Signing the user out when `confirmIdentity` gets a definitive 401 on an unexpired token.
+- Seeding on every nil-cursor sync, as iOS does.
+- Clearing the cursor on sign-out.
+- Persisting the pending sign-in provider across a restart.
 - The other review findings.
 
 ## Acceptance criteria
 
-1. Null owner, empty remote, one synced local task: the task survives, nothing is pulled, and the result reports `notSignedIn`.
-2. Owner present, identity rejected, one synced local task: the task survives, nothing is trashed, and the result is an error.
-3. Owner present, identity rejected, one task with only failed queue rows: the task is not trashed and its queue rows stay.
-4. Owner present, identity rejected, nothing to reconcile: the run succeeds.
-5. The existing `APPLY`, `ABANDON`, and `PROTECT` tests stay green with a confirming remote.
-6. `confirmIdentity` passes on a matching record id, throws `Unauthorized` on a 401, and throws on a different record id.
-7. A coordinator whose token disappears mid-process ends the session, raises `sessionExpired`, and keeps every task. Signing in again clears the flag.
-8. The signed-out Account rows show the expired note only when the session expired.
+1. New owner, keep: exactly the tasks without queue rows get one UPDATE row each, unstamped, and the cursor is null.
+2. New owner, start fresh: the cursor is null and nothing is enqueued.
+3. Same owner: the cursor and the queue are unchanged.
+4. First sign-in: the cursor and the queue are unchanged.
+5. After a keep, one engine run against an empty remote leaves the task on the device and creates it remotely.
+6. On a device, "Keep my tasks" keeps the task locally and uploads it to the new account.
+7. On a device, "Start fresh" pulls a task older than the old account's cursor.
+8. On a device, an unanswered prompt comes back after a restart, nothing syncs, and every task survives.
 9. `./gradlew :core:model:test`, `./gradlew testDebugUnitTest`, and `./gradlew connectedAndroidTest` are green.
 
 ## Test stubs
 
-- `SyncEngineTest`: criteria 1 to 5.
-- `PocketBaseApiTest`: criterion 6.
-- `SyncCoordinatorSessionTest` (instrumented): criterion 7.
-- `SignedOutAccountTest` (instrumented): criterion 8.
+- `OwnerChangeTest` (JVM): criteria 1 to 5.
+- `SyncCoordinatorOwnerChangeTest` (instrumented): criteria 6 to 8.
