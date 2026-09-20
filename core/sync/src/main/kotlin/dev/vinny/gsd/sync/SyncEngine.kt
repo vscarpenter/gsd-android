@@ -60,7 +60,7 @@ class SyncEngine(
             pushed = pushOutcome.first
             pushFailures = pushOutcome.second
 
-            reconcileDeletions()
+            reconcileDeletions(owner)
         } catch (failure: Exception) {
             error = failure.message ?: failure.javaClass.simpleName
             notSignedIn = failure is NotSignedIn
@@ -200,18 +200,20 @@ class SyncEngine(
      * row PROTECTs it (still trying to push); a failed-only row means the content
      * never reached the server, so it is ABANDONed to trash instead of erased; no
      * queue row at all means the remote delete already landed, so it is APPLYed locally.
+     * A guest listing is empty too, so ABANDON and APPLY wait for the server to confirm the
+     * owner in this same run. A steady-state run with nothing to reconcile makes no extra request.
      */
-    private suspend fun reconcileDeletions() {
+    private suspend fun reconcileDeletions(owner: String) {
         val remoteIds = fetchRemoteIndex().keys
         val pending = local.pendingQueue().map { it.taskId }.toSet()
         val failed = local.failedQueue().map { it.taskId }.toSet()
         val now = clock.instant().toEpochMilli()
-        local.activeTasks().filter { it.id !in remoteIds }.forEach { task ->
-            when {
-                task.id in pending -> Unit                          // PROTECT
-                task.id in failed -> local.abandonToTrash(task.id, now)  // ABANDON
-                else -> local.deleteFromRemote(task.id)            // APPLY
-            }
+        val unprotected = local.activeTasks().filter { it.id !in remoteIds && it.id !in pending } // pending → PROTECT
+        if (unprotected.isEmpty()) return
+        remote.confirmIdentity(owner)
+        unprotected.forEach { task ->
+            if (task.id in failed) local.abandonToTrash(task.id, now) // ABANDON
+            else local.deleteFromRemote(task.id)                      // APPLY
         }
     }
 

@@ -181,6 +181,41 @@ class SyncEngineTest {
     }
 
     @Test
+    fun `an unconfirmed session deletes nothing even when the remote listing is empty`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.rejectIdentity = true            // a dead token: the server lists as a guest, so zero items
+        local.tasks["synced"] = task("synced")  // no queue rows: it already reached the server
+        val result = engine(remote, local).runSync(false)
+        assertEquals(listOf("synced"), local.tasks.keys.toList())
+        assertTrue(local.remoteDeletes.isEmpty()); assertTrue(local.trashed.isEmpty())
+        assertEquals("error", result.status)
+    }
+
+    @Test
+    fun `an unconfirmed session abandons nothing to trash`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.rejectIdentity = true
+        val stuck = task("stuck")
+        local.tasks["stuck"] = stuck
+        local.queue += queueItem(1, stuck, SyncOp.CREATE, retryCount = 5, status = "failed")
+        val result = engine(remote, local).runSync(false)
+        assertEquals(listOf("stuck"), local.tasks.keys.toList())
+        assertTrue(local.trashed.isEmpty())
+        assertEquals(listOf(1L), local.queue.map { it.id }) // the failed row still shields the task
+        assertEquals("error", result.status)
+    }
+
+    @Test
+    fun `a run with nothing to reconcile never needs the identity check`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.rejectIdentity = true
+        remote.records["r1"] = WireMapper.push(task("both-sides"), "other", "user-1")
+        local.tasks["both-sides"] = task("both-sides")
+        val result = engine(remote, local).runSync(false)
+        assertEquals("success", result.status) // no destructive verdict, so no extra request and no failure
+    }
+
+    @Test
     fun `pull applies remote-newer, no-ops equal, keeps local-newer`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
