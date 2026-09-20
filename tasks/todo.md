@@ -1,5 +1,190 @@
 # GSD Android — progress
 
+## Left to do (as of 2026-09-20)
+
+One list, in the order I would work it. A number in front of an item is its finding number in
+`docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
+44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10).
+Everything already done is in the "Resuming From Here" blocks further down.
+
+### A. The path to production
+
+- [ ] **Closed-test gate.** The Console showed 12 testers opted in, on day 13 of 14, on 2026-09-20. Apply for
+      production when day 14 completes, and answer the questionnaire (`docs/play/submission-checklist.md`).
+- [ ] **18. Pick the production version:** 0.9.x or 1.0.0.
+- [ ] **Cut a new build.** Nothing merged on 2026-09-20 is in a Play build. Testers still have 0.9.0
+      (versionCode 9). Bump the version, run every gate, and build the signed `.aab`.
+- [ ] **Release smoke on a real device, from a signed build.** Walk sync, a reminder, the widget, and a deep
+      link. This has been open since 2026-08-29.
+- [ ] **Upload the new build to Closed testing.** Promote it to Production once Google grants access.
+
+### B. Broken behavior (fix before production)
+
+- [ ] **4. Make `MainActivity` a single instance.** Deep links and widget taps stack copies, and the visible copy
+      does not navigate. Do this one first. It now carries the one regression from S4. A `gsd://capture` link
+      that arrives while the app is on screen opens the New Task sheet on the covered copy.
+- [ ] **1.** The "..." button on every task card does nothing.
+- [ ] **2.** Trash rows draw over the red swipe background, so their text is unreadable.
+- [ ] **3.** Swipe-to-delete never shows the Undo snackbar.
+- [ ] **5.** "Snooze 1 hour" on a reminder never fires again. The reviewer of #4 confirmed it independently.
+- [ ] **44.** The editor saves a whole-row snapshot taken when it opened. It reverts a Complete tapped from the
+      notification in the meantime, and the save wins last-write-wins elsewhere.
+- [ ] **45.** `OneShotRequest` can wedge if a handler ever suspends. Make `handle` non-suspending.
+
+### C. Reminders must match the listing
+
+- [ ] **6.** The editor has no date or time picker. Every due date lands at midnight.
+- [ ] **7.** The app never asks for the notification permission in the normal flow.
+- [ ] **8.** Exact alarms are denied by default on Android 14 and later, with no in-app way to grant them. The
+      listing promises exact timing.
+
+### D. Play policy and listing accuracy
+
+- [ ] **15.** No privacy policy link inside the app.
+- [ ] **16.** Auto Backup is on while Settings says tasks never leave the device. Exclude cloud backup, or change
+      the copy. Owner decision.
+- [ ] **17.** `docs/play/data-safety.md` predates the feedback form. The privacy page never mentions Android,
+      feedback, or backups. Check the Console form against both.
+
+### E. Layout, theming, and data handling
+
+- [ ] **9.** Share sheet: title under the status bar, a blank grey page over the sharing app, `EXTRA_SUBJECT`
+      ignored, and no scroll container.
+- [ ] **10.** The text caret is invisible in dark mode in all 17 text fields.
+- [ ] **11.** Landscape and tablets draw content under the status bar. Only the phone layout applies insets.
+- [ ] **12.** Editor chip rows do not wrap at large font scales.
+- [ ] **13.** Select mode shows no selected state on any card.
+- [ ] **14.** The tablet 2x2 grid has no card menu at all.
+- [ ] **37.** No paper background outside the phone layout, so text turns unreadable when the in-app theme
+      differs from the system theme.
+- [ ] **38.** Status bar icons follow the system theme, not the in-app theme.
+- [ ] **39.** Export has no error handling and may not truncate. Import parses on the main thread and can stop
+      halfway.
+- [ ] **40.** Account deletion, erase, and import run in the composition scope, so a rotation cancels them
+      midway. The account-switch buttons and the OAuth callback have the same weakness (review of #5).
+- [ ] **41.** "Fetch titles for shared links" is a dead setting. Build the fetch, or remove the setting.
+- [ ] **42.** A restored or transferred install shares its `deviceId` with the old phone.
+
+### F. High-impact polish
+
+- [ ] **19.** Onboarding is a stub against spec 8.19.
+- [ ] **20.** The Field Guide is one paragraph with no scroll, and it still says sync is coming. About lacks the
+      mark, tagline, site link, and credit.
+- [ ] **21.** Only Matrix has a top bar. Pushed screens have no title and no Up arrow, and the bottom bar loses
+      its selected state on child routes.
+- [ ] **22.** The Browse search field has no container, icon, or clear button.
+- [ ] **23.** Material's baseline purple shows in the selected navigation label (`secondary` is unmapped).
+- [ ] **24.** `MaterialTheme` gets no `shapes` or `typography`, so chips, menus, dialogs, and snackbars fall back
+      to Material defaults.
+- [ ] **25.** Save is a quiet text button at the end of a long scroll. Swiping the sheet down discards edits with
+      no prompt.
+- [ ] **26.** The command palette opens scrolled to the bottom of its list. Recheck the focus claim: on
+      2026-09-20 the soft keyboard did come up when the palette opened in tests.
+- [ ] **27.** Reminder notifications use a stock system icon, with no color and no category.
+- [ ] **28.** Both launcher shortcuts show blank circles. The widget picker shows a generic preview.
+- [ ] **29.** Settings: cramped radio rows, a check mark typed as text, fixed 24-hour quiet hours, and rows
+      under 48 dp.
+- [ ] **30.** Editor details: subtask toggles with no role or state, a bare "90" estimate with no unit, and due
+      chips with no selected state.
+- [ ] **31.** The long-press menu gives Delete no destructive color. The delete-forever dialog has no title.
+- [ ] **32.** Five surfaces use a bare line of text as their empty state.
+- [ ] **33.** No list animates, so a completed task jumps to its new position.
+- [ ] **34.** The accent spine is a fixed 40 dp tall and covers only the top of a tall card.
+- [ ] **35.** Card titles clamp to two lines at every font scale, against spec 5.4.
+- [ ] **36.** A wide phone in landscape gets the tablet drawer, and its labels break mid-word beside a cutout.
+
+### G. Copy
+
+- [ ] 13 em dashes in user-visible strings.
+- [ ] Title case and sentence case mixed on one screen ("Sync Now" beside "Export tasks").
+- [ ] Two names for one action: "Complete" and "Done", "Delete permanently" and "Delete forever".
+- [ ] Hardcoded English in Kotlin: due labels, palette labels, and option labels.
+- [ ] Two places show a raw exception message to the user.
+- [ ] Plurals: "1 days left" and "Delete 1 tasks?".
+- [ ] Four dead strings still describe shipped features as future work.
+- [ ] "Completion by Quadrant" beside "Time by quadrant". "Today's Focus" uses a mouse pointer icon.
+- [ ] Straight quotes in most strings and curly quotes in one.
+
+### H. Accessibility
+
+- [ ] No text field has a TalkBack name, including the erase confirmation field.
+- [ ] Zero `heading()`, `liveRegion`, `Role`, and `customActions` calls. Spec 13.3 promises custom actions.
+- [ ] The quadrant picker and subtask toggles expose no state. Stat cards read the value before its label.
+- [ ] Contrast: `ink3` and ochre fall under 4.5:1 on several surfaces. The web already derives darker text inks.
+- [ ] Correct `docs/play/accessibility-audit.md`. Its custom-actions and title line-cap claims do not match
+      the code.
+- [ ] Re-run the audit with TalkBack on a device once the semantics land.
+
+### I. Follow-ups from the fixes merged on 2026-09-20
+
+- [ ] **S1.** A dead token more than 7 days from expiry fails every run with a 401, and the user stays signed
+      in. Sign them out on that 401.
+- [ ] **S3.** A prompt rebuilt after a restart knows no email, so Settings shows none until the next sign-in.
+- [ ] **S4.** Ctrl+N or Ctrl+K pressed off the Matrix tab waits for the next visit to Matrix. Decide whether the
+      key should navigate there, or the request should expire.
+- [ ] **S6.** `NotificationActionReceiver` has no catch. A database error there would crash the process from a
+      notification button.
+- [ ] **After finding 43.** A screen pushed over Matrix is popped with `saveState` and never restored, so its
+      view model lives until the activity ends. Small, and older than the fix.
+
+### J. Worth a look (confirmed in code, not reproduced)
+
+- [ ] Alarm scheduling has no cap, and `appScope` has no exception handler.
+- [ ] Recurrence adds days in UTC, so a daily series can read a day early after a daylight-saving change.
+- [ ] No receiver listens for time zone changes, so quiet-hours deferrals go stale after travel.
+- [ ] The DataStore files have no corruption handler. Imported quiet hours go through `LocalTime.parse` unchecked.
+- [ ] Every sync lists the whole remote collection twice.
+- [ ] The share target drops `EXTRA_TEXT` when it arrives as a `CharSequence`.
+- [ ] A deep link on the very first launch can be lost behind onboarding. Seen live once.
+
+### K. Older backlog, still open
+
+- [ ] Extract the upsert body of `SyncCoordinator.applyRealtime` into `:core:sync`, for a JVM test of the
+      tombstone guard.
+- [ ] Land an Android-produced backup fixture in both sibling repos. No sibling imports an Android export today.
+- [ ] A cap test that admits exactly 10,000 imported tasks.
+- [ ] Align spec 8.17's Feedback placement with the real Settings layout.
+- [ ] Owner copy pass on the feedback roadmap labels.
+- [ ] Ctrl+1 to Ctrl+4 jump to quadrant is in spec 6.6 and is not wired.
+- [ ] The two-button swipe reveal (Snooze and Delete) from spec 8.1 is not built.
+- [ ] `gsd://quadrant/<id>` opens Matrix and does not scroll to the quadrant.
+- [ ] Onboarding's last page has no sign-in buttons.
+- [ ] Apple and GitHub sign-in, and a two-device round trip, have never been tried live. Google sign-in has.
+- [ ] Place the widget from a launcher for a visual pass.
+
+### L. Owner decisions and housekeeping
+
+- [ ] Delete the eight merged branches, on origin and locally: `fix/sync-dead-session-guard`,
+      `fix/reminder-bookkeeping-lww`, `fix/account-switch-keeps-tasks`, `fix/new-task-requests-one-shot`,
+      `fix/matrix-tab-after-deep-link`, `fix/state-changes-never-reject`, `fix/completion-is-a-transition`,
+      and `docs/record-review-merges`.
+- [ ] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
+      seconds with a green check and no review.
+- [ ] Add a note to the workspace `CLAUDE.md` "Field limits" row. The numbers match, but iOS counts characters
+      while the web and Android count UTF-16 units.
+- [ ] Find out what deletes the `.img` files from the SDK system images. The `google_apis_playstore` image is
+      still broken.
+- [ ] `gsd-shot`: remove the leftover "Today's Focus" widget from its home screen.
+- [ ] Delete `/tmp/claude-s3-run.txt`, a stray file from the S3 session.
+- [ ] `app/build/outputs` holds a release APK built from a fix branch at versionCode 9. It is not the Play
+      artifact.
+
+### M. Not Android's to fix (upstream)
+
+- [ ] Web: `resetEverything` leaves `deletedTasks` and `appPreferences` behind.
+- [ ] Web: a trash-merge import overwrites the local row on an id collision.
+- [ ] Web: a redundant completion still restamps `updatedAt` and `completedAt` (`lib/tasks/crud/toggle.ts`), so a
+      tap that changes nothing can win last-write-wins. Found while fixing S5.
+- [ ] iOS: no tombstone-suppression guard on pull or SSE, so archived and trashed ids can come back.
+
+### Decided, no action needed
+
+- Text limits stay in UTF-16 units, as on the web. The editor asks the user to shorten an iOS emoji title
+  before it saves.
+- A snooze the user asks for still restamps and syncs, as on the web and iOS.
+- Two published commit subjects run past 72 characters. Fixing them would rewrite published history.
+- The declared absences in the parity spec stay absent.
+
 ## Done
 - **Phase 0** foundations · **Phase 1** core local app (`v0.1.0-phase1`) · **Phase 2** task depth
   (`v0.2.0-phase2`) · **Phase 3** organization & insight (`v0.3.0-phase3`) · **Phase 4**
@@ -179,7 +364,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   `--allowedTools` allows only the inline comment tool, so the review plugin's first `gh` call is denied. I covered
   the gaps with fresh-context reviewers. They found the S4 regression above, the vacuous test, and findings 44 and 45.
 - **Next:** finding 4 first (one `MainActivity` instance, which also ends the S4 regression). Then findings 1 to 3,
-  5, 44, and 45, each test-first.
+  5, 44, and 45, each test-first. The full list is under "Left to do" at the top of this file.
 - **Owner decisions still open:** the seven merged branches remain on origin and locally. Two published commit
   subjects run past the 72 character limit (`b9c49ca` at 76 and `9bd2aba` at 75). Fixing them would mean rewriting
   published history, so they stay. The review workflow needs a wider `--allowedTools` to review every PR.
