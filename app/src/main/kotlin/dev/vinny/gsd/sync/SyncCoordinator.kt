@@ -54,7 +54,15 @@ class SyncCoordinator(
     fun start() {
         scope.launch {
             tokens.warm()
-            _signedIn.value = auth.currentUserId() != null
+            val userId = auth.currentUserId()
+            val previous = lastOwnerId()
+            if (userId != null && previous != null && previous != userId && local.activeTasks().isNotEmpty()) {
+                // The app died with the "Different account" prompt open: the token is saved, the owner is
+                // not. Ask again and stay signed out, so nothing syncs before the user decides (spec §8.21).
+                switchPrompt.value = AuthResult(tokens.token().orEmpty(), AuthRecord(userId))
+                return@launch
+            }
+            _signedIn.value = userId != null
             if (_signedIn.value) {
                 engine.requeueFailed() // launch trigger requeues failed items (spec §9.5)
                 requestSync(false)
@@ -194,9 +202,18 @@ class SyncCoordinator(
         return result
     }
 
-    /** "Keep my tasks" (merge — the queue seed-uploads) or "Start fresh" (§8.21). */
+    /**
+     * "Keep my tasks" or "Start fresh" (§8.21). A different owner clears the pull cursor, and
+     * kept tasks are seeded into the queue once so reconciliation protects them until they upload.
+     * The new owner is recorded last: a crash before that raises the prompt again on the next launch.
+     */
     suspend fun confirmOwner(result: AuthResult, eraseLocalFirst: Boolean) {
+        val previous = lastOwnerId()
         if (eraseLocalFirst) dev.vinny.gsd.store.LocalErase.eraseAll(db)
+        OwnerChange.adopt(
+            local, previous, result.record.id,
+            keepLocalTasks = !eraseLocalFirst, nowMs = System.currentTimeMillis(),
+        )
         onOwnerConfirmed(result)
         switchPrompt.value = null
         _sessionExpired.value = false
