@@ -56,11 +56,18 @@ class SyncCoordinator(
             tokens.warm()
             val userId = auth.currentUserId()
             val previous = lastOwnerId()
-            if (userId != null && previous != null && previous != userId && local.activeTasks().isNotEmpty()) {
-                // The app died with the "Different account" prompt open: the token is saved, the owner is
-                // not. Ask again and stay signed out, so nothing syncs before the user decides (spec §8.21).
-                switchPrompt.value = AuthResult(tokens.token().orEmpty(), AuthRecord(userId))
-                return@launch
+            if (userId != null && previous != null && previous != userId) {
+                // The app died before an owner change finished: the token is saved, the owner is not.
+                val unfinished = AuthResult(tokens.token().orEmpty(), AuthRecord(userId))
+                if (local.activeTasks().isNotEmpty()) {
+                    // Ask again and stay signed out, so nothing syncs before the user decides (spec §8.21).
+                    switchPrompt.value = unfinished
+                    return@launch
+                }
+                // No tasks are left, so there is nothing to ask. "Start fresh" may have died right after
+                // its erase, which leaves the old account's cursor behind. Finish the change before any sync.
+                OwnerChange.adopt(local, previous, userId, keepLocalTasks = false, nowMs = System.currentTimeMillis())
+                onOwnerConfirmed(unfinished)
             }
             _signedIn.value = userId != null
             if (_signedIn.value) {
@@ -205,7 +212,8 @@ class SyncCoordinator(
     /**
      * "Keep my tasks" or "Start fresh" (§8.21). A different owner clears the pull cursor, and
      * kept tasks are seeded into the queue once so reconciliation protects them until they upload.
-     * The new owner is recorded last: a crash before that raises the prompt again on the next launch.
+     * The new owner is recorded last, so [start] can tell when the app died partway. With tasks
+     * left it raises the prompt again. With none left it finishes the change itself.
      */
     suspend fun confirmOwner(result: AuthResult, eraseLocalFirst: Boolean) {
         val previous = lastOwnerId()
