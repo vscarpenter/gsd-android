@@ -66,6 +66,12 @@ internal class FakeRemote : SyncRemote {
     var rateLimitAfter = Int.MAX_VALUE
     private var writes = 0
     var nextRecordId = 1
+    /** True models a dead session: the server answers the identity check as it would a guest. */
+    var rejectIdentity = false
+
+    override suspend fun confirmIdentity(ownerId: String) {
+        if (rejectIdentity) throw PocketBaseApi.Unauthorized(401)
+    }
 
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
         listResponder?.let { return it(page, updatedCursor) }
