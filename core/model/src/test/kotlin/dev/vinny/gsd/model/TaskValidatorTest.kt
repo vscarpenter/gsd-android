@@ -75,6 +75,36 @@ class TaskValidatorTest {
     }
 
     @Test
+    fun `normalize applies the three coercions`() {
+        val raw = task().copy(
+            tags = listOf(" Auth", "AUTH", "work", "  "),
+            estimatedMinutes = 0,
+            snoozedUntil = now.plus(400, ChronoUnit.DAYS),
+        )
+
+        val normalized = TaskValidator.normalize(raw, now)
+
+        assertEquals(listOf("auth", "work"), normalized.tags)
+        assertEquals(null, normalized.estimatedMinutes)
+        assertEquals(now.plus(365, ChronoUnit.DAYS), normalized.snoozedUntil)
+    }
+
+    @Test
+    fun `normalize never rejects, so a state change works on a synced task that breaks a limit`() {
+        // iOS counts characters, so 79 letters plus one emoji is a legal title there. It is 81 UTF-16 units.
+        val overLimit = task(title = "x".repeat(79) + "\uD83D\uDC4D").copy(
+            description = "d".repeat(601),
+            tags = List(21) { "tag-$it" },
+            estimatedMinutes = 10_081,
+        )
+
+        val normalized = TaskValidator.normalize(overLimit, now)
+
+        assertEquals(overLimit, normalized) // nothing to coerce, and nothing is truncated
+        assertFailsWith<TaskValidationError.TitleLength> { TaskValidator.validate(overLimit, now) }
+    }
+
+    @Test
     fun `id shorter than 4 rejected`() {
         assertFailsWith<TaskValidationError.IdTooShort> { TaskValidator.validate(task().copy(id = "abc"), now) }
     }

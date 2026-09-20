@@ -2,6 +2,7 @@ package dev.vinny.gsd.nav
 
 import android.content.Intent
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.view.KeyEvent
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsSelected
@@ -156,13 +157,31 @@ class TabNavigationTest {
         rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isEmpty() }
     }
 
-    /** A second Matrix entry would swallow the press and leave the activity resumed. */
+    /**
+     * A second Matrix entry would swallow the press and leave the activity resumed. So would a press
+     * that never reaches the activity. The palette leaves two such traps behind: a soft keyboard that
+     * is still up takes the press, and a window that has not regained input focus drops it.
+     */
     private fun assertOneBackPressLeavesTheApp(scenario: ActivityScenario<MainActivity>) {
+        val ready = System.currentTimeMillis() + 5_000
+        while ((keyboardIsUp() || !hasWindowFocus(scenario)) && System.currentTimeMillis() < ready) Thread.sleep(50)
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         val deadline = System.currentTimeMillis() + 5_000
         while (scenario.state == Lifecycle.State.RESUMED && System.currentTimeMillis() < deadline) Thread.sleep(100)
         assertNotEquals(Lifecycle.State.RESUMED, scenario.state)
     }
+
+    private fun hasWindowFocus(scenario: ActivityScenario<MainActivity>): Boolean {
+        var focused = false
+        scenario.onActivity { focused = it.hasWindowFocus() }
+        return focused
+    }
+
+    /** The keyboard belonged to the palette's window, so the activity's insets never report it. Ask the system. */
+    private fun keyboardIsUp(): Boolean =
+        ParcelFileDescriptor.AutoCloseInputStream(
+            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("dumpsys input_method"),
+        ).bufferedReader().use { "mInputShown=true" in it.readText() }
 
     private fun awaitSelected(label: String) =
         rule.waitUntil(5_000) { rule.onAllNodes(navItem(label) and isSelected()).fetchSemanticsNodes().isNotEmpty() }

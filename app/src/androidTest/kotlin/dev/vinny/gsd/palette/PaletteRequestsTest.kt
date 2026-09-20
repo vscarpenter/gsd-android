@@ -1,5 +1,6 @@
 package dev.vinny.gsd.palette
 
+import android.os.SystemClock
 import android.view.KeyEvent
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertCountEquals
@@ -19,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import kotlin.test.assertTrue
 
 /** Review finding S4: a request opens its surface once. Coming back to the Matrix tab must not replay it. */
 class PaletteRequestsTest {
@@ -52,13 +54,28 @@ class PaletteRequestsTest {
         container.palette.requestOpen() // what Ctrl+K and Ctrl+F send
 
         rule.waitUntil(5_000) { rule.onAllNodesWithTag("palette_query").fetchSemanticsNodes().isNotEmpty() }
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        rule.waitUntil(5_000) { rule.onAllNodesWithTag("palette_query").fetchSemanticsNodes().isEmpty() }
+        dismissThePalette()
 
         leaveTheMatrixTabAndReturn()
 
         rule.onAllNodesWithTag("palette_query").assertCountEquals(0)
     }
+
+    /**
+     * The query field takes focus, so the soft keyboard may be up. Back then hides the keyboard
+     * first, and only a second press closes the dialog. Which one happens depends on timing.
+     */
+    private fun dismissThePalette() {
+        repeat(2) {
+            if (paletteIsGone()) return
+            InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            val deadline = SystemClock.uptimeMillis() + 2_000
+            while (!paletteIsGone() && SystemClock.uptimeMillis() < deadline) Thread.sleep(50)
+        }
+        assertTrue(paletteIsGone(), "the palette closes within two Back presses")
+    }
+
+    private fun paletteIsGone() = rule.onAllNodesWithTag("palette_query").fetchSemanticsNodes().isEmpty()
 
     private fun leaveTheMatrixTabAndReturn() {
         rule.onNode(navItem("Browse")).performClick()

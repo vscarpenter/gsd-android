@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.Task
-import dev.vinny.gsd.model.TaskDuplicator
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.TaskStore
@@ -86,15 +85,12 @@ class MatrixViewModel(
         viewModelScope.launch {
             val current = store.get(id) ?: return@launch
             if (current.quadrant == quadrant) return@launch
-            store.update(current.copy(urgent = quadrant.urgent, important = quadrant.important))
+            store.change(id) { it.copy(urgent = quadrant.urgent, important = quadrant.important) }
         }
     }
 
     fun duplicate(id: String) {
-        viewModelScope.launch {
-            val current = store.get(id) ?: return@launch
-            store.add(TaskDuplicator.duplicate(current, java.time.Instant.now()))
-        }
+        viewModelScope.launch { store.duplicate(id) }
     }
 
     fun snooze(id: String, duration: java.time.Duration) {

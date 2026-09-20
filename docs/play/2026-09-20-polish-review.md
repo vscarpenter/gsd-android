@@ -41,7 +41,14 @@ The New Task and palette requests are now one-shot: a consumer claims each reque
 Only a started screen may claim one, because finding 4 can leave a second `MainActivity` underneath.
 `openNew` keeps an open draft, and `onCreate` handles the launch intent only on a fresh start.
 Six on-device tests failed first on the old behavior. Writing them turned up finding 43.
-S5 and S6 remain open.
+
+S6 is fixed on branch `fix/state-changes-never-reject`, stacked on the finding 43 branch (not merged).
+The rule is now "validate what the user types, where they type it", which is what the web and iOS already do.
+`TaskValidator` gained `normalize`, which applies the three allowed coercions and never throws. The editor, capture, share, import, and bulk Add tag still validate.
+Every state change only normalizes: complete, the recurrence spawn, the quadrant move, snooze, the timers, Duplicate, and bulk Move, Remove tag, and Set due.
+A view model test reproduced the crash first. The run ended with "Process crashed" on `TitleLength`.
+Text limits still count UTF-16 units, as on the web. The Android editor therefore asks the user to shorten an iOS title that holds an emoji before it saves, as the web does.
+S5 remains open.
 
 | # | Finding | Evidence |
 |---|---|---|

@@ -28,22 +28,16 @@ object BulkActions {
             try {
                 val applied = when (op) {
                     BulkOp.Complete -> store.setCompleted(id, true) != null
-                    is BulkOp.MoveTo -> store.get(id)?.let {
-                        store.update(it.copy(urgent = op.quadrant.urgent, important = op.quadrant.important))
-                        true
-                    } ?: false
+                    is BulkOp.MoveTo -> store.change(id) {
+                        it.copy(urgent = op.quadrant.urgent, important = op.quadrant.important)
+                    } != null
+                    // The tag is typed input, so this one validates the whole task (spec §7.11).
                     is BulkOp.AddTag -> store.get(id)?.let {
                         store.update(it.copy(tags = TaskValidator.normalizeTags(it.tags + op.tag)))
                         true
                     } ?: false
-                    is BulkOp.RemoveTag -> store.get(id)?.let {
-                        store.update(it.copy(tags = it.tags - op.tag))
-                        true
-                    } ?: false
-                    is BulkOp.SetDue -> store.get(id)?.let {
-                        store.update(it.copy(dueDate = op.due))
-                        true
-                    } ?: false
+                    is BulkOp.RemoveTag -> store.change(id) { it.copy(tags = it.tags - op.tag) } != null
+                    is BulkOp.SetDue -> store.change(id) { it.copy(dueDate = op.due) } != null
                     BulkOp.Delete -> store.delete(id) != null
                 }
                 if (applied) succeeded++ else failed++

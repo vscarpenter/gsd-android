@@ -1,60 +1,54 @@
-# Spec: account switch keeps tasks and resets the cursor (review finding S3)
+# Spec: state changes never reject a stored task (review finding S6)
 
-Approved in chat on 2026-09-20, with the restart guard included. Source: `docs/play/2026-09-20-polish-review.md`, finding S3.
-The S1 spec that lived in this file is in history at `97cb8d3` and `cbe1067`.
+Approved in chat on 2026-09-20, option "Validate typed input only". Source: `docs/play/2026-09-20-polish-review.md`, finding S6.
+The S3 spec that lived in this file is in history at `f9a0ab1`.
 
 ## Goal
 
-Signing in to a different account must never delete the tasks the user chose to keep, and it must pull the new account's full history.
-Today `confirmOwner` seeds nothing, so tasks already synced to the old account have no queue rows and reconciliation deletes them.
-The pull cursor is never reset, so the new account's records older than the old cursor never arrive.
+A task that arrived through sync must stay usable on Android even when it breaks an Android limit.
+iOS counts characters. The web and Android count UTF-16 units. A title of 79 letters plus one emoji is legal on iOS and is 81 units here.
+Pull stores it as is. Today any touch validates the whole task, throws, and crashes, because the view models and the notification receiver catch nothing.
+
+## The rule
+
+Validate what the user types, where they type it. A state change never rejects a stored task.
+The web and iOS already work this way. The web validates in `create.ts` and `update.ts` only. iOS validates in capture, create, and `save` only.
 
 ## Inputs and outputs
 
-- `OwnerChange.adopt(local, previousOwner, newOwner, keepLocalTasks, nowMs)` is new and pure. It acts only when a previous owner exists and differs from the new one.
-  - It clears the pull cursor.
-  - With `keepLocalTasks`, it enqueues one UPDATE row for every active task that has no pending or failed row. The payload is the task as stored, with no restamp.
-- `SyncLocalStore` gains `clearCursor()` and `enqueueUpdate(task, nowMs)`.
-- `SyncCoordinator.confirmOwner` reads the previous owner, erases local data when asked, runs `OwnerChange.adopt`, and only then records the new owner.
-- `SyncCoordinator.start` compares the stored token's user id with the last confirmed owner. When they differ and active tasks exist, it raises `switchPrompt` again and stays signed out until the user answers.
+- `TaskValidator.normalize(task, now)` is new, pure, and never throws. It applies the three coercions spec 7.11 allows: tags trimmed, lowercased, deduplicated, and empties dropped; estimate 0 becomes unset; a snooze is capped at 365 days.
+- `TaskValidator.validate(task, now)` keeps its contract. It normalizes, checks every limit on the normalized task, and throws a typed error.
+- `TaskStore.add`, `update`, and `replaceAll` still validate. Their callers are the editor, capture, share, import, and bulk Add tag.
+- `TaskStore.setCompleted`, `snooze`, `startTimer`, and `stopTimer` only normalize. The recurrence spawn only normalizes.
+- `TaskStore.change(id, transform)` is new. It reads the stored task, applies the transform, normalizes, stamps `updatedAt`, enqueues an UPDATE, and writes. It returns null when the task is gone. Its callers are the quadrant move (Matrix and bulk), bulk Remove tag, and bulk Set due.
+- `TaskStore.duplicate(id)` is new. It copies through `TaskDuplicator`, normalizes, and enqueues a CREATE. It returns null when the task is gone.
 
 ## Constraints
 
-- A same-owner sign-in changes nothing. A task deleted on another device while this one was signed out still deletes here.
-- Seeded rows are never restamped, so last-write-wins still decides against anything already in the new account.
-- The seed runs once, at the moment of the decision. It does not depend on the cursor advancing.
-- `:core:sync` stays free of Android imports. The seed and cursor rules are JVM tests over fakes.
+- Every new path keeps the enqueue-before-write invariant: one transaction, queue row first.
+- Units stay UTF-16, as on the web. No limit changes.
+- `:core:model` stays free of Android imports. `normalize` gets JVM tests.
+- Typed input still fails with a typed error and human copy.
 
 ## Edge cases
 
-- First sign-in on an install: no previous owner, so nothing changes. Local tasks already have queue rows.
-- New owner, no local tasks: no prompt. The cursor still clears, so the full pull runs.
-- "Start fresh": local data is erased first, the cursor clears, and nothing is seeded.
-- "Delete account and keep tasks" followed by a new sign-in: the queue was cleared, so every kept task is seeded.
-- A task with only failed rows keeps those rows. The manual sync that follows a sign-in requeues them.
-- The app dies while the prompt is open: the token is saved and the owner is not. The next launch raises the prompt again instead of syncing. A crash midway through the seed ends the same way, and a second answer seeds the rest.
-- The rebuilt prompt knows the user id from the token and no email. A blank email is stored as no email.
-
-## Out of scope
-
-- Seeding on every nil-cursor sync, as iOS does.
-- Clearing the cursor on sign-out.
-- Persisting the pending sign-in provider across a restart.
-- The other review findings.
+- An over-limit task opened in the editor: Save fails with the title message until the user shortens the title. The web does the same today.
+- Bulk Add tag on an over-limit task: counted as failed, as today. The tag is typed input, so the whole task validates.
+- A snooze more than 365 days out: still capped.
+- Completing a recurring task: the completion and the spawned instance land in one transaction, and neither validates.
+- A task deleted between the tap and the write: `change` and `duplicate` return null and write nothing.
 
 ## Acceptance criteria
 
-1. New owner, keep: exactly the tasks without queue rows get one UPDATE row each, unstamped, and the cursor is null.
-2. New owner, start fresh: the cursor is null and nothing is enqueued.
-3. Same owner: the cursor and the queue are unchanged.
-4. First sign-in: the cursor and the queue are unchanged.
-5. After a keep, one engine run against an empty remote leaves the task on the device and creates it remotely.
-6. On a device, "Keep my tasks" keeps the task locally and uploads it to the new account.
-7. On a device, "Start fresh" pulls a task older than the old account's cursor.
-8. On a device, an unanswered prompt comes back after a restart, nothing syncs, and every task survives.
-9. `./gradlew :core:model:test`, `./gradlew testDebugUnitTest`, and `./gradlew connectedAndroidTest` are green.
+1. A pulled task titled with 79 letters plus one emoji can be completed, snoozed, timed, moved, and duplicated.
+2. Completing a recurring one spawns the next instance with the same title.
+3. `update` with that title still throws `TitleLength`.
+4. `normalize` never throws on an over-limit task, and it applies the three coercions.
+5. Bulk Move, Remove tag, and Set due succeed on that task. Bulk Add tag reports it as failed.
+6. Every gate is green: `:core:model:test`, `testDebugUnitTest`, `connectedAndroidTest`, `assembleDebug`, and `assembleRelease`.
 
-## Test stubs
+## Out of scope
 
-- `OwnerChangeTest` (JVM): criteria 1 to 5.
-- `SyncCoordinatorOwnerChangeTest` (instrumented): criteria 6 to 8.
+- Counting characters instead of UTF-16 units.
+- Review finding S5 (completing an already-completed recurring task).
+- A catch-all for other exceptions in the view models or the receiver.

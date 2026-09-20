@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.TaskStore
+import dev.vinny.gsd.sync.RoomSyncLocalStore
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -64,6 +65,38 @@ class BulkActionsTest {
         val result = BulkActions.apply(store, setOf(a.id, b.id), BulkOp.Delete)
         assertEquals(2, result.succeeded)
         assertEquals(0, store.observeTasks().first().size)
+    }
+
+    /** Review finding S6: 80 characters on iOS, 81 UTF-16 units here. Pull stores it without validating. */
+    private suspend fun pulledOverTheLimit(tags: List<String> = emptyList()): Task {
+        val task = draft("x".repeat(79) + "\uD83D\uDC4D")
+            .copy(tags = tags, createdAt = fixed.instant(), updatedAt = fixed.instant())
+        RoomSyncLocalStore(db).upsertFromRemote(task)
+        return task
+    }
+
+    @Test
+    fun bulkStateChangesWorkOnASyncedTaskOverTheLimit() = runTest {
+        val task = pulledOverTheLimit(tags = listOf("focus"))
+        val stateChanges = listOf(
+            BulkOp.MoveTo(dev.vinny.gsd.model.Quadrant.DO_FIRST),
+            BulkOp.RemoveTag("focus"),
+            BulkOp.SetDue(fixed.instant().plusSeconds(86_400)),
+            BulkOp.Complete,
+        )
+
+        stateChanges.forEach { op ->
+            assertEquals(BulkResult(succeeded = 1, failed = 0), BulkActions.apply(store, setOf(task.id), op), "$op")
+        }
+    }
+
+    @Test
+    fun bulkAddTagStillValidatesBecauseTheTagIsTyped() = runTest {
+        val task = pulledOverTheLimit()
+
+        val result = BulkActions.apply(store, setOf(task.id), BulkOp.AddTag("focus"))
+
+        assertEquals(BulkResult(succeeded = 0, failed = 1), result)
     }
 
     @Test
