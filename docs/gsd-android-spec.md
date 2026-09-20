@@ -330,6 +330,7 @@ The app adapts by **window size class**, the Android analog of the iPhone/iPad s
 ### 6.1 Compact width (phones)
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 43
 
 A **bottom navigation bar** with four destinations:
 
@@ -339,6 +340,8 @@ A **bottom navigation bar** with four destinations:
 4. **Settings** — §8.17.
 
 Archive is deliberately *inside* Browse, not a fifth destination.
+
+Tapping a destination keeps one copy of it on the back stack, and the tab being left keeps its own stack. Tapping Matrix always lands on the Matrix root. A deep link (§6.4) or a palette row (§8.14) that names one of the four destinations behaves exactly like a tap on it. Any other route pushes over the current screen, and the Matrix tab still returns to Matrix from there.
 
 ### 6.2 Medium & expanded width (tablets, unfolded foldables, freeform windows)
 
@@ -353,7 +356,7 @@ Archive is deliberately *inside* Browse, not a fifth destination.
 ### 6.4 Deep links
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
-> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S4
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4 and 43
 
 Register the **`gsd://` scheme** (intent filters on the main activity). Routes — identical to iOS so widgets, shortcuts, and notifications share one router:
 

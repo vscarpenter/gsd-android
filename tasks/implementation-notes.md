@@ -38,3 +38,15 @@
 - **v2 compose rule:** `LaunchIntentTest` uses `junit4.v2.createEmptyComposeRule`. The v1 rule runs effects inline, so the `pendingRoute` collector navigates before the `Scaffold` has composed the `NavHost`. The run then dies with "Navigation graph has not been set". Production posts the effect, and a fresh-install launch on `gsd://capture` through onboarding did not crash.
 - **Not changed:** `openTaskRequests` is still a nullable `StateFlow` that its consumer resets. The `onCreate` guard covers its rotation replay. Two stacked activities can still both open the task (review finding 4).
 - **Residual:** Ctrl+N or Ctrl+K pressed off the Matrix tab waits for the next visit to Matrix, then opens once. Before the fix it opened on every visit.
+
+## Finding 43 Matrix tab (2026-09-20)
+
+- **Tier:** Standard. About 25 production lines in three files, with no wire or schema change. The plan lived in `tasks/todo.md`.
+- **Read the library first:** the fix rests on `NavControllerImpl.kt` in Navigation 2.9.0 (sources jar in the Gradle cache). `executePopOperations` files the saved stack under the `popUpTo` destination on a non-inclusive pop, and `navigate` checks `backStackMap` for a restore right after that pop.
+- **Why Matrix pops instead of navigating:** Matrix is always the `popUpTo` target, so a restore brings back the screen the same call popped. For the other three tabs the saved stack is filed under their own route, which is what multi-back-stack needs.
+- **The wrong turn:** the first fix kept `navigate()` and set `restoreState = destination != MATRIX`. In `navigate`, `launchSingleTop` only runs when the restore branch does not, so the old code never reached it for Matrix. The new call did, and `launchSingleTopInternal` replaced the visible entry with a copy that stayed at CREATED (`ON_CREATE`, then nothing, confirmed by hand with a lifecycle observer). `collectAsStateWithLifecycle` and `ConsumeWhileStarted` both went silent. The S4 `LaunchIntentTest` failed in the full suite and pointed at it.
+- **I misread that failure at first.** I took the failing line for the wait on the sheet opening. It was the wait on the sheet closing. Logging `openNew` and `dismiss` with the view model's identity settled it in one run.
+- **Guard test:** `aSiblingTabKeepsItsStackAcrossAVisitToMatrix` passed before the change, so I proved it by mutation. With `restoreState = false` for every tab it failed on the missing Archive screen.
+- **Deterministic red for the doubled entry:** the test waits for `pendingRoute` to clear before it presses Back. Without that wait, Back can land before the router pushes the second Matrix entry, and the test passes against broken code.
+- **Known cost:** an entry popped with `saveState` keeps its view model until something restores it. A smart view pushed over Matrix is never restored, so its view model lives until the activity ends. The old code had the same cost on the same paths.
+- **Not changed:** with a sub-screen open, no tab shows as selected. That was already true for Archive opened from Browse.
