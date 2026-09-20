@@ -69,3 +69,11 @@
 - **One step past the web:** a redundant call writes nothing here. The web still restamps `updatedAt` and `completedAt`. The reason is the S2 lesson about bookkeeping writes and last-write-wins.
 - **The race was worse than the review said:** the double-fire test used eight concurrent calls so the red run could not pass by luck. All eight spawned.
 - **Red check for a test written after the fix:** the bulk Done test came after the store change, so I swapped the old `TaskStore.kt` back for one run. It failed with `expected 2 but was 3`, then passed with the fix restored.
+
+## Merging the review fixes (2026-09-20)
+
+- **Method:** seven stacked pull requests, #3 to #9, merged bottom-up with merge commits, which is how #1 and #2 were merged. `main` had not moved since the stack began, so after each merge `origin/main` matched the merged branch exactly.
+- **"No issues" needed a definition.** I used: a finished review, every comment read, and nothing above a nit left open. Four CI reviews were no-ops, so I ran fresh-context reviews for #4, #6, #9, and the late fixes on #5.
+- **#5 changed under review.** The CI review found the erase and cursor ordering bug. I fixed it in a worktree so the reviewers reading the main tree were not disturbed. A second reviewer then found that my new test had gone vacuous, that the spec contradicted the code in three places, and a sibling bug with an unrecorded first owner. All three landed in #5 before it merged.
+- **#6 merged with a known regression, by owner decision.** I reproduced it by hand first: app on screen, capture link sent, no sheet on the visible activity, sheet found on the covered one after Back. I did not improvise a lifecycle fix inside the merge window, because the proper cure is finding 4.
+- **Not done:** no branch was deleted, and no PR comment was posted. Both need the owner's go-ahead.

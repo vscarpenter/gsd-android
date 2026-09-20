@@ -156,9 +156,41 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
+## Resuming From Here (2026-09-20, review fixes merged to main)
+- **Done:** pull requests #3 to #9 are merged to `main`, in order, with merge commits: S1, S2, S3, S4, finding 43,
+  S6, S5. The PRs were stacked, each based on the branch below it, so each one listed only its own commits. After
+  each merge the next PR was retargeted to `main`. No rebase and no force push.
+- **Found in review and fixed in #5 before it merged:**
+  - `LocalErase.eraseAll` now clears the pull cursor inside its transaction. Before, "Start fresh" erased first and
+    cleared the cursor in a later step. A process death in between left a wiped device on the old account's cursor.
+  - `SyncCoordinator.start` finishes an owner change that died with no tasks left. It clears the cursor and records
+    the owner before it signs in.
+  - `start` also records a first owner that died unrecorded. Without it, a later account switch found no previous
+    owner, raised no prompt, and reconciliation deleted the first account's tasks from the device.
+  - My first test for this went vacuous once the erase cleared the cursor itself. It now builds the state directly,
+    and it fails when the `adopt` call is removed.
+  - Spec 8.16, 8.21, and 9.4 say all of this. Spec 4.7 no longer claims that no other device reads the device-local
+    fields, because iOS reads them when it first creates its local copy.
+- **Accepted at merge time, owner decision:** since S4, a `gsd://capture` link that arrives while the app is on
+  screen opens the New Task sheet on the covered `MainActivity`. Confirmed live. Cold start, background start, and
+  rotation work. It is recorded under review finding 4 and gets fixed there.
+- **How the reviews went:** the CI review workflow ran for real on #3, #5, #7, and #8. On #4, #6, and #9, and on
+  every re-run after a push, it finished in about 15 seconds with a green check and no review. Its
+  `--allowedTools` allows only the inline comment tool, so the review plugin's first `gh` call is denied. I covered
+  the gaps with fresh-context reviewers. They found the S4 regression above, the vacuous test, and findings 44 and 45.
+- **Next:** finding 4 first (one `MainActivity` instance, which also ends the S4 regression). Then findings 1 to 3,
+  5, 44, and 45, each test-first.
+- **Owner decisions still open:** the seven merged branches remain on origin and locally. Two published commit
+  subjects run past the 72 character limit (`b9c49ca` at 76 and `9bd2aba` at 75). Fixing them would mean rewriting
+  published history, so they stay. The review workflow needs a wider `--allowedTools` to review every PR.
+- **Blockers:** none.
+- **Gates on `main` at `1387b16`:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43),
+  `connectedAndroidTest` 154 on `gsd-test` (`:app` 99, `:core:store` 55), `:app:assembleDebug`, and
+  `:app:assembleRelease` (R8 clean). All green. This was the first run of the late #5 fixes together with S4 to S5.
+
 ## Resuming From Here (2026-09-20, S5 completion is a transition)
-- **Done:** review finding S5 is fixed on branch `fix/completion-is-a-transition`, stacked on the S6 branch. Not
-  merged, not pushed. The S6 branch is pushed. Tier was Standard: one store method, no new API, and both siblings
+- **Done:** review finding S5 is fixed on branch `fix/completion-is-a-transition`, stacked on the S6 branch.
+  Merged in #9. Tier was Standard: one store method, no new API, and both siblings
   already guard the spawn.
   - `TaskStore.setCompleted` reads the row inside the transaction and returns the task untouched when it already
     has the requested state. No spawn, no restamp, no queue row.
@@ -182,7 +214,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 
 ## Resuming From Here (2026-09-20, S6 state changes never reject)
 - **Done:** review finding S6 is fixed on branch `fix/state-changes-never-reject`, stacked on the finding 43
-  branch. Not merged, not pushed. The design was approved in chat (option "Validate typed input only"), and the
+  branch. Merged in #8. The design was approved in chat (option "Validate typed input only"), and the
   spec is `tasks/spec.md`.
   - `TaskValidator.normalize` applies the three allowed coercions and never throws. `validate` is built on it.
   - `TaskStore.add`, `update`, and `replaceAll` still validate. `setCompleted`, its recurrence spawn, `snooze`, and
@@ -210,8 +242,8 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   down. It was back to 1m 55s on the next change with no reboot, so host load is the likelier cause.
 
 ## Resuming From Here (2026-09-20, finding 43 Matrix tab)
-- **Done:** review finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch. Not
-  merged, not pushed.
+- **Done:** review finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch.
+  Merged in #7.
   - `nav/TabNavigation.kt` holds `navigateToTab` and `navigateToRoute`. For Matrix, `navigateToTab` pops back to
     the start destination with `saveState`. For the other three tabs it is the old tab handler, unchanged.
   - The tab bar, rail, and drawer call `navigateToTab`. The deep link router calls it for Matrix, Dashboard, and
@@ -243,7 +275,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 
 ## Resuming From Here (2026-09-20, S4 one-shot requests)
 - **Done:** review finding S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch. Four
-  code commits (`2cf82b3`, `2f77612`, `1d0f38c`, `fdbf6f5`) plus one docs commit (`8c49929`). Pushed, not merged.
+  code commits (`2cf82b3`, `2f77612`, `1d0f38c`, `fdbf6f5`) plus one docs commit (`8c49929`). Merged in #6.
   - `palette/OneShotRequest` holds a request until a consumer claims it with `compareAndSet`.
   - `palette/ConsumeWhileStarted` consumes only while the screen is at least STARTED. `MatrixScreen` uses it for the
     New Task and palette requests.
@@ -268,7 +300,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 
 ## Resuming From Here (2026-09-20, S3 account switch keeps tasks)
 - **Done:** review finding S3 is fixed on branch `fix/account-switch-keeps-tasks`, five commits from `f9a0ab1` to
-  `9bd2aba`, stacked on `fix/reminder-bookkeeping-lww`. Pushed, not merged. The pure `OwnerChange.adopt` in
+  `9bd2aba`, stacked on `fix/reminder-bookkeeping-lww`. Merged in #5, with three more fixes from review. The pure `OwnerChange.adopt` in
   `:core:sync` clears the pull cursor on an owner change and, for "Keep my tasks", seeds one unstamped UPDATE row
   per active task that has no queue row. `SyncCoordinator.confirmOwner` runs it and records the new owner last.
   `SyncCoordinator.start` raises the "Different account" prompt again when the saved token's user differs from
@@ -291,7 +323,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 
 ## Resuming From Here (2026-09-20, S2 reminder bookkeeping and LWW)
 - **Done:** review finding S2 is fixed on branch `fix/reminder-bookkeeping-lww`, three commits from `45d0a7e` to
-  `d79ad2a`, stacked on `fix/sync-dead-session-guard`. Pushed, not merged. `ReminderReceiver` now records a
+  `d79ad2a`, stacked on `fix/sync-dead-session-guard`. Merged in #4. `ReminderReceiver` now records a
   posted reminder through the new `TaskStore.markReminderSent`, one column update that never restamps `updatedAt`
   and queues no push. Spec 4.7 and 11.2 are amended, and the README's enqueue invariant names the exception.
 - **Proof:** both new tests failed first on the restamp. The store test saw `updatedAt` move from 12:00 to 13:00,
@@ -310,7 +342,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 
 ## Resuming From Here (2026-09-20, S1 dead-session sync guard)
 - **Done:** review finding S1 is fixed on branch `fix/sync-dead-session-guard`, seven commits from `97cb8d3` to
-  `cbe1067`. Pushed, not merged. `SyncEngine.runSync` aborts with `NotSignedIn` when no owner resolves.
+  `cbe1067`. Merged in #3. `SyncEngine.runSync` aborts with `NotSignedIn` when no owner resolves.
   `reconcileDeletions` calls the new `SyncRemote.confirmIdentity` before the first ABANDON or APPLY verdict.
   `PocketBaseApi` implements it with auth-refresh plus a record-id comparison. `SyncCoordinator` ends the session
   on `notSignedIn` and raises `sessionExpired`, and Settings shows the expired note. Spec 9.4 and 10.3 are amended.
