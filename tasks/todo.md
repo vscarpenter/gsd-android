@@ -156,10 +156,41 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
+## Resuming From Here (2026-09-20, finding 43 Matrix tab)
+- **Done:** review finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch. Not
+  merged, not pushed.
+  - `nav/TabNavigation.kt` holds `navigateToTab` and `navigateToRoute`. For Matrix, `navigateToTab` pops back to
+    the start destination with `saveState`. For the other three tabs it is the old tab handler, unchanged.
+  - The tab bar, rail, and drawer call `navigateToTab`. The deep link router calls it for Matrix, Dashboard, and
+    Settings routes. The palette's navigation goes through `navigateToRoute`, which picks the tab helper for a
+    top-level route and a plain push for anything else.
+  - Spec 6.1 and 6.4 are amended.
+- **Proof:** four on-device tests failed first on the old code. The Matrix tab stayed unselected after a smart view deep link and
+  after the palette's Dashboard row. One Back press did not leave the app after `gsd://focus` or after the
+  palette's Matrix row. Four more failed against my first fix: the editor sheet would not close after `gsd://capture`, it would
+  not open after the tab returned to Matrix, and a stub `NavHost` showed the Matrix entry at CREATED instead of
+  RESUMED (two tests). A ninth test guards the stack a sibling tab keeps. It passed before the change, and it
+  failed when I turned restore off for every tab, so it does protect that behavior. Gates are in the block's
+  last line.
+- **The wrong turn:** the first fix kept `navigate()` for Matrix and only set `restoreState` to false. That call
+  then reached `launchSingleTop`, which swaps the visible Matrix entry for a copy that never rises past CREATED.
+  The sheet could not close and the screen stopped updating. The S4 `LaunchIntentTest` caught it in the full
+  suite, before any push. The commit was amended, so the broken version is not in history.
+- **Decisions:** tapping Matrix always lands on the Matrix root. A screen pushed over Matrix is popped with
+  `saveState`, as before, and nothing restores it. Navigation keeps that entry's view model until the activity
+  ends. That cost already existed on the same paths, and it is small.
+- **Next:** owner decision to merge the five branches in order: S1, S2, S3, S4, then this one. Then S6 (a crash),
+  S5, and findings 1 to 5, each test-first.
+- **Blockers:** none.
+- **Assumptions:** sub-screens (smart view, Archive, Trash, feedback) still push over the current screen, so Back
+  returns to where the user was. Review finding 4 (`launchMode` and stacked activities) stays a separate change.
+- **Gates:** `:core:model:test` 132, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 134
+  on `gsd-test` (`:app` 92, `:core:store` 42), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
+  green. Checked by hand too: widget link, Matrix tab, then a captured task showed up in Do First.
+
 ## Resuming From Here (2026-09-20, S4 one-shot requests)
 - **Done:** review finding S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch. Four
-  code commits (`2cf82b3`, `2f77612`, `1d0f38c`, `fdbf6f5`) plus one docs commit. Not merged. The last three code
-  commits and the docs commit are not pushed.
+  code commits (`2cf82b3`, `2f77612`, `1d0f38c`, `fdbf6f5`) plus one docs commit (`8c49929`). Pushed, not merged.
   - `palette/OneShotRequest` holds a request until a consumer claims it with `compareAndSet`.
   - `palette/ConsumeWhileStarted` consumes only while the screen is at least STARTED. `MatrixScreen` uses it for the
     New Task and palette requests.
@@ -173,19 +204,18 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   `:core:store` 42), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All green.
 - **Found on the way:** review finding 43. After a deep link or a palette Navigation row opens another screen, the
   Matrix tab does nothing, and only Back reaches Matrix. The widget header and the "Today's Focus" shortcut both
-  lead into it. Not fixed. Recommended next, ahead of S5 and S6, because every widget tap leads into it.
+  lead into it. Fixed on the next branch (see the block above).
 - **Emulator:** the `google_apis` API 36 system image lost its `.img` files again mid-session. `sdkmanager --install`
   did nothing, because the leftover `package.xml` made it look installed. `--uninstall` then `--install` restored
   it (4.3 GB). The `google_apis_playstore` image is broken the same way and no AVD uses it. The cause is unknown.
-- **Next:** owner decision to merge the four branches in order: S1, S2, S3, S4. Then finding 43, S5, and S6, each
-  test-first.
+- **Next:** see the finding 43 block above.
 - **Blockers:** none.
 - **Assumptions:** an open editor wins over a new-task request. A request made off the Matrix tab waits for the next
   visit to Matrix, then opens once. Review finding 4 (`launchMode` and stacked activities) stays a separate change.
 
 ## Resuming From Here (2026-09-20, S3 account switch keeps tasks)
 - **Done:** review finding S3 is fixed on branch `fix/account-switch-keeps-tasks`, five commits from `f9a0ab1` to
-  `9bd2aba`, stacked on `fix/reminder-bookkeeping-lww`. Not merged, not pushed. The pure `OwnerChange.adopt` in
+  `9bd2aba`, stacked on `fix/reminder-bookkeeping-lww`. Pushed, not merged. The pure `OwnerChange.adopt` in
   `:core:sync` clears the pull cursor on an owner change and, for "Keep my tasks", seeds one unstamped UPDATE row
   per active task that has no queue row. `SyncCoordinator.confirmOwner` runs it and records the new owner last.
   `SyncCoordinator.start` raises the "Different account" prompt again when the saved token's user differs from
@@ -208,7 +238,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 
 ## Resuming From Here (2026-09-20, S2 reminder bookkeeping and LWW)
 - **Done:** review finding S2 is fixed on branch `fix/reminder-bookkeeping-lww`, three commits from `45d0a7e` to
-  `d79ad2a`, stacked on `fix/sync-dead-session-guard`. Not merged, not pushed. `ReminderReceiver` now records a
+  `d79ad2a`, stacked on `fix/sync-dead-session-guard`. Pushed, not merged. `ReminderReceiver` now records a
   posted reminder through the new `TaskStore.markReminderSent`, one column update that never restamps `updatedAt`
   and queues no push. Spec 4.7 and 11.2 are amended, and the README's enqueue invariant names the exception.
 - **Proof:** both new tests failed first on the restamp. The store test saw `updatedAt` move from 12:00 to 13:00,
@@ -227,7 +257,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 
 ## Resuming From Here (2026-09-20, S1 dead-session sync guard)
 - **Done:** review finding S1 is fixed on branch `fix/sync-dead-session-guard`, seven commits from `97cb8d3` to
-  `cbe1067`. Not merged, not pushed. `SyncEngine.runSync` aborts with `NotSignedIn` when no owner resolves.
+  `cbe1067`. Pushed, not merged. `SyncEngine.runSync` aborts with `NotSignedIn` when no owner resolves.
   `reconcileDeletions` calls the new `SyncRemote.confirmIdentity` before the first ABANDON or APPLY verdict.
   `PocketBaseApi` implements it with auth-refresh plus a record-id comparison. `SyncCoordinator` ends the session
   on `notSignedIn` and raises `sessionExpired`, and Settings shows the expired note. Spec 9.4 and 10.3 are amended.

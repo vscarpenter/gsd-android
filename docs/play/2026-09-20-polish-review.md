@@ -23,20 +23,20 @@ The production application and its review take days, so the fix work can run in 
 
 The release-readiness pass found these by reading `:core:sync` and `:core:store`. I re-read every cited line.
 
-Status, 2026-09-20: S1 is fixed on branch `fix/sync-dead-session-guard` (seven commits, not merged, not pushed).
+Status, 2026-09-20: S1 is fixed on branch `fix/sync-dead-session-guard` (seven commits, pushed, not merged).
 The first red test reproduced the loss with no server involved: a null owner plus an empty listing deleted the synced task.
 The engine now aborts without an owner and confirms the owner with the server before it trashes or deletes anything.
 The server's guest response is still unverified, and it no longer matters for safety.
 
-S2 is fixed on branch `fix/reminder-bookkeeping-lww`, stacked on the S1 branch (three commits, not merged, not pushed).
+S2 is fixed on branch `fix/reminder-bookkeeping-lww`, stacked on the S1 branch (three commits, pushed, not merged).
 The receiver now records a posted reminder through `TaskStore.markReminderSent`, which never restamps `updatedAt` and queues no push.
 A user-initiated snooze still restamps and syncs, because web and iOS both do.
 
-S3 is fixed on branch `fix/account-switch-keeps-tasks`, stacked on the S2 branch (five commits, not merged, not pushed).
+S3 is fixed on branch `fix/account-switch-keeps-tasks`, stacked on the S2 branch (five commits, pushed, not merged).
 A JVM test reproduced the loss: the first run against the new account deleted both already-synced tasks.
 An owner change now clears the pull cursor, "Keep my tasks" seeds the queue once, and an unanswered prompt comes back after a restart.
 
-S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch (four code commits, not merged).
+S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch (four code commits, pushed, not merged).
 The New Task and palette requests are now one-shot: a consumer claims each request, so a new Matrix composition has nothing to replay.
 Only a started screen may claim one, because finding 4 can leave a second `MainActivity` underneath.
 `openNew` keeps an open draft, and `onCreate` handles the launch intent only on a fresh start.
@@ -53,6 +53,13 @@ S5 and S6 remain open.
 | S6 | Any mutation of a task whose synced title passes 80 UTF-16 units crashes. Pull skips validation, every mutation validates the whole task, and the view model actions and receivers catch nothing. iOS counts graphemes, so a legal 80-character iOS title with one emoji is over the Android limit. | code, `TaskValidator.kt:31`, `matrix/MatrixViewModel.kt:54-59`, iOS `Validation.swift:64` |
 
 ## Broken behavior (fix before promoting to production)
+
+Status, 2026-09-20: finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch (not merged).
+Going to Matrix is now a pop with `saveState`, never a `navigate`. Matrix is the start destination, so it is always at the bottom of the stack.
+Deep links and palette rows that name Matrix, Dashboard, or Settings go through the same tab helper, so none of them pushes a second copy.
+My first fix only turned `restoreState` off for Matrix, and it was wrong. `launchSingleTop` then swapped the visible Matrix entry for a copy that never rose past CREATED, which silenced every lifecycle-aware collector on the screen. The S4 launch test caught it before any push.
+Four activity tests failed first on the old code. Two more activity tests, and two on a stub `NavHost` that read the entry's lifecycle, failed on my first fix. A ninth guards the stack a sibling tab keeps across a visit to Matrix.
+Findings 1 to 14 and 37 to 42 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -156,7 +163,7 @@ These came from the release-readiness pass. I confirmed the code but did not rep
 ## Suggested order
 
 1. S1 to S6 first, each with a regression test. Start with S1: add a null-owner test that must delete nothing, then abort the run when no owner resolves.
-2. Findings 1 to 5 and 43 are small, contained code fixes. Land them next with regression tests. Put 43 first: the widget and the "Today's Focus" shortcut both lead into it.
+2. Findings 1 to 5 are small, contained code fixes. Land them next with regression tests. Finding 43 is already fixed.
 3. Findings 6 to 8 decide whether the reminder feature matches the listing. Add the date and time picker, the contextual permission ask, and the exact alarm row.
 4. Findings 9 to 14 repair dark mode, large screens, large text, the share sheet, and select mode. Findings 37 to 42 cover theming outside the phone layout, import and export, and the dead setting.
 5. Findings 15 to 18 close the policy gaps before the production review reads the listing. Update the privacy page in the same pass.
