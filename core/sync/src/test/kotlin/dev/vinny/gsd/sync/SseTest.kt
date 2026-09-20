@@ -26,6 +26,8 @@ private class FakeSseLocal : SyncLocalStore {
     override suspend fun requeueFailed() = Unit
     override suspend fun cursor(): String? = null
     override suspend fun saveCursor(cursor: String) = Unit
+    override suspend fun clearCursor() = Unit
+    override suspend fun enqueueUpdate(task: Task, nowMs: Long) = Unit
     override suspend fun deviceId(): String = "this-device"
     override suspend fun insertHistory(entry: SyncHistoryEntry) = Unit
     override suspend fun tombstoneAtMs(id: String): Long? = tombstones[id]

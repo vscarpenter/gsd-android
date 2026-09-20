@@ -54,7 +54,24 @@ class SyncCoordinator(
     fun start() {
         scope.launch {
             tokens.warm()
-            _signedIn.value = auth.currentUserId() != null
+            val userId = auth.currentUserId()
+            val previous = lastOwnerId()
+            if (userId != null && previous != userId) {
+                // The app died before it recorded this owner: the token is saved, the owner is not.
+                val unfinished = AuthResult(tokens.token().orEmpty(), AuthRecord(userId))
+                if (previous != null && local.activeTasks().isNotEmpty()) {
+                    // A different account with tasks to decide about. Ask again and stay signed out,
+                    // so nothing syncs before the user decides (spec §8.21).
+                    switchPrompt.value = unfinished
+                    return@launch
+                }
+                // Nothing to ask: this is the first owner, or no tasks are left. Finish the change before
+                // any sync. adopt clears a cursor the old account left behind. Recording the owner matters
+                // even for the first one, or a later account switch finds no previous owner and never asks.
+                OwnerChange.adopt(local, previous, userId, keepLocalTasks = false, nowMs = System.currentTimeMillis())
+                onOwnerConfirmed(unfinished)
+            }
+            _signedIn.value = userId != null
             if (_signedIn.value) {
                 engine.requeueFailed() // launch trigger requeues failed items (spec §9.5)
                 requestSync(false)
@@ -69,9 +86,10 @@ class SyncCoordinator(
                     val result = engine.runSync(user)
                     lastResult.value = result
                     if (result.notSignedIn) {
-                        // A definitive refresh rejection cleared the token: the session is over (spec §10.3)
-                        _signedIn.value = false
+                        // A definitive refresh rejection cleared the token: the session is over (spec §10.3).
+                        // Expired first, so whoever sees "signed out" also sees why.
                         _sessionExpired.value = true
+                        _signedIn.value = false
                     }
                 } finally {
                     syncing.value = false
@@ -193,9 +211,19 @@ class SyncCoordinator(
         return result
     }
 
-    /** "Keep my tasks" (merge — the queue seed-uploads) or "Start fresh" (§8.21). */
+    /**
+     * "Keep my tasks" or "Start fresh" (§8.21). A different owner clears the pull cursor, and
+     * kept tasks are seeded into the queue once so reconciliation protects them until they upload.
+     * The new owner is recorded last, so [start] can tell when the app died partway. With tasks
+     * left it raises the prompt again. With none left it finishes the change itself.
+     */
     suspend fun confirmOwner(result: AuthResult, eraseLocalFirst: Boolean) {
+        val previous = lastOwnerId()
         if (eraseLocalFirst) dev.vinny.gsd.store.LocalErase.eraseAll(db)
+        OwnerChange.adopt(
+            local, previous, result.record.id,
+            keepLocalTasks = !eraseLocalFirst, nowMs = System.currentTimeMillis(),
+        )
         onOwnerConfirmed(result)
         switchPrompt.value = null
         _sessionExpired.value = false

@@ -72,6 +72,13 @@ interface SyncLocalStore {
     suspend fun requeueFailed()
     suspend fun cursor(): String?
     suspend fun saveCursor(cursor: String)
+
+    /** Forget the pull cursor so the next run lists the whole account (spec §8.21). */
+    suspend fun clearCursor()
+
+    /** Queue a push of [task] exactly as stored: no restamp, so LWW still decides (spec §8.21). */
+    suspend fun enqueueUpdate(task: Task, nowMs: Long)
+
     suspend fun deviceId(): String
     suspend fun insertHistory(entry: SyncHistoryEntry)
 

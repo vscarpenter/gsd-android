@@ -13,7 +13,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-private class FakeLocal : SyncLocalStore {
+// internal (not private): OwnerChangeTest reuses this fake across files in the module.
+internal class FakeLocal : SyncLocalStore {
     val tasks = mutableMapOf<String, Task>()
     val queue = mutableListOf<SyncQueueEntity>()
     val history = mutableListOf<SyncHistoryEntry>()
@@ -49,6 +50,13 @@ private class FakeLocal : SyncLocalStore {
     }
     override suspend fun cursor(): String? = savedCursor
     override suspend fun saveCursor(cursor: String) { savedCursor = cursor }
+    override suspend fun clearCursor() { savedCursor = null }
+    override suspend fun enqueueUpdate(task: Task, nowMs: Long) {
+        queue += SyncQueueEntity(
+            id = (queue.maxOfOrNull { it.id } ?: 0L) + 1, taskId = task.id, operation = SyncOp.UPDATE,
+            timestamp = nowMs, payloadJson = TaskJson.encode(task),
+        )
+    }
     override suspend fun deviceId(): String = "this-device"
     override suspend fun insertHistory(entry: SyncHistoryEntry) { history += entry }
     override suspend fun tombstoneAtMs(id: String): Long? = tombstones[id]

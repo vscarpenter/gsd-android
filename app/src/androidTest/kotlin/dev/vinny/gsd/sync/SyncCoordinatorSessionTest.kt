@@ -15,8 +15,9 @@ import java.util.Base64
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
@@ -71,7 +72,9 @@ class SyncCoordinatorSessionTest {
 
     @After
     fun tearDown() {
-        scope.cancel()
+        // Wait for the coordinator's coroutines to finish before closing: a cancelled Room call
+        // that lands on a closed database fails whichever test runs next.
+        runBlocking { scope.coroutineContext.job.cancelAndJoin() }
         db.close()
         prefsFile.delete()
     }

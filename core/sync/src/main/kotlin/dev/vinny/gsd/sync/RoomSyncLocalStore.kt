@@ -4,10 +4,12 @@ import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SyncHistoryEntity
 import dev.vinny.gsd.store.SyncMetadataEntity
+import dev.vinny.gsd.store.SyncOp
 import dev.vinny.gsd.store.SyncQueueEntity
 import dev.vinny.gsd.store.abandonToTrash
 import dev.vinny.gsd.store.toEntity
 import dev.vinny.gsd.store.toTask
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -51,6 +53,14 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
 
     override suspend fun saveCursor(cursor: String) {
         db.syncMetadataDao().upsert(metadata().copy(cursor = cursor))
+    }
+
+    override suspend fun clearCursor() {
+        db.syncMetadataDao().upsert(metadata().copy(cursor = null))
+    }
+
+    override suspend fun enqueueUpdate(task: Task, nowMs: Long) {
+        db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, task, Instant.ofEpochMilli(nowMs)))
     }
 
     override suspend fun deviceId(): String = metadata().deviceId

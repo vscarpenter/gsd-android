@@ -71,4 +71,21 @@ class ReplaceEraseTest {
         // built-ins survive; custom views are gone
         assertEquals(9, views.observeViews().first().size)
     }
+
+    /**
+     * The cursor means "everything up to here is on this device". An erase ends that. Clearing the
+     * cursor in a later step left a window where a sync could run on a stale one (review finding S3).
+     */
+    @Test
+    fun eraseClearsThePullCursorInTheSameStepAndKeepsTheDeviceIdentity() = runTest {
+        db.syncMetadataDao().upsert(
+            SyncMetadataEntity(cursor = "2026-09-20 12:00:00.000Z", deviceId = "device-1", deviceName = "Pixel"),
+        )
+
+        LocalErase.eraseAll(db)
+
+        val metadata = db.syncMetadataDao().get()
+        assertEquals(null, metadata?.cursor)
+        assertEquals("device-1", metadata?.deviceId) // other devices use it to drop this device's echoes
+    }
 }
