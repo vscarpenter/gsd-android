@@ -177,10 +177,10 @@ Everything already done is in the "Resuming From Here" blocks further down.
 
 ### L. Owner decisions and housekeeping
 
-- [ ] Delete the nine merged branches, on origin and locally: `fix/sync-dead-session-guard`,
-      `fix/reminder-bookkeeping-lww`, `fix/account-switch-keeps-tasks`, `fix/new-task-requests-one-shot`,
-      `fix/matrix-tab-after-deep-link`, `fix/state-changes-never-reject`, `fix/completion-is-a-transition`,
-      `docs/record-review-merges`, and `docs/left-to-do-list`.
+- [x] Delete the nine merged branches, on origin and locally. Done 2026-09-20, after a check that each one
+      was fully pushed and already contained in `origin/main`. The branch that carried this tick went too.
+- [ ] Origin still has `add-claude-github-actions-1788703830197`, the branch behind pull request #1. It is
+      merged, and it was not part of that cleanup.
 - [ ] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
       seconds with a green check and no review.
 - [ ] Add a note to the workspace `CLAUDE.md` "Field limits" row. The numbers match, but iOS counts characters
@@ -388,7 +388,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   the gaps with fresh-context reviewers. They found the S4 regression above, the vacuous test, and findings 44 and 45.
 - **Next:** finding 4 first (one `MainActivity` instance, which also ends the S4 regression). Then findings 1 to 3,
   5, 44, and 45, each test-first. The full list is under "Left to do" at the top of this file.
-- **Owner decisions still open:** the seven merged branches remain on origin and locally. Two published commit
+- **Owner decisions still open:** the merged branches were deleted on 2026-09-20. Two published commit
   subjects run past the 72 character limit (`b9c49ca` at 76 and `9bd2aba` at 75). Fixing them would mean rewriting
   published history, so they stay. The review workflow needs a wider `--allowedTools` to review every PR.
 - **Blockers:** none.
