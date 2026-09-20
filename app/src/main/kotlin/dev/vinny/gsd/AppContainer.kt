@@ -88,18 +88,19 @@ class AppContainer(context: Context) {
 
 /** Bridges hardware shortcuts (§6.6) and notification taps to whichever screen hosts them. */
 class PaletteController {
-    val openRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
-    val newTaskRequests = kotlinx.coroutines.flow.MutableStateFlow(0)
+    /** Delivered once. A StateFlow would replay the request to every new Matrix composition (§6.4). */
+    val openRequests = dev.vinny.gsd.palette.OneShotRequest<Unit>()
+    val newTaskRequests = dev.vinny.gsd.palette.OneShotRequest<Unit>()
     val openTaskRequests = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     /** §6.4 deep link held until the nav host consumes it — cold-start safe. */
     val pendingRoute = kotlinx.coroutines.flow.MutableStateFlow<dev.vinny.gsd.nav.GsdRoute?>(null)
 
     fun requestOpen() {
-        openRequests.value++
+        openRequests.send(Unit)
     }
 
     fun requestNewTask() {
-        newTaskRequests.value++
+        newTaskRequests.send(Unit)
     }
 
     fun requestOpenTask(taskId: String) {

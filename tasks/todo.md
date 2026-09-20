@@ -156,6 +156,128 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
+## Resuming From Here (2026-09-20, S4 one-shot requests)
+- **Done:** review finding S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch. Four
+  code commits (`2cf82b3`, `2f77612`, `1d0f38c`, `fdbf6f5`) plus one docs commit. Not merged. The last three code
+  commits and the docs commit are not pushed.
+  - `palette/OneShotRequest` holds a request until a consumer claims it with `compareAndSet`.
+  - `palette/ConsumeWhileStarted` consumes only while the screen is at least STARTED. `MatrixScreen` uses it for the
+    New Task and palette requests.
+  - `TaskEditorViewModel.openNew` keeps an open draft.
+  - `MainActivity.onCreate` handles the launch intent only when `savedInstanceState` is null.
+  - Spec 6.4 and 6.7 are amended.
+- **Proof:** six on-device tests failed first. The sheet and the palette came back after a trip to the Browse tab.
+  A stopped screen took a request (`expected [] but was [new-task]`). A second `openNew` wiped a half-typed title and
+  swapped an open edit for a blank task. A recreation reopened the sheet. Gates on the branch: `:core:model:test`
+  132, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 125 on `gsd-test` (`:app` 83,
+  `:core:store` 42), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All green.
+- **Found on the way:** review finding 43. After a deep link or a palette Navigation row opens another screen, the
+  Matrix tab does nothing, and only Back reaches Matrix. The widget header and the "Today's Focus" shortcut both
+  lead into it. Not fixed. Recommended next, ahead of S5 and S6, because every widget tap leads into it.
+- **Emulator:** the `google_apis` API 36 system image lost its `.img` files again mid-session. `sdkmanager --install`
+  did nothing, because the leftover `package.xml` made it look installed. `--uninstall` then `--install` restored
+  it (4.3 GB). The `google_apis_playstore` image is broken the same way and no AVD uses it. The cause is unknown.
+- **Next:** owner decision to merge the four branches in order: S1, S2, S3, S4. Then finding 43, S5, and S6, each
+  test-first.
+- **Blockers:** none.
+- **Assumptions:** an open editor wins over a new-task request. A request made off the Matrix tab waits for the next
+  visit to Matrix, then opens once. Review finding 4 (`launchMode` and stacked activities) stays a separate change.
+
+## Resuming From Here (2026-09-20, S3 account switch keeps tasks)
+- **Done:** review finding S3 is fixed on branch `fix/account-switch-keeps-tasks`, five commits from `f9a0ab1` to
+  `9bd2aba`, stacked on `fix/reminder-bookkeeping-lww`. Not merged, not pushed. The pure `OwnerChange.adopt` in
+  `:core:sync` clears the pull cursor on an owner change and, for "Keep my tasks", seeds one unstamped UPDATE row
+  per active task that has no queue row. `SyncCoordinator.confirmOwner` runs it and records the new owner last.
+  `SyncCoordinator.start` raises the "Different account" prompt again when the saved token's user differs from
+  the last confirmed owner and tasks exist. Spec 8.21 and 9.4 are amended.
+- **Proof:** a JVM test reproduced the loss first (`expected [synced-1, synced-2, unsent] but was [unsent]`). Three
+  on-device tests failed first too: the kept task never reached the new account, the new account's older task
+  never arrived, and the prompt never came back. Gates on the branch: `:core:model:test` 132, `testDebugUnitTest`
+  134 (`:core:sync` 95, `:app` 39), `connectedAndroidTest` 119 on `gsd-test` (`:app` 77, `:core:store` 42),
+  `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All green.
+- **Also fixed:** the S1 coordinator set `signedIn` before `sessionExpired`, and the session test caught it about
+  one run in three. Commit `8b8456f` swaps the order and makes the test wait for coroutines before it closes the
+  database.
+- **Decisions:** the seed runs once at the decision, not on every nil-cursor sync as iOS does. A same-owner
+  sign-in changes nothing, so a remote delete made while signed out still lands.
+- **Next:** owner decision to merge the three branches in order: S1, S2, S3. Then S4 (one-shot New Task requests
+  and the launch intent), S5, and S6, each test-first.
+- **Blockers:** none.
+- **Known gap:** a prompt rebuilt after a restart has no email and no provider, so Settings shows no email until
+  the next normal sign-in.
+
+## Resuming From Here (2026-09-20, S2 reminder bookkeeping and LWW)
+- **Done:** review finding S2 is fixed on branch `fix/reminder-bookkeeping-lww`, three commits from `45d0a7e` to
+  `d79ad2a`, stacked on `fix/sync-dead-session-guard`. Not merged, not pushed. `ReminderReceiver` now records a
+  posted reminder through the new `TaskStore.markReminderSent`, one column update that never restamps `updatedAt`
+  and queues no push. Spec 4.7 and 11.2 are amended, and the README's enqueue invariant names the exception.
+- **Proof:** both new tests failed first on the restamp. The store test saw `updatedAt` move from 12:00 to 13:00,
+  and the receiver test saw it move after a real broadcast. Gates on the branch: `:core:model:test` 132,
+  `testDebugUnitTest` 127, `connectedAndroidTest` 116 on `gsd-test` (`:app` 74, `:core:store` 42),
+  `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All green.
+- **Scope decision:** snooze still restamps and syncs. Web and iOS both treat a user-initiated snooze as a
+  synced write, so changing Android alone would break parity. Only the "reminder posted" write is local-only,
+  which is what the web's `markNotificationSent` already does.
+- **Next:** owner decision to merge both branches, S1 first. Then S3 (re-enqueue on "Keep my tasks" and reset the
+  cursor on owner change), S4 (one-shot New Task requests and the launch intent), S5, and S6, each test-first.
+- **Blockers:** none.
+- **Emulator note:** `gsd-test` boots from a snapshot that holds a release-signed 0.9.0 install. The first
+  connected run after each boot fails with `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, removes that install, and the
+  second run passes. The snapshot restores it on the next boot.
+
+## Resuming From Here (2026-09-20, S1 dead-session sync guard)
+- **Done:** review finding S1 is fixed on branch `fix/sync-dead-session-guard`, seven commits from `97cb8d3` to
+  `cbe1067`. Not merged, not pushed. `SyncEngine.runSync` aborts with `NotSignedIn` when no owner resolves.
+  `reconcileDeletions` calls the new `SyncRemote.confirmIdentity` before the first ABANDON or APPLY verdict.
+  `PocketBaseApi` implements it with auth-refresh plus a record-id comparison. `SyncCoordinator` ends the session
+  on `notSignedIn` and raises `sessionExpired`, and Settings shows the expired note. Spec 9.4 and 10.3 are amended.
+- **Proof:** the first red test deleted the synced task with a null owner and an empty listing, so the engine half
+  of S1 was real whatever the server does. Gates on the branch: `:core:model:test` 132, `testDebugUnitTest` 127
+  (`:core:sync` 88, `:app` 39), `connectedAndroidTest` 114 on `gsd-test` (`:app` 73, `:core:store` 41),
+  `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All green.
+- **Next:** owner decision to merge the branch. Then S2 (reminder bookkeeping must not restamp `updatedAt`), S3
+  (re-enqueue on "Keep my tasks" and reset the cursor on owner change), S4 (one-shot New Task requests and the
+  launch intent), S5, and S6, each test-first. `SyncCoordinatorSessionTest` is a harness S3 can reuse.
+- **Blockers:** none.
+- **Assumptions:** PocketBase answers a guest listing with 200 and zero items. The fix no longer depends on it.
+  A dead token with more than 7 days left now fails each run with a 401 from the identity check, and the user
+  stays signed in. Signing them out on that 401 is a possible follow-up, left out of scope.
+- **Build output note:** `app/build/outputs/apk/release/app-release.apk` was rebuilt from this branch at
+  versionCode 9. It is not the 0.9.0 artifact that went to Play. The `.aab` was not rebuilt.
+- **Uncommitted on purpose:** this file and `docs/play/2026-09-20-polish-review.md`. The amended spec points at
+  the review doc, so commit both when you are ready.
+
+## Resuming From Here (2026-09-20, pre-production polish review)
+- **Done:** a read-only polish and launch-readiness review of 0.9.0, run live on the `gsd-shot` emulator (API 36)
+  plus a full read of `:app`. No code changed. Findings, evidence, and a fix order live in
+  `docs/play/2026-09-20-polish-review.md`. Both files from this session are uncommitted.
+- **Data safety first (review S1 to S6):** a dead session lets sync hard-delete every synced local task, because
+  only `push()` checks for an owner (`SyncEngine.kt:123`, `:197-208`, `SyncCoordinator.kt:63-67`). The server's
+  guest response is the one unverified link. A firing reminder restamps `updatedAt` and pushes a stale copy
+  (`ReminderReceiver.kt:74-77`). "Keep my tasks" on an account switch deletes the kept tasks, and the cursor never
+  resets. The New Task sheet reopens on every return to Matrix once the shortcut has run (`AppContainer.kt:93-101`),
+  and rotation re-runs the launch deep link (`MainActivity.kt:100`).
+- **Headline results:** twenty more defects break visible behavior. The worst five are small fixes: the dead "..."
+  button on every task card (`TaskCard.kt:128`), the Trash screen drawn over the red swipe background, the missing
+  Undo snackbar after a swipe-delete, deep links and widget taps that stack `MainActivity` copies and do not
+  navigate, and "Snooze 1 hour" reminders that never fire again (`ReminderPlanner.kt:24`).
+- **Reminder gap:** the editor has no date or time picker, so every Android due date is midnight. The app never
+  asks for the notification permission in the normal flow, and exact alarms are denied by default on Android 14+
+  with no in-app path to grant them. The listing promises exact timing.
+- **Policy items:** no in-app privacy policy link, Auto Backup on while the copy says tasks never leave the
+  device, `data-safety.md` predates the feedback form, and the 0.9.0 versus 1.0.0 call for production.
+- **Next:** fix S1 to S6 test-first, starting with a null-owner engine test that must delete nothing. Then
+  findings 1 to 5, then 6 to 8 (reminders), then 9 to 14 and 37 to 42, then the policy items and the privacy page.
+  The production application can proceed in parallel. Correct `docs/play/accessibility-audit.md` afterward:
+  its custom-actions and title line-cap claims do not match the code.
+- **Blockers:** none for the work itself. Owner decisions: the production version number, and whether to disable
+  cloud backup or soften the privacy copy.
+- **Assumptions:** the double `confirmValueChange` call is the probable cause of the missing Undo snackbar, not a
+  proven one. The keyboard-overlap question in the editor sheet is unverified, because the emulator only showed
+  the floating stylus toolbar.
+- **Emulator note:** `gsd-shot` now runs the 0.9.0 debug build with its seeded data intact. A "Today's Focus"
+  widget from this session is still on its home screen.
+
 ## Resuming From Here (2026-09-06, parity round 2 landed)
 - **Merge state:** merged to `main` 2026-09-06 (fast-forward) and pushed (`origin/main` = `8105427`); the comprehension check was skipped at the owner's direction.
 - **Done:** all fifteen tasks of the September parity round landed on branch `feat/parity-2026-09`

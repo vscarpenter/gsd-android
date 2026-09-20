@@ -353,6 +353,7 @@ Archive is deliberately *inside* Browse, not a fifth destination.
 ### 6.4 Deep links
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S4
 
 Register the **`gsd://` scheme** (intent filters on the main activity). Routes — identical to iOS so widgets, shortcuts, and notifications share one router:
 
@@ -368,6 +369,8 @@ Register the **`gsd://` scheme** (intent filters on the main activity). Routes �
 
 A deep link arriving before the UI is ready is persisted and consumed on first composition (cold-start). A `task/<id>` link to a task that no longer exists shows a friendly "not found" state, never a blank screen.
 
+A deep link runs once. The activity handles its launch intent only on a fresh start, when `savedInstanceState` is null. A rotation or any other recreation does not run the link again. A link that reaches a running activity arrives through `onNewIntent`.
+
 ### 6.5 App shortcuts (launcher long-press)
 
 Two static shortcuts: **"New Task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`.
@@ -378,6 +381,9 @@ For tablets/DeX/Chromebooks: **Ctrl+K** command palette · **Ctrl+N** new task �
 
 ### 6.7 State & system behavior
 
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S4
+
+- **Requests are one-shot.** A "new task" or "open palette" request (deep links, app shortcuts, the §6.6 keys) is an event, delivered exactly once. Only a Matrix screen that is at least STARTED may take it. Returning to the Matrix tab never replays one, and an activity under another never claims one. A request sent before the Matrix screen composes waits for it. A new-task request that arrives while the editor is open is dropped, because the open draft wins.
 - Persist (DataStore, mirroring iOS `@AppStorage`): `showCompleted`, theme preference, `hasOnboarded`, `fetchShareTitles`, plus the pending deep link. Tab/drawer selection and scroll positions are **not** persisted across process death (parity with shipped iOS; standard Compose saved-instance-state within a session is fine).
 - **Predictive back** enabled; **edge-to-edge** rendering with proper inset handling.
 - First run shows the onboarding flow (§8.19), skippable, gated on `hasOnboarded`.

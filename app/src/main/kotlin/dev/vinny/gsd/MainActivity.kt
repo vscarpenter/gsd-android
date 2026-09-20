@@ -97,7 +97,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = (application as GsdApp).container
-        handleIncomingIntent(intent)
+        // A rotation recreates the activity with the same launch intent. It already ran once (§6.4).
+        if (savedInstanceState == null) handleIncomingIntent(intent)
         setContent {
             val themePref by container.prefs.theme.collectAsStateWithLifecycle(initialValue = ThemePref.SYSTEM)
             val darkTheme = when (themePref) {

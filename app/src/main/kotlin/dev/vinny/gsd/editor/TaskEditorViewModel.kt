@@ -27,8 +27,12 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
         private set
     private var original: Task? = null
 
-    /** New task: the ID is reserved at editor-open (spec §8.3). */
+    /**
+     * New task: the ID is reserved at editor-open (spec §8.3). An open draft wins, so a shortcut or
+     * a widget tap that lands while the sheet is up never wipes what the user has typed.
+     */
     fun openNew(prefill: CaptureState?) {
+        if (_draft.value != null) return
         val parsed = prefill?.parsed
         val quadrant = prefill?.effectiveQuadrant ?: Quadrant.ELIMINATE
         isNew = true
