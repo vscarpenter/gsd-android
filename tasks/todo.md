@@ -31,6 +31,29 @@ Everything already done is in the "Resuming From Here" blocks further down.
       notification in the meantime, and the save wins last-write-wins elsewhere.
 - [ ] **45.** `OneShotRequest` can wedge if a handler ever suspends. Make `handle` non-suspending.
 
+### Notes for finding 4 (read before designing it)
+
+- **The cause.** `MainActivity` has no `launchMode`, so every deep link, widget tap, and shortcut stacks a new
+  copy. `PaletteController` lives in the process-wide `AppContainer`, so the copies share `pendingRoute`, both
+  one-shot requests, and `openTaskRequests`. The route collector in `MainActivity` has no lifecycle gate, and a
+  covered activity stays STARTED until the new one is up. The covered copy therefore handles the route first.
+- **Three designs I weighed.** One: a single instance, with later links arriving through `onNewIntent`. It ends
+  the contention for every request type, and I would start there. Two: scope `PaletteController` to the
+  activity, as a ViewModel. Three: gate the router and `ConsumeWhileStarted` on RESUMED. Three treats the
+  symptom, and I could not get a deterministic failing test for it.
+- **Check by hand on the emulator.** The compose test rules queue effects, which hides this race. Seen on
+  2026-09-20 with `adb shell am start -a android.intent.action.VIEW -d "gsd://capture" dev.vinny.gsd`:
+  - App on screen: no sheet on the visible copy. After Back, the covered copy shows the sheet. This is the bug.
+  - App in the background: the sheet opens. Cold start: the sheet opens. Rotation: nothing replays.
+- **Walk every entry point after the change.** The widget header, a widget row, both launcher shortcuts, a
+  reminder tap, the notification buttons, the OAuth callback after a real sign-in, and the share target, which
+  is a separate activity. A launch mode changes how each one arrives.
+- **Unverified claims from the reviewer of #6.** The static "New Task" shortcut launches with NEW_TASK and
+  CLEAR_TASK. The reminder tap uses SINGLE_TOP and lands in `onNewIntent`. Confirm both before relying on them.
+- **A test idea.** Start one activity, start a second with the capture link through `startActivitySync`, wait for
+  "New Task", finish the second, and assert the sheet is gone. With the bug the sheet belongs to the first copy
+  and stays on screen.
+
 ### C. Reminders must match the listing
 
 - [ ] **6.** The editor has no date or time picker. Every due date lands at midnight.
