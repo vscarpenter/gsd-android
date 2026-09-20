@@ -863,6 +863,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+>
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S1
 
 - **Endpoint:** `GET /api/collections/tasks/records?page={n}&perPage=200&sort=updated,id&filter=updated >= "{cursor}"` (filter URL-encoded; page through **all** pages until `page ≥ totalPages`; response envelope `{page, perPage, totalItems, totalPages, items}`). No owner filter is sent — the server's API rule scopes rows. The decoded page is `TaskListPage(page, totalPages, totalItems, items, updatedStamps)` — `totalItems` sits **directly after `totalPages`** and defaults to `items.size`, which is what lets the bounded-listing rules below read it on every walk.
 - **Cursor:** the max applied **server `updated`** stamp, stored in the PocketBase space-separated form; first sync uses `"1970-01-01 00:00:00.000Z"`. After a successful sync, advance to `maxApplied − 5 seconds` (the overlap rewind that catches boundary writes). A record whose `updated` is unparseable still applies but doesn't advance the cursor.
@@ -878,6 +880,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
   | neither | `APPLY` | delete the local row — no trash entry (§8.20's remote-delete rule stands) |
 
   `ABANDON` trashes where `APPLY` does not because an abandoned task's content **never reached the server**: the local copy is the only copy, and the retry-exhausted queue row was shielding it forever (or would eventually have let it vanish). Trash keeps it recoverable for 30 days. The port is `SyncLocalStore.abandonToTrash(id, deletedAtMs)`; the Room transaction itself lives in `:core:store` as `GsdDatabase.abandonToTrash(id, deletedAtMs)` over `TaskEntity.toDeleted`, with `RoomSyncLocalStore` delegating to it — the store owns its own transaction boundary. The archive and trash tables are otherwise never touched. All of this is safe only because of the **enqueue-before-write invariant**: every local mutation enqueues its sync operation *before* the row becomes visible.
+
+  **Confirmed owner only.** The server's list rule filters rows, so a guest request answers 200 with zero items. An empty listing therefore proves nothing about the account by itself. `runSync` resolves the owner once and throws `NotSignedIn` before pull, push, or reconciliation when there is none; the result carries `notSignedIn = true`. Before the first `ABANDON` or `APPLY` verdict, reconciliation calls `SyncRemote.confirmIdentity(ownerId)`, which `PocketBaseApi` implements with `POST /api/collections/users/auth-refresh` and a record-id comparison. That endpoint needs a valid token whatever the collection rules say. A rejection, a different record id (`IdentityMismatch`), or a rate limit aborts the run with an error and changes nothing. `PROTECT` changes nothing, so a run with nothing to reconcile makes no extra request. A confirmed owner with an empty remote still applies the deletions.
 
 ### 9.5 Push & the sync queue
 
@@ -937,9 +941,12 @@ Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (c
 
 ### 10.3 Token lifecycle
 
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S1
+
 - PocketBase JWTs live ~14 days; there is **no refresh token**. When the token expires within a **7-day skew**, call `POST /api/collections/users/auth-refresh` (bare-JWT auth header, no body) → fresh `{token, record}`.
 - A **transient** refresh failure (offline, 5xx) falls back to the still-valid stored token — offline-first means network failures **never** sign the user out. Clear the stored token **only** on a definitive 401/403.
 - Decode the JWT payload locally (base64url, no signature verification) for `id` and `exp` only.
+- **Session end.** A definitive rejection clears the token, and the next run reports `notSignedIn`. The coordinator then sets `signedIn = false` and `sessionExpired = true`, and Settings shows "Session expired. Sign in again to keep syncing." above the sign-in options. Signing in again clears the flag. A dead session never syncs as a guest (§9.4).
 
 ### 10.4 Identity caveats
 

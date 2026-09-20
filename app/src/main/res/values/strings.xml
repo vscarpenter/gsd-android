@@ -288,7 +288,7 @@
     <string name="switch_keep">Keep my tasks</string>
     <string name="switch_fresh">Start fresh (erase tasks on this device)</string>
     <string name="health_offline">Offline — changes will sync when you reconnect.</string>
-    <string name="health_expired">Session expired — sign in again to keep syncing.</string>
+    <string name="health_expired">Session expired. Sign in again to keep syncing.</string>
     <string name="health_failed">Some changes couldn\'t sync. They\'ll retry automatically.</string>
     <string name="health_stale">Sync is running behind — a change has waited over an hour.</string>
     <string name="cd_sync_status">Sync status</string>

@@ -35,6 +35,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val signedIn by container.syncCoordinator.signedIn.collectAsStateWithLifecycle()
+    val sessionExpired by container.syncCoordinator.sessionExpired.collectAsStateWithLifecycle()
     val pending by container.syncCoordinator.pendingCount.collectAsStateWithLifecycle(initialValue = 0)
     val failed by container.syncCoordinator.failedCount.collectAsStateWithLifecycle(initialValue = 0)
     val email by container.prefs.lastOwnerEmail.collectAsStateWithLifecycle(initialValue = null)
@@ -78,11 +79,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
             modifier = Modifier.padding(top = 12.dp),
         )
         if (!signedIn) {
-            AccountAction(R.string.sign_in_google) { launchProvider("google") }
-            AccountAction(R.string.sign_in_apple) { launchProvider("apple") }
-            AccountAction(R.string.sign_in_github) { launchProvider("github") }
-            signInError?.let { Text(it, style = GsdType.metadata, color = gsd.alert) }
-            Text(stringResource(R.string.account_privacy_hint), style = GsdType.metadata, color = gsd.ink3)
+            SignedOutAccount(sessionExpired, signInError) { launchProvider(it) }
         } else {
             email?.let { address ->
                 Text(address, style = GsdType.body, color = gsd.ink)
@@ -135,6 +132,21 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
             },
         )
     }
+}
+
+/** The signed-out Account rows. They emit straight into the caller's column, so its spacing applies. */
+@Composable
+internal fun SignedOutAccount(sessionExpired: Boolean, signInError: String?, onProvider: (String) -> Unit) {
+    val gsd = LocalGsdColors.current
+    if (sessionExpired) {
+        // Ochre, not alert: nothing was lost, the user only needs to sign in again (spec §5.3)
+        Text(stringResource(R.string.health_expired), style = GsdType.metadata, color = gsd.ochre)
+    }
+    AccountAction(R.string.sign_in_google) { onProvider("google") }
+    AccountAction(R.string.sign_in_apple) { onProvider("apple") }
+    AccountAction(R.string.sign_in_github) { onProvider("github") }
+    signInError?.let { Text(it, style = GsdType.metadata, color = gsd.alert) }
+    Text(stringResource(R.string.account_privacy_hint), style = GsdType.metadata, color = gsd.ink3)
 }
 
 @Composable

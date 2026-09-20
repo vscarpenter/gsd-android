@@ -66,6 +66,12 @@ internal class FakeRemote : SyncRemote {
     var rateLimitAfter = Int.MAX_VALUE
     private var writes = 0
     var nextRecordId = 1
+    /** True models a dead session: the server answers the identity check as it would a guest. */
+    var rejectIdentity = false
+
+    override suspend fun confirmIdentity(ownerId: String) {
+        if (rejectIdentity) throw PocketBaseApi.Unauthorized(401)
+    }
 
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
         listResponder?.let { return it(page, updatedCursor) }
@@ -160,6 +166,53 @@ class SyncEngineTest {
         local.tasks[t.id] = t
         engineAt(remote, local, 1).runSync(false)
         assertEquals(listOf(t.id), local.remoteDeletes); assertTrue(local.trashed.isEmpty())
+    }
+
+    @Test
+    fun `a run with no signed-in owner deletes nothing and reports an error`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote() // an empty remote is what a guest listing looks like
+        local.tasks["synced"] = task("synced")             // no queue rows: it already reached the server
+        val result = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { null }).runSync(false)
+        assertEquals(listOf("synced"), local.tasks.keys.toList())
+        assertTrue(local.remoteDeletes.isEmpty())
+        assertEquals("error", result.status)
+        assertEquals("Not signed in", result.error)
+        assertTrue(result.notSignedIn)
+    }
+
+    @Test
+    fun `an unconfirmed session deletes nothing even when the remote listing is empty`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.rejectIdentity = true            // a dead token: the server lists as a guest, so zero items
+        local.tasks["synced"] = task("synced")  // no queue rows: it already reached the server
+        val result = engine(remote, local).runSync(false)
+        assertEquals(listOf("synced"), local.tasks.keys.toList())
+        assertTrue(local.remoteDeletes.isEmpty()); assertTrue(local.trashed.isEmpty())
+        assertEquals("error", result.status)
+    }
+
+    @Test
+    fun `an unconfirmed session abandons nothing to trash`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.rejectIdentity = true
+        val stuck = task("stuck")
+        local.tasks["stuck"] = stuck
+        local.queue += queueItem(1, stuck, SyncOp.CREATE, retryCount = 5, status = "failed")
+        val result = engine(remote, local).runSync(false)
+        assertEquals(listOf("stuck"), local.tasks.keys.toList())
+        assertTrue(local.trashed.isEmpty())
+        assertEquals(listOf(1L), local.queue.map { it.id }) // the failed row still shields the task
+        assertEquals("error", result.status)
+    }
+
+    @Test
+    fun `a run with nothing to reconcile never needs the identity check`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.rejectIdentity = true
+        remote.records["r1"] = WireMapper.push(task("both-sides"), "other", "user-1")
+        local.tasks["both-sides"] = task("both-sides")
+        val result = engine(remote, local).runSync(false)
+        assertEquals("success", result.status) // no destructive verdict, so no extra request and no failure
     }
 
     @Test

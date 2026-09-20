@@ -117,6 +117,29 @@ class PocketBaseApiTest {
     }
 
     @Test
+    fun `confirmIdentity asks auth-refresh and passes when the record is the owner`() = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"token":"fresh-jwt","record":{"id":"user-1","email":"v@example.com"}}"""))
+        api.confirmIdentity("user-1")
+        assertEquals(1, server.requestCount)
+        val recorded = server.takeRequest()
+        assertEquals("POST", recorded.method)
+        assertEquals("/api/collections/users/auth-refresh", recorded.path)
+        assertEquals("raw-jwt-token", recorded.getHeader("Authorization"))
+    }
+
+    @Test
+    fun `confirmIdentity is unauthorized when the server treats the session as a guest`(): Unit = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(401))
+        assertFailsWith<PocketBaseApi.Unauthorized> { api.confirmIdentity("user-1") }
+    }
+
+    @Test
+    fun `confirmIdentity rejects a session that belongs to another account`(): Unit = runBlocking {
+        server.enqueue(MockResponse().setBody("""{"token":"fresh-jwt","record":{"id":"someone-else","email":"x@example.com"}}"""))
+        assertFailsWith<IdentityMismatch> { api.confirmIdentity("user-1") }
+    }
+
+    @Test
     fun `malformed items are skipped, not fatal`() = runBlocking {
         server.enqueue(MockResponse().setBody(
             """{"page":1,"perPage":200,"totalItems":2,"totalPages":1,

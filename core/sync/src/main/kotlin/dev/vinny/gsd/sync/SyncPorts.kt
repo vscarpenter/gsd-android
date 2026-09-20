@@ -9,7 +9,16 @@ interface SyncRemote {
     suspend fun createTask(wire: WireTask): WireTask
     suspend fun updateTask(recordId: String, wire: WireTask): WireTask
     suspend fun deleteTask(recordId: String)
+
+    /**
+     * Returns only when the server recognizes this session as [ownerId]. A guest or another
+     * account throws, so an empty listing is never mistaken for an empty account (spec §9.4).
+     */
+    suspend fun confirmIdentity(ownerId: String)
 }
+
+/** The server answered the identity check with a different account than the local owner. */
+class IdentityMismatch : Exception("Server session belongs to a different account")
 
 /** The two account-level calls deletion needs, separated from the task listing (S§8.4). */
 interface AccountRemote {

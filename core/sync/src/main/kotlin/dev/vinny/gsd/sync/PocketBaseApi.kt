@@ -120,6 +120,14 @@ class PocketBaseApi(
         execute(request("/api/collections/tasks/records/$recordId").delete().build())
     }
 
+    /**
+     * auth-refresh needs a valid token whatever the collection rules say, so a guest gets a 401
+     * here even where a listing would answer 200 with zero items. The fresh token is not kept.
+     */
+    override suspend fun confirmIdentity(ownerId: String) {
+        if (authRefresh().record.id != ownerId) throw IdentityMismatch()
+    }
+
     suspend fun authMethods(): List<OAuthProvider> {
         val raw = execute(request("/api/collections/users/auth-methods", authenticated = false).get().build())
         val oauth = Json.parseToJsonElement(raw).jsonObject["oauth2"]?.jsonObject
