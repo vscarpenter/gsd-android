@@ -69,9 +69,10 @@ class SyncCoordinator(
                     val result = engine.runSync(user)
                     lastResult.value = result
                     if (result.notSignedIn) {
-                        // A definitive refresh rejection cleared the token: the session is over (spec §10.3)
-                        _signedIn.value = false
+                        // A definitive refresh rejection cleared the token: the session is over (spec §10.3).
+                        // Expired first, so whoever sees "signed out" also sees why.
                         _sessionExpired.value = true
+                        _signedIn.value = false
                     }
                 } finally {
                     syncing.value = false
