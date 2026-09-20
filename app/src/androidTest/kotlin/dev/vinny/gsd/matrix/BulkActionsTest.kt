@@ -99,6 +99,18 @@ class BulkActionsTest {
         assertEquals(BulkResult(succeeded = 0, failed = 1), result)
     }
 
+    /** Review finding S5: completion is a transition, so Done over a finished task must not spawn again. */
+    @Test
+    fun bulkDoneOverAFinishedRecurringTaskSpawnsNothing() = runTest {
+        val daily = store.add(draft("standup").copy(recurrence = dev.vinny.gsd.model.Recurrence.DAILY))
+        store.setCompleted(daily.id, true) // spawns the one expected instance
+
+        val result = BulkActions.apply(store, setOf(daily.id), BulkOp.Complete)
+
+        assertEquals(BulkResult(succeeded = 1, failed = 0), result) // nothing left to do still counts as done
+        assertEquals(2, store.observeTasks().first().size)
+    }
+
     @Test
     fun partialFailureIsCounted() = runTest {
         val a = store.add(draft("a"))

@@ -80,25 +80,31 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
      * Completing a recurring task also spawns its next instance — in the same
      * transaction, so the instance and its CREATE queue row land atomically
      * with the completion (spec §8.5).
+     *
+     * Completion is a transition. The row is read inside the transaction, which Room runs one at a
+     * time, so a double-fired complete sees the first one's result. A call that asks for the state
+     * the task already has writes nothing: no second instance, no restamp that would win
+     * last-write-wins elsewhere, and no queue row.
      */
     suspend fun setCompleted(id: String, completed: Boolean): Task? {
-        val current = get(id) ?: return null
         val now = clock.instant()
-        val updated = TaskValidator.normalize(
-            current.copy(completed = completed, completedAt = if (completed) now else null),
-            now,
-        ).copy(updatedAt = now)
-        val spawned = if (completed) RecurrenceEngine.spawnNext(updated, now) else null
-        db.withTransaction {
+        return db.withTransaction {
+            val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
+            if (current.completed == completed) return@withTransaction current
+            val updated = TaskValidator.normalize(
+                current.copy(completed = completed, completedAt = if (completed) now else null),
+                now,
+            ).copy(updatedAt = now)
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, updated, now))
             db.taskDao().upsert(updated.toEntity())
+            val spawned = if (completed) RecurrenceEngine.spawnNext(updated, now) else null
             if (spawned != null) {
                 val nextInstance = TaskValidator.normalize(spawned, now)
                 db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.CREATE, nextInstance, now))
                 db.taskDao().upsert(nextInstance.toEntity())
             }
+            updated
         }
-        return updated
     }
 
     suspend fun snooze(id: String, until: Instant?): Task? = change(id) { it.copy(snoozedUntil = until) }
