@@ -21,3 +21,10 @@
 - **Tier:** Standard. About 20 production lines in three files, no wire or schema change, and the web client already behaves this way. No `tasks/spec.md` for this one; `tasks/spec.md` still holds the S1 spec.
 - **Scope decision:** only the "reminder posted" write left the enqueue path. A user-initiated snooze still restamps and syncs, because web (`lib/tasks/crud/snooze.ts`) and iOS (`TaskStore.snooze`) both do. The web's `markNotificationSent` is the model for the new write: a plain put with no `updatedAt` change and no queue row.
 - **Test precision:** `TaskStore.add` returns an `Instant` with sub-millisecond precision, and Room stores epoch millis. Compare `updatedAt` values with `toEpochMilli()` in instrumented tests.
+
+## S3 account switch keeps tasks (2026-09-20)
+
+- **Seed timing:** the seed runs once inside `confirmOwner`, not on every nil-cursor sync as iOS does. The iOS cursor only advances when a pull applies a record, so an account where no pull applies one re-seeds every task on every sync.
+- **Same-owner sign-in:** unchanged on purpose. No seed and no cursor reset, so a remote delete made while signed out still lands. iOS resurrects such a task; Android does not.
+- **Restart guard:** the rebuilt prompt carries the token's user id and no email, and `authManager.lastProvider` is gone after a restart. The email shows again after the next normal sign-in.
+- **Found while testing:** the S1 coordinator set `signedIn` before `sessionExpired`. The session test caught it about one run in three. Fixed in `8b8456f`.
