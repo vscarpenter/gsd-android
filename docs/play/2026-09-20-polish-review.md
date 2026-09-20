@@ -35,7 +35,13 @@ A user-initiated snooze still restamps and syncs, because web and iOS both do.
 S3 is fixed on branch `fix/account-switch-keeps-tasks`, stacked on the S2 branch (five commits, not merged, not pushed).
 A JVM test reproduced the loss: the first run against the new account deleted both already-synced tasks.
 An owner change now clears the pull cursor, "Keep my tasks" seeds the queue once, and an unanswered prompt comes back after a restart.
-S4 to S6 remain open.
+
+S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch (four code commits, not merged).
+The New Task and palette requests are now one-shot: a consumer claims each request, so a new Matrix composition has nothing to replay.
+Only a started screen may claim one, because finding 4 can leave a second `MainActivity` underneath.
+`openNew` keeps an open draft, and `onCreate` handles the launch intent only on a fresh start.
+Six on-device tests failed first on the old behavior. Writing them turned up finding 43.
+S5 and S6 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -70,6 +76,7 @@ S4 to S6 remain open.
 | 40 | Account deletion, erase, and import run in the composition scope. Rotating or leaving Settings cancels them midway, and the outcome message never appears. | code, `settings/AccountGroup.kt:46-49`, `settings/SettingsScreen.kt:217-222` |
 | 41 | "Fetch titles for shared links" is a dead setting. Nothing reads the preference, and its footer warns about a network request that never happens. | code, `settings/SettingsScreen.kt:65`, `:113-116` |
 | 42 | A restored or transferred install shares its `deviceId` with the old phone, because the id lives in the backed-up database. Each phone then drops the other's realtime events as echoes until the next pull. | code, `RoomSyncLocalStore.kt:59-64`, `Sse.kt:78` |
+| 43 | The Matrix tab stops working after a deep link or a palette Navigation row opens another screen. Tapping Matrix leaves the user on that screen. Going through Browse first lands on the same screen again. Only the system Back button reaches Matrix. Those paths call a plain `navigate()`, which pushes the screen on top of Matrix. The tab handler pops it with `saveState`. Navigation files that saved stack under the `popUpTo` target, which is Matrix. `restoreState` then puts it straight back in the same call. Ordinary tab switching escapes only because its first pop saves nothing. I reproduced it with Dashboard through both paths, and with the smart view link that the widget header and the "Today's Focus" shortcut open. Routes that target Matrix push a second Matrix entry instead: after a cold start on `gsd://focus`, leaving the app took two Back presses. Found while writing the S4 tests. | live (palette Dashboard row, and cold starts on `gsd://dashboard`, `gsd://smart-view/today-focus`, and `gsd://focus`), `MainActivity.kt:153-171`, `:178-184`, `matrix/MatrixScreen.kt:269-274`, `nav/GsdNavHost.kt:30` |
 
 ## Play policy and listing accuracy
 
@@ -142,13 +149,14 @@ These came from the release-readiness pass. I confirmed the code but did not rep
 - The DataStore files have no corruption handler, and imported quiet hours go through `LocalTime.parse` unchecked (`NotificationSettingsStore.kt:45-46`).
 - Every sync lists the whole remote collection twice (`SyncEngine.kt:125`, `:198`).
 - The share target drops `EXTRA_TEXT` when it arrives as a `CharSequence` (`share/ShareActivity.kt:46-47`).
+- A deep link on the very first launch can be lost behind onboarding. `hasOnboarded` starts as true, so the router runs and clears `pendingRoute` before the onboarding flow replaces the screen. I saw it live once with `gsd://smart-view/today-focus`, while `gsd://capture` survived (`MainActivity.kt:138`, `:150-173`).
 - R8 looks clean. The reviewer checked the 0.9.0 mapping output: serializers, Room, the worker, and the enums all keep what they need.
 - The Console's "native code without debug symbols" warning is benign. It comes from two stripped AndroidX libraries.
 
 ## Suggested order
 
 1. S1 to S6 first, each with a regression test. Start with S1: add a null-owner test that must delete nothing, then abort the run when no owner resolves.
-2. Findings 1 to 5 are small, contained code fixes. Land them next with regression tests.
+2. Findings 1 to 5 and 43 are small, contained code fixes. Land them next with regression tests. Put 43 first: the widget and the "Today's Focus" shortcut both lead into it.
 3. Findings 6 to 8 decide whether the reminder feature matches the listing. Add the date and time picker, the contextual permission ask, and the exact alarm row.
 4. Findings 9 to 14 repair dark mode, large screens, large text, the share sheet, and select mode. Findings 37 to 42 cover theming outside the phone layout, import and export, and the dead setting.
 5. Findings 15 to 18 close the policy gaps before the production review reads the listing. Update the privacy page in the same pass.

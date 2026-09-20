@@ -156,29 +156,32 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
-## Resuming From Here (2026-09-20, S4 one-shot requests, in progress and blocked)
-- **Done:** branch `fix/new-task-requests-one-shot`, stacked on the S3 branch, one commit (`2cf82b3`). It adds
-  `palette/OneShotRequest`, a request held until a consumer claims it with `compareAndSet`. Four JVM tests. Two
-  failed first on today's behavior: a later consumer got a replay, and two consumers both handled one request.
-  JVM gates are green on the branch: `:core:model:test` 132, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43),
-  `:app:assembleDebug`.
-- **Blocker:** no emulator can boot. `~/Library/Android/sdk/system-images/android-36/google_apis/arm64-v8a` lost
-  `system.img`, `vendor.img`, `ramdisk.img`, `userdata.img`, and `encryptionkey.img`. The directory is 33 MB and
-  its mtime is 11:59:12 on 2026-09-20. All three AVDs share that image. The emulator reports "No initial system
-  image for this configuration". The cause is unknown, and `tasks/lessons.md` records the same symptom in July.
-  The AVD data directories are intact. Restore with
-  `sdkmanager --install "system-images;android-36;google_apis;arm64-v8a"` or Android Studio's SDK Manager.
-- **Next, once an emulator boots (each step test-first, on `gsd-test`):**
-  1. `PaletteController.openRequests` and `newTaskRequests` become `OneShotRequest<Unit>`. `MatrixScreen` consumes
-     them inside `repeatOnLifecycle(STARTED)`, so a hidden activity never takes a request. An end-to-end activity
-     test covers it: request a new task, dismiss the sheet, leave the Matrix tab and return, and the sheet must
-     stay closed.
-  2. `TaskEditorViewModel.openNew` keeps an open draft. An instrumented test covers it.
-  3. `MainActivity.onCreate` handles the launch intent only when `savedInstanceState` is null. A recreation test
-     launches with `gsd://capture`, dismisses the sheet, recreates, and the sheet must stay closed.
-  4. Amend spec 6.4 and 6.7, run all gates, and update the review doc.
-- **Assumptions:** an open editor wins over a new-task request. Review finding 4 (`launchMode` and stacked
-  activities) stays a separate change.
+## Resuming From Here (2026-09-20, S4 one-shot requests)
+- **Done:** review finding S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch. Four
+  code commits (`2cf82b3`, `2f77612`, `1d0f38c`, `fdbf6f5`) plus one docs commit. Not merged. The last three code
+  commits and the docs commit are not pushed.
+  - `palette/OneShotRequest` holds a request until a consumer claims it with `compareAndSet`.
+  - `palette/ConsumeWhileStarted` consumes only while the screen is at least STARTED. `MatrixScreen` uses it for the
+    New Task and palette requests.
+  - `TaskEditorViewModel.openNew` keeps an open draft.
+  - `MainActivity.onCreate` handles the launch intent only when `savedInstanceState` is null.
+  - Spec 6.4 and 6.7 are amended.
+- **Proof:** six on-device tests failed first. The sheet and the palette came back after a trip to the Browse tab.
+  A stopped screen took a request (`expected [] but was [new-task]`). A second `openNew` wiped a half-typed title and
+  swapped an open edit for a blank task. A recreation reopened the sheet. Gates on the branch: `:core:model:test`
+  132, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 125 on `gsd-test` (`:app` 83,
+  `:core:store` 42), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All green.
+- **Found on the way:** review finding 43. After a deep link or a palette Navigation row opens another screen, the
+  Matrix tab does nothing, and only Back reaches Matrix. The widget header and the "Today's Focus" shortcut both
+  lead into it. Not fixed. Recommended next, ahead of S5 and S6, because every widget tap leads into it.
+- **Emulator:** the `google_apis` API 36 system image lost its `.img` files again mid-session. `sdkmanager --install`
+  did nothing, because the leftover `package.xml` made it look installed. `--uninstall` then `--install` restored
+  it (4.3 GB). The `google_apis_playstore` image is broken the same way and no AVD uses it. The cause is unknown.
+- **Next:** owner decision to merge the four branches in order: S1, S2, S3, S4. Then finding 43, S5, and S6, each
+  test-first.
+- **Blockers:** none.
+- **Assumptions:** an open editor wins over a new-task request. A request made off the Matrix tab waits for the next
+  visit to Matrix, then opens once. Review finding 4 (`launchMode` and stacked activities) stays a separate change.
 
 ## Resuming From Here (2026-09-20, S3 account switch keeps tasks)
 - **Done:** review finding S3 is fixed on branch `fix/account-switch-keeps-tasks`, five commits from `f9a0ab1` to

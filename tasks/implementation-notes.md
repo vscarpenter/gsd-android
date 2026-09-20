@@ -28,3 +28,13 @@
 - **Same-owner sign-in:** unchanged on purpose. No seed and no cursor reset, so a remote delete made while signed out still lands. iOS resurrects such a task; Android does not.
 - **Restart guard:** the rebuilt prompt carries the token's user id and no email, and `authManager.lastProvider` is gone after a restart. The email shows again after the next normal sign-in.
 - **Found while testing:** the S1 coordinator set `signedIn` before `sessionExpired`. The session test caught it about one run in three. Fixed in `8b8456f`.
+
+## S4 one-shot requests (2026-09-20)
+
+- **Tier:** Standard. About 25 production lines in five files, with no wire or schema change. The plan lived in `tasks/todo.md`; `tasks/spec.md` still holds the S3 spec.
+- **Extra composable:** the plan put `repeatOnLifecycle` inline in `MatrixScreen`. It became `palette/ConsumeWhileStarted`, so the lifecycle gate has its own test. That test failed first with `expected [] but was [new-task]`.
+- **Test route:** the first palette test left Matrix through the palette's Dashboard row. It passed against the broken code, because the Matrix tab never came back (review finding 43). The tests now leave through the Browse tab and wait on the selected tab.
+- **Sheet dismissal:** on the 320x640 `gsd-test` screen the sheet covers the scrim's center, so `performClick()` on "Close sheet" lands on the sheet. The tests invoke the scrim's `OnClick` semantics action.
+- **v2 compose rule:** `LaunchIntentTest` uses `junit4.v2.createEmptyComposeRule`. The v1 rule runs effects inline, so the `pendingRoute` collector navigates before the `Scaffold` has composed the `NavHost`. The run then dies with "Navigation graph has not been set". Production posts the effect, and a fresh-install launch on `gsd://capture` through onboarding did not crash.
+- **Not changed:** `openTaskRequests` is still a nullable `StateFlow` that its consumer resets. The `onCreate` guard covers its rotation replay. Two stacked activities can still both open the task (review finding 4).
+- **Residual:** Ctrl+N or Ctrl+K pressed off the Matrix tab waits for the next visit to Matrix, then opens once. Before the fix it opened on every visit.
