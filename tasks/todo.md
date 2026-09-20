@@ -156,24 +156,34 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
-## Resuming From Here (2026-09-20, S6 state changes reject synced tasks, waiting on design approval)
-- **Done:** branch `fix/state-changes-never-reject`, stacked on the finding 43 branch. The finding 43 branch is
-  pushed. One untracked test file reproduces S6: `core/store/src/androidTest/.../SyncedTaskOverLimitTest.kt`. Four
-  tests fail with `TaskValidationError$TitleLength`: complete, complete with a recurrence spawn, snooze, and the
-  timer. A fifth passes and guards the rule that a typed edit must still fit the limit. No production code yet.
-- **Cause:** iOS counts characters, the web and Android count UTF-16 units, and pull stores a task as is. Android
-  alone validates the whole task on every mutation. The web validates in `create.ts` and `update.ts` only. iOS
-  validates in capture, create, and `save` only.
-- **Crash sites:** `MatrixViewModel` (complete, move, duplicate, snooze, timer), `BrowseViewModel` (complete), and
-  `NotificationActionReceiver` (Complete and Snooze, which kills the process in the background). `BulkActions`
-  already catches and counts a failure.
-- **Proposed design, not yet approved:** validate what the user types, where they type it. `TaskValidator` splits
-  into `normalize` (the three coercions, never throws) and `validate`. `add`, `update`, and `replaceAll` keep
-  validating. `setCompleted`, `snooze`, the timers, a new `change(id)`, and a new `duplicate(id)` only normalize.
-  Units stay UTF-16, as on the web. Spec 7.11 needs an amendment.
-- **Tier:** Non-trivial. It changes `TaskStore`, the single mutation path, and a written spec rule.
-- **Next:** get the design approved, then write `tasks/spec.md`, turn the tests green, and cover the view model
-  and receiver paths.
+## Resuming From Here (2026-09-20, S6 state changes never reject)
+- **Done:** review finding S6 is fixed on branch `fix/state-changes-never-reject`, stacked on the finding 43
+  branch. Not merged, not pushed. The design was approved in chat (option "Validate typed input only"), and the
+  spec is `tasks/spec.md`.
+  - `TaskValidator.normalize` applies the three allowed coercions and never throws. `validate` is built on it.
+  - `TaskStore.add`, `update`, and `replaceAll` still validate. `setCompleted`, its recurrence spawn, `snooze`, and
+    the timers only normalize. `change(id)` and `duplicate(id)` are new and do the same.
+  - `MatrixViewModel` uses `change` for the quadrant move and `duplicate` for Duplicate. `BulkActions` uses
+    `change` for Move, Remove tag, and Set due. Bulk Add tag still validates, because the tag is typed.
+  - Spec 7.11 and Appendix B are amended.
+- **Proof:** the view model test reproduced the crash first: "Instrumentation run failed due to Process crashed"
+  on `TitleLength`. Six store tests failed first with `TitleLength` on a title of 79 letters plus one emoji. The
+  bulk test failed first with `expected BulkResult(1, 0) but was BulkResult(0, 1)`. The `normalize` coercion test
+  failed first against an identity stub, and the "never rejects" test was proved by mutation. Gates are in the
+  block's last line.
+- **Decisions:** text limits still count UTF-16 units, as on the web. iOS counts characters. No choice matches both
+  siblings, because they disagree with each other. The Android editor therefore refuses to save an iOS emoji title
+  until the user shortens it, which is what the web does today.
+- **Not changed:** `NotificationActionReceiver` still has no catch. Its two store calls can no longer throw a
+  validation error, so S6 cannot reach it. A database error there would still crash.
+- **Next:** owner decision to merge the six branches in order: S1, S2, S3, S4, finding 43, then this one. Then S5,
+  which iOS solves by reading the persisted row before it decides the completion, and findings 1 to 5.
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 146
+  on `gsd-test` (`:app` 96, `:core:store` 50), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
+  green. The first full run failed one S4 test on a soft keyboard race. `0e01966` fixes that test and one more.
+- **Emulator:** `gsd-test` has been up all day, and the connected run grew from about 1m 45s to 4m 48s. Every
+  class slowed down, old ones included. A cold boot should bring it back.
 
 ## Resuming From Here (2026-09-20, finding 43 Matrix tab)
 - **Done:** review finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch. Not

@@ -503,7 +503,14 @@ Mirror the separation used by both sibling clients (Dexie schema v16 / GRDB v6):
 
 ### 7.11 Validation
 
-Applied on **every write path and on import** (`TaskValidator` equivalent): the §7.2 limits; tags trimmed, lowercased, deduplicated, empty dropped; estimate 0 coerced to unset; snooze capped at 365 days. Validation failures are typed errors surfaced as human copy, never silent truncation (except explicitly clamped share-capture input, §12.2).
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S6
+
+Validation has two levels (`TaskValidator`).
+
+- **`validate`** applies where the user types, and on import: the editor, capture, share, and bulk Add tag. It checks the §7.2 limits. Failures are typed errors surfaced as human copy, never silent truncation (except explicitly clamped share-capture input, §12.2).
+- **`normalize`** applies on every write path, including the ones above. It trims, lowercases, and deduplicates tags and drops empty ones, turns estimate 0 into unset, and caps a snooze at 365 days. It never rejects.
+
+A state change to a stored task only normalizes. That covers complete and reopen, the quadrant move, snooze, the timers, Duplicate, a recurrence spawn, and bulk Move, Remove tag, and Set due. A synced task can break an Android limit. Text limits count UTF-16 units here and on the web, while iOS counts characters (Appendix B). Pull stores such a task as is, and every state change on it must still work. Editing it still validates, so the editor asks the user to shorten it first, as the web does.
 
 ---
 
@@ -1139,6 +1146,10 @@ Each phase independently buildable and testable; sync remains the highest-risk p
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+>
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S6
+
+Text limits count UTF-16 code units, as the web does (`String.length`). iOS counts characters, so one emoji is one there and two or more here. A title that is legal on iOS can arrive over the limit, and §7.11 says what happens then.
 
 | Limit | Value |
 |---|---|

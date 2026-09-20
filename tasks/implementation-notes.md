@@ -50,3 +50,14 @@
 - **Deterministic red for the doubled entry:** the test waits for `pendingRoute` to clear before it presses Back. Without that wait, Back can land before the router pushes the second Matrix entry, and the test passes against broken code.
 - **Known cost:** an entry popped with `saveState` keeps its view model until something restores it. A smart view pushed over Matrix is never restored, so its view model lives until the activity ends. The old code had the same cost on the same paths.
 - **Not changed:** with a sub-screen open, no tab shows as selected. That was already true for Archive opened from Browse.
+
+## S6 state changes never reject (2026-09-20)
+
+- **Tier:** Non-trivial. It changes `TaskStore`, the single mutation path, and spec 7.11. The design went through the one approval gate, with three options and a recommendation.
+- **Reproduction before design:** the red store tests came first, because they hold under any of the three designs. They gave the proposal its evidence.
+- **Sibling check:** the web validates in `create.ts` and `update.ts` only. iOS validates in capture, create, and `save` only. Android alone validated on every mutation, and it did so because spec 7.11 said "every write path". The spec was the outlier, so the spec changed.
+- **`validate` is built on `normalize`:** one function holds the coercions, so the two levels cannot drift. The limit checks now read the normalized task, which is what the old code did for tags and the estimate.
+- **Private `write` helper:** `add`, `update`, `change`, and `duplicate` share one enqueue-then-write transaction. `setCompleted` keeps its own, because the completion and the spawn must land together.
+- **Duplicate moved into the store:** the view model used to build the copy and call `add`. `TaskStore.duplicate(id)` now owns it, as the iOS store does.
+- **Honest red for new API:** `normalize`, `change`, and `duplicate` first went in as stubs over the old behavior, so the tests failed on `TitleLength` and not on a compile error.
+- **Gate detour, not an S6 change:** the first full run failed `PaletteRequestsTest`, an S4 test. My first guess (window focus) was wrong for that test: the log showed the dialog held focus, and `dumpsys input_method` showed the soft keyboard taking the Back press. A second test in `TabNavigationTest` then failed about one combined run in four, and that one was the focus race. Both are fixed in `0e01966`, and the two classes passed 8 combined runs in a row.
