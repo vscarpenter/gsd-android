@@ -23,37 +23,38 @@ The production application and its review take days, so the fix work can run in 
 
 The release-readiness pass found these by reading `:core:sync` and `:core:store`. I re-read every cited line.
 
-Status, 2026-09-20: S1 is fixed on branch `fix/sync-dead-session-guard` (seven commits, pushed, not merged).
+Status, 2026-09-20: S1 is fixed on branch `fix/sync-dead-session-guard` (merged in #3).
 The first red test reproduced the loss with no server involved: a null owner plus an empty listing deleted the synced task.
 The engine now aborts without an owner and confirms the owner with the server before it trashes or deletes anything.
 The server's guest response is still unverified, and it no longer matters for safety.
 
-S2 is fixed on branch `fix/reminder-bookkeeping-lww`, stacked on the S1 branch (three commits, pushed, not merged).
+S2 is fixed on branch `fix/reminder-bookkeeping-lww`, stacked on the S1 branch (merged in #4).
 The receiver now records a posted reminder through `TaskStore.markReminderSent`, which never restamps `updatedAt` and queues no push.
 A user-initiated snooze still restamps and syncs, because web and iOS both do.
 
-S3 is fixed on branch `fix/account-switch-keeps-tasks`, stacked on the S2 branch (five commits, pushed, not merged).
+S3 is fixed on branch `fix/account-switch-keeps-tasks`, stacked on the S2 branch (merged in #5).
 A JVM test reproduced the loss: the first run against the new account deleted both already-synced tasks.
 An owner change now clears the pull cursor, "Keep my tasks" seeds the queue once, and an unanswered prompt comes back after a restart.
+Review of #5 found three more gaps, all fixed in that pull request. A local erase now clears the cursor inside its own transaction, so a wiped device never keeps a live cursor. `start` finishes an owner change that died with no tasks left, and it records a first owner that died unrecorded, so a later account switch still asks.
 
-S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch (four code commits, pushed, not merged).
+S4 is fixed on branch `fix/new-task-requests-one-shot`, stacked on the S3 branch (merged in #6).
 The New Task and palette requests are now one-shot: a consumer claims each request, so a new Matrix composition has nothing to replay.
 Only a started screen may claim one, because finding 4 can leave a second `MainActivity` underneath.
 `openNew` keeps an open draft, and `onCreate` handles the launch intent only on a fresh start.
 Six on-device tests failed first on the old behavior. Writing them turned up finding 43.
 
-S6 is fixed on branch `fix/state-changes-never-reject`, stacked on the finding 43 branch (not merged).
+S6 is fixed on branch `fix/state-changes-never-reject`, stacked on the finding 43 branch (merged in #8).
 The rule is now "validate what the user types, where they type it", which is what the web and iOS already do.
 `TaskValidator` gained `normalize`, which applies the three allowed coercions and never throws. The editor, capture, share, import, and bulk Add tag still validate.
 Every state change only normalizes: complete, the recurrence spawn, the quadrant move, snooze, the timers, Duplicate, and bulk Move, Remove tag, and Set due.
 A view model test reproduced the crash first. The run ended with "Process crashed" on `TitleLength`.
 Text limits still count UTF-16 units, as on the web. The Android editor therefore asks the user to shorten an iOS title that holds an emoji before it saves, as the web does.
 
-S5 is fixed on branch `fix/completion-is-a-transition`, stacked on the S6 branch (not merged).
+S5 is fixed on branch `fix/completion-is-a-transition`, stacked on the S6 branch (merged in #9).
 `setCompleted` now reads the task inside its transaction and treats completion as a transition. A call that asks for the state the task already has writes nothing.
 The finding understated the damage. Eight concurrent completes produced nine tasks where two were expected, so every call spawned an instance.
 A redundant completion also restamped `updatedAt` and `completedAt`, which is the S2 problem again: a no-op tap could win last-write-wins over a newer edit.
-All six data-safety findings, S1 to S6, are now fixed on stacked branches. None is merged.
+All six data-safety findings, S1 to S6, are fixed and merged to `main` (#3 to #9, 2026-09-20).
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -66,7 +67,7 @@ All six data-safety findings, S1 to S6, are now fixed on stacked branches. None 
 
 ## Broken behavior (fix before promoting to production)
 
-Status, 2026-09-20: finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch (not merged).
+Status, 2026-09-20: finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch (merged in #7).
 Going to Matrix is now a pop with `saveState`, never a `navigate`. Matrix is the start destination, so it is always at the bottom of the stack.
 Deep links and palette rows that name Matrix, Dashboard, or Settings go through the same tab helper, so none of them pushes a second copy.
 My first fix only turned `restoreState` off for Matrix, and it was wrong. `launchSingleTop` then swapped the visible Matrix entry for a copy that never rose past CREATED, which silenced every lifecycle-aware collector on the screen. The S4 launch test caught it before any push.
@@ -78,7 +79,7 @@ Findings 1 to 14 and 37 to 42 remain open.
 | 1 | The "..." overflow button on every task card does nothing. Its handler is an empty lambda. TalkBack announces it as "Task options". The menu opens only on long-press. | live, `matrix/TaskCard.kt:128` |
 | 2 | The Trash screen draws every row over the solid red swipe background. "Restore" and "30 days left" measure about 1.1:1 contrast, and "Delete forever" is red on red (1.0:1). The row content sits at 72% alpha inside a `SwipeToDismissBox` whose background is always composed. | live, `browse/TrashScreen.kt:163-168` and `:238`, `matrix/SwipeTaskRow.kt:55-66` |
 | 3 | Swipe-to-delete never shows the Undo snackbar (3 of 3 tries). Delete from the long-press menu shows it. Probable cause: `confirmValueChange` fires twice, the second `store.delete` returns null, and that null overwrites `_lastDeleted`, which cancels the snackbar coroutine. | live, `matrix/MatrixViewModel.kt` `delete()`, `matrix/SwipeTaskRow.kt:38-50`, `matrix/MatrixScreen.kt:227-239` |
-| 4 | A `gsd://` deep link or widget tap does not navigate when the app is already running. Each one stacks another `MainActivity` (three deep after two tries), and the visible copy stays on Matrix. `MainActivity` has no `launchMode`, and a hidden instance consumes the shared `pendingRoute`. | live, `AndroidManifest.xml:15`, `MainActivity.kt:149`, `widget/GsdWidget.kt:72-74` |
+| 4 | A `gsd://` deep link or widget tap does not navigate when the app is already running. Each one stacks another `MainActivity` (three deep after two tries), and the visible copy stays on Matrix. `MainActivity` has no `launchMode`, and a hidden instance consumes the shared `pendingRoute`. Since S4 (#6), a `gsd://capture` link that arrives while the app is on screen opens the New Task sheet on the covered instance, so the user sees nothing. A covered activity stays STARTED until the new one is up, and its ungated route collector wins. Cold start, background start, and rotation work. The owner accepted this at merge time, and it is fixed with this finding: one `MainActivity` instance ends the contention for every request type. | live, `AndroidManifest.xml:15`, `MainActivity.kt:149`, `widget/GsdWidget.kt:72-74`, and live 2026-09-20 for the S4 case |
 | 5 | "Snooze 1 hour" on a reminder never fires again. The receiver sets `notificationSent = true`, `snooze()` does not reset it, and the planner returns null on that flag before it reads `snoozedUntil`. The iOS scheduler has no such gate on its snooze branch. | code, `ReminderPlanner.kt:24`, `ReminderReceiver.kt:76`, `TaskStore.kt:71-74`, iOS `LiveReminderScheduler.swift:29-31` |
 | 6 | The editor has no date or time picker. The four presets are the only way to set a due date, and each resolves to midnight. With the default 15 minute offset a reminder fires at 11:45 PM the night before. A task due "Today" never fires. Spec 8.3 and 8.10 call for a Material date picker. | live and code, `editor/EditorDepthSections.kt:56-86` |
 | 7 | The app never asks for the notification permission in the normal flow. Reminders default to on, so the "first enablement" ask never runs. Only a text row in Settings can request it. Spec 11.2 also names "first due date with reminder". | live and code, `settings/NotificationsGroup.kt:61-70`, `:120` |
@@ -96,6 +97,8 @@ Findings 1 to 14 and 37 to 42 remain open.
 | 41 | "Fetch titles for shared links" is a dead setting. Nothing reads the preference, and its footer warns about a network request that never happens. | code, `settings/SettingsScreen.kt:65`, `:113-116` |
 | 42 | A restored or transferred install shares its `deviceId` with the old phone, because the id lives in the backed-up database. Each phone then drops the other's realtime events as echoes until the next pull. | code, `RoomSyncLocalStore.kt:59-64`, `Sse.kt:78` |
 | 43 | The Matrix tab stops working after a deep link or a palette Navigation row opens another screen. Tapping Matrix leaves the user on that screen. Going through Browse first lands on the same screen again. Only the system Back button reaches Matrix. Those paths call a plain `navigate()`, which pushes the screen on top of Matrix. The tab handler pops it with `saveState`. Navigation files that saved stack under the `popUpTo` target, which is Matrix. `restoreState` then puts it straight back in the same call. Ordinary tab switching escapes only because its first pop saves nothing. I reproduced it with Dashboard through both paths, and with the smart view link that the widget header and the "Today's Focus" shortcut open. Routes that target Matrix push a second Matrix entry instead: after a cold start on `gsd://focus`, leaving the app took two Back presses. Found while writing the S4 tests. | live (palette Dashboard row, and cold starts on `gsd://dashboard`, `gsd://smart-view/today-focus`, and `gsd://focus`), `MainActivity.kt:153-171`, `:178-184`, `matrix/MatrixScreen.kt:269-274`, `nav/GsdNavHost.kt:30` |
+| 44 | The editor saves a whole-row snapshot taken when it opened. Open a task, tap Complete on its notification, then tap Save: the save writes `completed = false` with a fresh `updatedAt`, so it also wins last-write-wins elsewhere. On a recurring task, completing it again then spawns a second instance. A sync pull that lands while the editor is open is overwritten the same way. Found by the reviewer of #9. | code, `editor/TaskEditorViewModel.kt` `openExisting` and `save` |
+| 45 | `OneShotRequest<Unit>` can wedge if a handler ever suspends. A `send(Unit)` that lands during the suspension is conflated away, because `Unit == Unit`, and the stale value fires on the next consumer. It cannot happen today: both handlers return at once and every sender runs on the main thread. `ConsumeWhileStarted` still accepts a suspending handler, so make `handle` non-suspending. Found by the reviewer of #6, who ran the class against coroutines 1.10.2. | code, `palette/OneShotRequest.kt:18-21` |
 
 ## Play policy and listing accuracy
 
@@ -175,7 +178,7 @@ These came from the release-readiness pass. I confirmed the code but did not rep
 ## Suggested order
 
 1. S1 to S6 first, each with a regression test. Start with S1: add a null-owner test that must delete nothing, then abort the run when no owner resolves.
-2. Findings 1 to 5 are small, contained code fixes. Land them next with regression tests. Finding 43 is already fixed.
+2. Finding 4 comes next, because it now carries the one known regression from S4. Then findings 1 to 3, 5, 44, and 45, each with a regression test. Finding 43 is already fixed.
 3. Findings 6 to 8 decide whether the reminder feature matches the listing. Add the date and time picker, the contextual permission ask, and the exact alarm row.
 4. Findings 9 to 14 repair dark mode, large screens, large text, the share sheet, and select mode. Findings 37 to 42 cover theming outside the phone layout, import and export, and the dead setting.
 5. Findings 15 to 18 close the policy gaps before the production review reads the listing. Update the privacy page in the same pass.
