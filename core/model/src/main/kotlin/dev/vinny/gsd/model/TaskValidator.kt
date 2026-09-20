@@ -18,32 +18,44 @@ sealed class TaskValidationError(message: String) : Exception(message) {
 }
 
 /**
- * Applied on every write path and on import (spec §7.11). Throws typed errors —
- * never silent truncation. The only coercions the spec allows: tag normalization,
- * estimate 0 → unset, snooze clamped to 365 days.
+ * Two levels (spec §7.11). [validate] is for what the user types: the editor, capture, share, and
+ * import. It throws typed errors and never truncates. [normalize] is for a state change to a task
+ * that is already stored. It applies only the coercions the spec allows, and it never throws.
  */
 object TaskValidator {
     fun normalizeTags(raw: List<String>): List<String> =
         raw.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.distinct()
 
+    /**
+     * Tag normalization, estimate 0 to unset, and the 365-day snooze cap. A synced task can break a
+     * limit here, because iOS counts characters and Android counts UTF-16 units. Completing or
+     * snoozing it must still work, so nothing in this function rejects.
+     */
+    fun normalize(task: Task, now: Instant): Task {
+        val snoozeCap = now.plus(365, ChronoUnit.DAYS)
+        return task.copy(
+            tags = normalizeTags(task.tags),
+            estimatedMinutes = task.estimatedMinutes?.takeIf { it != 0 },
+            snoozedUntil = task.snoozedUntil?.let { if (it.isAfter(snoozeCap)) snoozeCap else it },
+        )
+    }
+
     fun validate(task: Task, now: Instant): Task {
-        if (task.id.length < 4) throw TaskValidationError.IdTooShort()
-        if (task.title.isEmpty() || task.title.length > 80) throw TaskValidationError.TitleLength()
-        if (task.description.length > 600) throw TaskValidationError.DescriptionLength()
-        val tags = normalizeTags(task.tags)
-        if (tags.size > 20) throw TaskValidationError.TooManyTags()
-        tags.firstOrNull { it.length > 30 }?.let { throw TaskValidationError.TagLength(it) }
-        if (task.subtasks.size > 50) throw TaskValidationError.TooManySubtasks()
-        if (task.subtasks.any { it.title.isEmpty() || it.title.length > 100 }) {
+        val normalized = normalize(task, now)
+        if (normalized.id.length < 4) throw TaskValidationError.IdTooShort()
+        if (normalized.title.isEmpty() || normalized.title.length > 80) throw TaskValidationError.TitleLength()
+        if (normalized.description.length > 600) throw TaskValidationError.DescriptionLength()
+        if (normalized.tags.size > 20) throw TaskValidationError.TooManyTags()
+        normalized.tags.firstOrNull { it.length > 30 }?.let { throw TaskValidationError.TagLength(it) }
+        if (normalized.subtasks.size > 50) throw TaskValidationError.TooManySubtasks()
+        if (normalized.subtasks.any { it.title.isEmpty() || it.title.length > 100 }) {
             throw TaskValidationError.SubtaskTitleLength()
         }
-        if (task.dependencies.size > 50) throw TaskValidationError.TooManyDependencies()
-        val estimate = task.estimatedMinutes?.takeIf { it != 0 }
+        if (normalized.dependencies.size > 50) throw TaskValidationError.TooManyDependencies()
+        val estimate = normalized.estimatedMinutes
         if (estimate != null && estimate !in 1..10_080) throw TaskValidationError.EstimateRange()
-        if (task.timeEntries.size > 1000) throw TaskValidationError.TooManyTimeEntries()
-        if (task.timeEntries.any { (it.notes?.length ?: 0) > 200 }) throw TaskValidationError.NoteLength()
-        val snoozeCap = now.plus(365, ChronoUnit.DAYS)
-        val snooze = task.snoozedUntil?.let { if (it.isAfter(snoozeCap)) snoozeCap else it }
-        return task.copy(tags = tags, estimatedMinutes = estimate, snoozedUntil = snooze)
+        if (normalized.timeEntries.size > 1000) throw TaskValidationError.TooManyTimeEntries()
+        if (normalized.timeEntries.any { (it.notes?.length ?: 0) > 200 }) throw TaskValidationError.NoteLength()
+        return normalized
     }
 }
