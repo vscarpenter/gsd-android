@@ -592,6 +592,10 @@ After parsing, the cleaned title has tokens/URLs removed and whitespace collapse
 
 ### 8.5 Recurrence engine
 
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S5
+
+**Completion is a transition.** Only a change from open to completed spawns an instance. The store reads the task inside the write transaction, so a double-fired complete sees the first one's result. A call that asks for the state the task already has writes nothing. That means no instance, no new `completedAt`, no `updatedAt` restamp, and no queue row. A stale notification action and bulk Done over finished tasks both land here.
+
 **Behavior (authoritative).** `recurrence ∈ {none, daily, weekly, monthly}`. When a recurring task is completed, immediately create a **new task instance**:
 - New `id`, `createdAt`, `updatedAt`; `completed = false`.
 - `parentTaskId` = the completed task's `id` — or, if that task was itself an instance, *its* `parentTaskId` (single-level lineage to the original). Lineage is device-local (§7.2).

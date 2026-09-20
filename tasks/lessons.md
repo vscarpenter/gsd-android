@@ -35,3 +35,6 @@
 - **A test that has passed for a day can still be a race.** `PaletteRequestsTest` went from passing every run to failing every run once the keyboard process was warm. Timing the test does not control is luck, in either direction.
 - **An activity's window insets do not report a keyboard that belongs to a dialog's window.** Ask the system instead: `uiAutomation.executeShellCommand("dumpsys input_method")`.
 - **Shell calls in diagnostics change the timing they are measuring.** Two `dumpsys` calls before a key press hid the race for six runs. Log cheap in-process facts before the event and the expensive ones after it.
+- **Read inside the transaction you write in.** `get(id)` followed by `withTransaction { write }` lets two callers act on the same stale read. Room runs transactions one at a time, so a read inside one is the ground truth. Eight concurrent completes spawned eight instances until `setCompleted` moved its read (review finding S5).
+- **A state setter should do nothing when the state already matches.** Writing anyway restamps `updatedAt`, queues a push, and can win last-write-wins over a newer edit made elsewhere. It also overwrites facts like `completedAt`. Compare first, then write.
+- **Make a race test fail on purpose.** Two concurrent calls can pass by luck against broken code. Eight made the red run certain.
