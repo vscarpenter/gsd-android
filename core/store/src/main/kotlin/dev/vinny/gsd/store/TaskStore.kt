@@ -3,6 +3,7 @@ package dev.vinny.gsd.store
 import androidx.room.withTransaction
 import dev.vinny.gsd.model.RecurrenceEngine
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TaskDuplicator
 import dev.vinny.gsd.model.TaskJson
 import dev.vinny.gsd.model.TaskValidator
 import dev.vinny.gsd.model.TimeTracking
@@ -15,6 +16,11 @@ import kotlinx.coroutines.flow.map
  * The single mutation path for tasks (spec §3). Stamps updatedAt from the
  * injected clock and enqueues the sync operation before the row becomes
  * visible — in one transaction (spec §9.4's enqueue-before-write invariant).
+ *
+ * Two kinds of write (spec §7.11). [add], [update], and [replaceAll] carry what the user typed, so
+ * they validate and can throw. Everything else is a state change to a task that is already stored,
+ * so it only normalizes and never rejects. A synced task can break a limit here, because iOS counts
+ * characters and Android counts UTF-16 units, and it must still complete, move, and snooze.
  */
 class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
 
@@ -26,21 +32,40 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
     suspend fun add(task: Task): Task {
         val now = clock.instant()
         val stamped = TaskValidator.validate(task, now).copy(createdAt = now, updatedAt = now)
-        db.withTransaction {
-            db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.CREATE, stamped, now))
-            db.taskDao().upsert(stamped.toEntity())
-        }
+        write(SyncOp.CREATE, stamped, now)
         return stamped
     }
 
     suspend fun update(task: Task): Task {
         val now = clock.instant()
         val stamped = TaskValidator.validate(task, now).copy(updatedAt = now)
-        db.withTransaction {
-            db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, stamped, now))
-            db.taskDao().upsert(stamped.toEntity())
-        }
+        write(SyncOp.UPDATE, stamped, now)
         return stamped
+    }
+
+    /** A state change to a stored task: quadrant, due date, snooze, timers. Null when the task is gone. */
+    suspend fun change(id: String, transform: (Task) -> Task): Task? {
+        val current = get(id) ?: return null
+        val now = clock.instant()
+        val changed = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
+        write(SyncOp.UPDATE, changed, now)
+        return changed
+    }
+
+    /** A copy holds nothing the user typed just now, so it only normalizes. Null when the task is gone. */
+    suspend fun duplicate(id: String): Task? {
+        val original = get(id) ?: return null
+        val now = clock.instant()
+        val copy = TaskValidator.normalize(TaskDuplicator.duplicate(original, now), now)
+        write(SyncOp.CREATE, copy, now)
+        return copy
+    }
+
+    private suspend fun write(op: SyncOp, task: Task, now: Instant) {
+        db.withTransaction {
+            db.syncQueueDao().insert(SyncQueueEntity.forTask(op, task, now))
+            db.taskDao().upsert(task.toEntity())
+        }
     }
 
     /**
@@ -59,7 +84,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
     suspend fun setCompleted(id: String, completed: Boolean): Task? {
         val current = get(id) ?: return null
         val now = clock.instant()
-        val updated = TaskValidator.validate(
+        val updated = TaskValidator.normalize(
             current.copy(completed = completed, completedAt = if (completed) now else null),
             now,
         ).copy(updatedAt = now)
@@ -68,28 +93,19 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, updated, now))
             db.taskDao().upsert(updated.toEntity())
             if (spawned != null) {
-                val validSpawn = TaskValidator.validate(spawned, now)
-                db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.CREATE, validSpawn, now))
-                db.taskDao().upsert(validSpawn.toEntity())
+                val nextInstance = TaskValidator.normalize(spawned, now)
+                db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.CREATE, nextInstance, now))
+                db.taskDao().upsert(nextInstance.toEntity())
             }
         }
         return updated
     }
 
-    suspend fun snooze(id: String, until: Instant?): Task? {
-        val current = get(id) ?: return null
-        return update(current.copy(snoozedUntil = until))
-    }
+    suspend fun snooze(id: String, until: Instant?): Task? = change(id) { it.copy(snoozedUntil = until) }
 
-    suspend fun startTimer(id: String): Task? {
-        val current = get(id) ?: return null
-        return update(TimeTracking.start(current, clock.instant()))
-    }
+    suspend fun startTimer(id: String): Task? = change(id) { TimeTracking.start(it, clock.instant()) }
 
-    suspend fun stopTimer(id: String): Task? {
-        val current = get(id) ?: return null
-        return update(TimeTracking.stop(current, clock.instant()))
-    }
+    suspend fun stopTimer(id: String): Task? = change(id) { TimeTracking.stop(it, clock.instant()) }
 
     /**
      * Replace-mode import (spec §8.16): the imported set becomes the store —
