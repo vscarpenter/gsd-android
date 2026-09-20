@@ -8,7 +8,6 @@ import dev.vinny.gsd.auth.CachedTokenStore
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.GsdDatabase
-import dev.vinny.gsd.store.LocalErase
 import java.io.File
 import java.time.Clock
 import java.time.Instant
@@ -203,21 +202,29 @@ class SyncCoordinatorOwnerChangeTest {
     }
 
     @Test
-    fun aStartFreshThatDiedAfterItsEraseStillPullsTheNewAccountsOlderTasks() = runBlocking {
-        remote.seed("user-a", task("recent-on-a"), updated = clock.instant().minusSeconds(60))
+    fun anOwnerChangeThatDiedWithNoTasksLeftStillPullsTheNewAccountsOlderTasks() = runBlocking {
         remote.seed("user-b", task("old-on-b"), updated = Instant.parse("2020-01-01T00:00:00Z"))
-        val firstProcess = signedInAsA()
-        awaitUntil("user-a's pull advances the cursor") { local.cursor() != null }
-        // "Start fresh" as user-b: the erase committed, then the process died before the cursor was cleared
-        firstProcess.signOut()
-        LocalErase.eraseAll(db)
+        // The app saved user-b's token and died before it cleared user-a's cursor. No tasks are left,
+        // so no prompt comes back. The state is built directly, because the erase now clears the cursor.
+        lastOwner = "user-a"
+        local.saveCursor(PbDates.formatSpace(clock.instant().minusSeconds(60)))
         remote.sessionUser = "user-b"
 
-        coordinator(jwt("user-b")).start() // the next launch: user-b's token is saved, user-a is still the owner
+        coordinator(jwt("user-b")).start()
 
-        // No tasks are left, so no prompt comes back. The stale cursor must not survive into this sync.
         awaitUntil("user-b's older task arrives") { local.activeTasks().any { it.id == "old-on-b" } }
         assertEquals("user-b", lastOwner)
+    }
+
+    @Test
+    fun aFirstSignInThatDiedBeforeItsOwnerWasRecordedGetsOneOnTheNextLaunch() = runBlocking {
+        // Without a recorded owner, a later switch to another account finds no previous owner and never asks.
+        lastOwner = null
+        remote.sessionUser = "user-a"
+
+        coordinator(jwt("user-a")).start()
+
+        awaitUntil("the owner is recorded") { lastOwner == "user-a" }
     }
 
     @Test

@@ -56,16 +56,18 @@ class SyncCoordinator(
             tokens.warm()
             val userId = auth.currentUserId()
             val previous = lastOwnerId()
-            if (userId != null && previous != null && previous != userId) {
-                // The app died before an owner change finished: the token is saved, the owner is not.
+            if (userId != null && previous != userId) {
+                // The app died before it recorded this owner: the token is saved, the owner is not.
                 val unfinished = AuthResult(tokens.token().orEmpty(), AuthRecord(userId))
-                if (local.activeTasks().isNotEmpty()) {
-                    // Ask again and stay signed out, so nothing syncs before the user decides (spec §8.21).
+                if (previous != null && local.activeTasks().isNotEmpty()) {
+                    // A different account with tasks to decide about. Ask again and stay signed out,
+                    // so nothing syncs before the user decides (spec §8.21).
                     switchPrompt.value = unfinished
                     return@launch
                 }
-                // No tasks are left, so there is nothing to ask. "Start fresh" may have died right after
-                // its erase, which leaves the old account's cursor behind. Finish the change before any sync.
+                // Nothing to ask: this is the first owner, or no tasks are left. Finish the change before
+                // any sync. adopt clears a cursor the old account left behind. Recording the owner matters
+                // even for the first one, or a later account switch finds no previous owner and never asks.
                 OwnerChange.adopt(local, previous, userId, keepLocalTasks = false, nowMs = System.currentTimeMillis())
                 onOwnerConfirmed(unfinished)
             }
