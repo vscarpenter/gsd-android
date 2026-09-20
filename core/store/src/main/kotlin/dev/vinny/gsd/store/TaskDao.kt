@@ -19,6 +19,10 @@ interface TaskDao {
     @Upsert
     suspend fun upsert(entity: TaskEntity)
 
+    /** Device-local reminder state only (spec §4.7): `updatedAt`, the LWW key, stays untouched. */
+    @Query("UPDATE tasks SET notificationSent = 1, lastNotificationAt = :atMs WHERE id = :id")
+    suspend fun markReminderSent(id: String, atMs: Long)
+
     @Query("DELETE FROM tasks WHERE id = :id")
     suspend fun deleteById(id: String)
 

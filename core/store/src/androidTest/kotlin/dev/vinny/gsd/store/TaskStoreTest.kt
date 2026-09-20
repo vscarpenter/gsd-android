@@ -49,6 +49,21 @@ class TaskStoreTest {
         )
 
     @Test
+    fun markReminderSentStaysOutOfLastWriteWins() = runTest {
+        val added = store.add(draft("standup")) // stamped at the fixed clock, one CREATE row
+        val firedAt = fixed.instant().plusSeconds(3600)
+        val anHourLater = TaskStore(db, Clock.fixed(firedAt, ZoneOffset.UTC))
+
+        anHourLater.markReminderSent(added.id, firedAt)
+
+        val stored = store.get(added.id)!!
+        assertTrue(stored.notificationSent)
+        assertEquals(firedAt, stored.lastNotificationAt)
+        assertEquals(added.updatedAt, stored.updatedAt) // device-local bookkeeping never moves the LWW key (spec §4.7)
+        assertEquals(listOf(SyncOp.CREATE), db.syncQueueDao().pending().map { it.operation }) // and queues no push
+    }
+
+    @Test
     fun addStampsClockAndEnqueuesCreate() = runTest {
         val added = store.add(draft())
         assertEquals(fixed.instant(), added.createdAt)
