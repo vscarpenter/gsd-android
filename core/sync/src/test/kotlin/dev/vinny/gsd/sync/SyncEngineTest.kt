@@ -163,6 +163,18 @@ class SyncEngineTest {
     }
 
     @Test
+    fun `a run with no signed-in owner deletes nothing and reports an error`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote() // an empty remote is what a guest listing looks like
+        local.tasks["synced"] = task("synced")             // no queue rows: it already reached the server
+        val result = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { null }).runSync(false)
+        assertEquals(listOf("synced"), local.tasks.keys.toList())
+        assertTrue(local.remoteDeletes.isEmpty())
+        assertEquals("error", result.status)
+        assertEquals("Not signed in", result.error)
+        assertTrue(result.notSignedIn)
+    }
+
+    @Test
     fun `pull applies remote-newer, no-ops equal, keeps local-newer`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()

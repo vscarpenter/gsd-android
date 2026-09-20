@@ -17,9 +17,14 @@ data class SyncResult(
     val conflicts: Int,
     val failedItems: Int,
     val error: String? = null,
+    /** True when the run did nothing because no owner was signed in. */
+    val notSignedIn: Boolean = false,
 )
 
 class MalformedRemoteVersion : Exception("Remote task version is missing or malformed")
+
+/** No owner resolved: a guest listing is empty and must never drive pull or reconciliation (spec §9.4). */
+class NotSignedIn : Exception("Not signed in")
 
 /**
  * The last-write-wins sync engine (spec §9.3–§9.5): pull → push → deletion
@@ -44,18 +49,21 @@ class SyncEngine(
         var pushed = 0
         var pushFailures = 0
         var error: String? = null
+        var notSignedIn = false
         try {
+            val owner = ownerId() ?: throw NotSignedIn()
             val pullOutcome = pull()
             pulled = pullOutcome.first
             conflicts = pullOutcome.second
 
-            val pushOutcome = push()
+            val pushOutcome = push(owner)
             pushed = pushOutcome.first
             pushFailures = pushOutcome.second
 
             reconcileDeletions()
         } catch (failure: Exception) {
             error = failure.message ?: failure.javaClass.simpleName
+            notSignedIn = failure is NotSignedIn
         }
         val failedCount = local.failedQueue().size
         val status = when {
@@ -63,7 +71,7 @@ class SyncEngine(
             pushFailures > 0 || failedCount > 0 -> "partial"
             else -> "success"
         }
-        val result = SyncResult(status, pushed, pulled, conflicts, failedCount, error)
+        val result = SyncResult(status, pushed, pulled, conflicts, failedCount, error, notSignedIn)
         local.insertHistory(
             SyncHistoryEntry(
                 timestamp = startedAt.toEpochMilli(),
@@ -119,8 +127,7 @@ class SyncEngine(
             .associateTo(mutableMapOf()) { wire -> wire.taskId to (wire.id to PbDates.parse(wire.clientUpdatedAt)) }
 
     /** Returns pushed count to permanently-failed-this-drain count. */
-    private suspend fun push(): Pair<Int, Int> {
-        val owner = ownerId() ?: return 0 to 0 // no authenticated owner → nothing to push
+    private suspend fun push(owner: String): Pair<Int, Int> {
         val deviceId = local.deviceId()
         val index = fetchRemoteIndex()
         var pushed = 0
