@@ -136,7 +136,11 @@ The MCP server (Claude Desktop) reads/writes the same backend with ~20 tools (li
 
 ### 4.7 Device-local fields
 
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S2
+
 `notificationSent`, `lastNotificationAt`, and `snoozedUntil` are **device-local**: they are pushed on the wire but **never taken from the remote on pull/merge** — each device manages its own reminder state (§9.4). Preserving this rule is what keeps a snooze on the phone from silencing a reminder on the tablet, and vice versa.
+
+**Reminder bookkeeping never touches the LWW key.** When a reminder posts, the app records `notificationSent` and `lastNotificationAt` through `TaskStore.markReminderSent`, a single column update. It does not restamp `updatedAt` and it enqueues no push, which matches the web client. It is the one local write outside the enqueue-before-write rule, and it is safe because no other device reads these fields. A restamp here let a fired reminder overwrite a newer edit from another device. A user-initiated snooze is different: it restamps and syncs on all three clients.
 
 ---
 
@@ -977,7 +981,7 @@ iOS pre-schedules every reminder with the system notification center; Android's 
 - **Notification channels:** *Reminders* (default importance, sound) and *Reminders (silent)*; the in-app **Sound** toggle selects the channel (channel sound is user-owned on Android — the two-channel split is the honest mapping).
 - **Runtime permission:** `POST_NOTIFICATIONS` requested **contextually** (first reminder enablement / first due date with reminder), never at cold launch. Track `permissionAsked`; reflect OS state in Settings with a path to system settings when denied.
 - **Reboot / update:** alarms die on reboot — a `BOOT_COMPLETED` (+ `MY_PACKAGE_REPLACED`) receiver reschedules everything from the store.
-- Mark `notificationSent`/`lastNotificationAt` when a reminder posts (device-local, §4.7).
+- Mark `notificationSent`/`lastNotificationAt` when a reminder posts (device-local, §4.7), through `TaskStore.markReminderSent` so the write never restamps `updatedAt` or queues a push.
 
 ### 11.3 Badges
 
