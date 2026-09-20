@@ -44,6 +44,14 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
     }
 
     /**
+     * Records that a reminder posted. This is device-local bookkeeping (spec §4.7), so it is the one
+     * local write that neither restamps `updatedAt` nor enqueues a push. Going through [update] let a
+     * fired reminder win last-write-wins over a newer edit made on another device.
+     */
+    suspend fun markReminderSent(id: String, at: Instant) =
+        db.taskDao().markReminderSent(id, at.toEpochMilli())
+
+    /**
      * Completing a recurring task also spawns its next instance — in the same
      * transaction, so the instance and its CREATE queue row land atomically
      * with the completion (spec §8.5).

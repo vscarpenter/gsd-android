@@ -34,7 +34,7 @@ Four Gradle modules with an enforced dependency direction. The design rule that 
 | `:core:sync` | PocketBase client, wire mapper, and the last-write-wins sync engine. |
 | `:app` | Compose UI, widget, share target, notifications, composition root. |
 
-Two invariants hold everything together. Every local mutation enqueues its sync operation in the same transaction, before the row becomes visible. And the persisted quadrant never drifts from the urgent/important flags that derive it.
+Two invariants hold everything together. Every local mutation enqueues its sync operation in the same transaction, before the row becomes visible. And the persisted quadrant never drifts from the urgent/important flags that derive it. The one exception to the first rule is reminder bookkeeping, which is device-local and never syncs on its own (spec §4.7).
 
 ## Building and testing
 

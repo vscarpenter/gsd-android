@@ -71,10 +71,8 @@ class ReminderReceiver : BroadcastReceiver() {
                 context.getSystemService(NotificationManager::class.java)
                     .notify(taskId.hashCode(), notification)
 
-                // Device-local reminder state (spec §4.7)
-                container.store.update(
-                    task.copy(notificationSent = true, lastNotificationAt = Instant.now()),
-                )
+                // Device-local reminder state (spec §4.7): bookkeeping, so no restamp and no push
+                container.store.markReminderSent(task.id, Instant.now())
             } finally {
                 result.finish()
             }

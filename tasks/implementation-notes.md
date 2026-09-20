@@ -15,3 +15,9 @@
 - **Coordinator mechanism:** the approved design re-checked `currentUserId()` after `ensureFreshToken()`. The coordinator reads the run's `notSignedIn` flag instead, so the engine stays the one place that decides "no owner". The run aborts before any request, and Sync History records one "Not signed in" row.
 - **Copy:** `health_expired` was unused until this change surfaced it. It lost its em dash on the way in.
 - **Instrumented tests:** `SyncCoordinator` and the Settings rows need Android classes, so their tests are instrumented (`SyncCoordinatorSessionTest`, `SignedOutAccountTest`). They run with no network: the token sits 30 days from expiry, so no refresh fires.
+
+## S2 reminder bookkeeping and LWW (2026-09-20)
+
+- **Tier:** Standard. About 20 production lines in three files, no wire or schema change, and the web client already behaves this way. No `tasks/spec.md` for this one; `tasks/spec.md` still holds the S1 spec.
+- **Scope decision:** only the "reminder posted" write left the enqueue path. A user-initiated snooze still restamps and syncs, because web (`lib/tasks/crud/snooze.ts`) and iOS (`TaskStore.snooze`) both do. The web's `markNotificationSent` is the model for the new write: a plain put with no `updatedAt` change and no queue row.
+- **Test precision:** `TaskStore.add` returns an `Instant` with sub-millisecond precision, and Room stores epoch millis. Compare `updatedAt` values with `toEpochMilli()` in instrumented tests.

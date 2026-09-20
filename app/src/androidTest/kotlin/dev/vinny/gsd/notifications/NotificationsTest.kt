@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -56,6 +57,36 @@ class NotificationsTest {
         assertTrue(posted, "reminder notification never posted")
         assertTrue(container.store.get(task.id)?.notificationSent == true)
         manager.cancel(task.id.hashCode())
+        container.store.delete(task.id)
+    }
+
+    @Test
+    fun aFiredReminderStaysOutOfLastWriteWins(): Unit = runBlocking {
+        val container = (context.applicationContext as GsdApp).container
+        val task = container.store.add(
+            Task(title = "review finding S2", urgent = true, important = true,
+                createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
+        )
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            action = ReminderScheduler.ACTION_REMINDER
+            putExtra(ReminderScheduler.EXTRA_TASK_ID, task.id)
+        }
+        context.sendBroadcast(intent)
+
+        var sent = false
+        val deadline = System.currentTimeMillis() + 10_000
+        while (System.currentTimeMillis() < deadline) {
+            if (container.store.get(task.id)?.notificationSent == true) {
+                sent = true
+                break
+            }
+            delay(100)
+        }
+        assertTrue(sent, "the receiver never marked the reminder sent")
+        // A reminder firing is bookkeeping, not an edit: a newer change from another device must still win
+        assertEquals(task.updatedAt.toEpochMilli(), container.store.get(task.id)?.updatedAt?.toEpochMilli())
+        assertEquals(1, container.db.syncQueueDao().countForTask(task.id)) // only the CREATE row from add()
+        context.getSystemService(NotificationManager::class.java).cancel(task.id.hashCode())
         container.store.delete(task.id)
     }
 
