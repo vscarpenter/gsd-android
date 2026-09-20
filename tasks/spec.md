@@ -13,8 +13,8 @@ Today only `push()` checks for an owner. `pull()` and `reconcileDeletions()` run
 - `SyncRemote.confirmIdentity(ownerId)` is new. It returns normally when the server recognizes the session as `ownerId`. It throws otherwise.
 - `PocketBaseApi.confirmIdentity` calls `POST /api/collections/users/auth-refresh` and compares the returned record id. The endpoint needs a valid token, so it cannot pass for a guest whatever the collection rules say. The returned token is ignored.
 - `reconcileDeletions` calls `confirmIdentity` before the first `ABANDON` or `APPLY` verdict. A failure aborts the run with an error and changes nothing.
-- `SyncAttempt.run` refreshes the token, then returns null without running when no user id remains.
-- `SyncCoordinator` maps that null to `signedIn = false` and `sessionExpired = true`. Settings shows `health_expired` above the sign-in options.
+- `SyncCoordinator` still refreshes the token before each run. When the run reports `notSignedIn`, it sets `signedIn = false` and `sessionExpired = true`. Signing in again clears the flag.
+- Settings shows `health_expired` above the sign-in options while `sessionExpired` is true.
 
 ## Constraints
 
@@ -25,7 +25,7 @@ Today only `push()` checks for an owner. `pull()` and `reconcileDeletions()` run
 
 ## Edge cases
 
-- Expired token, refresh answers 401: the token clears, the attempt returns null, nothing runs, and the account shows as signed out with the expired note.
+- Expired token, refresh answers 401: the token clears, the run aborts before any request, and the account shows as signed out with the expired note.
 - Dead token with more than 7 days left: no refresh happens, the server treats the run as a guest, and `confirmIdentity` throws `Unauthorized`. The run reports an error and deletes nothing.
 - The server confirms a different record id: `confirmIdentity` throws and the run deletes nothing.
 - A rate-limited identity call throws `RateLimited`. The run ends with an error and the next run retries.
@@ -46,11 +46,13 @@ Today only `push()` checks for an owner. `pull()` and `reconcileDeletions()` run
 4. Owner present, identity rejected, nothing to reconcile: the run succeeds.
 5. The existing `APPLY`, `ABANDON`, and `PROTECT` tests stay green with a confirming remote.
 6. `confirmIdentity` passes on a matching record id, throws `Unauthorized` on a 401, and throws on a different record id.
-7. `SyncAttempt` returns null and leaves local tasks alone when the refresh is rejected. It runs the engine when the session is healthy.
-8. `./gradlew :core:model:test` and `./gradlew testDebugUnitTest` are green.
+7. A coordinator whose token disappears mid-process ends the session, raises `sessionExpired`, and keeps every task. Signing in again clears the flag.
+8. The signed-out Account rows show the expired note only when the session expired.
+9. `./gradlew :core:model:test`, `./gradlew testDebugUnitTest`, and `./gradlew connectedAndroidTest` are green.
 
 ## Test stubs
 
 - `SyncEngineTest`: criteria 1 to 5.
 - `PocketBaseApiTest`: criterion 6.
-- `SyncAttemptTest`: criterion 7.
+- `SyncCoordinatorSessionTest` (instrumented): criterion 7.
+- `SignedOutAccountTest` (instrumented): criterion 8.
