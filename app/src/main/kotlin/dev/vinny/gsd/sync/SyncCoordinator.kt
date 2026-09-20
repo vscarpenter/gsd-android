@@ -45,6 +45,8 @@ class SyncCoordinator(
     val syncing = MutableStateFlow(false)
     private val _signedIn = MutableStateFlow(false)
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
+    private val _sessionExpired = MutableStateFlow(false)
+    val sessionExpired: StateFlow<Boolean> = _sessionExpired.asStateFlow()
     val pendingCount = db.syncQueueDao().observePendingCount()
     val failedCount = db.syncQueueDao().observeFailedCount()
     val lastResult = MutableStateFlow<SyncResult?>(null)
@@ -64,7 +66,13 @@ class SyncCoordinator(
                 syncing.value = true
                 try {
                     auth.ensureFreshToken()
-                    lastResult.value = engine.runSync(user)
+                    val result = engine.runSync(user)
+                    lastResult.value = result
+                    if (result.notSignedIn) {
+                        // A definitive refresh rejection cleared the token: the session is over (spec §10.3)
+                        _signedIn.value = false
+                        _sessionExpired.value = true
+                    }
                 } finally {
                     syncing.value = false
                 }
@@ -190,6 +198,7 @@ class SyncCoordinator(
         if (eraseLocalFirst) dev.vinny.gsd.store.LocalErase.eraseAll(db)
         onOwnerConfirmed(result)
         switchPrompt.value = null
+        _sessionExpired.value = false
         _signedIn.value = true
         requestSync(true)
     }
