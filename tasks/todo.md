@@ -156,6 +156,25 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
+## Resuming From Here (2026-09-20, S6 state changes reject synced tasks, waiting on design approval)
+- **Done:** branch `fix/state-changes-never-reject`, stacked on the finding 43 branch. The finding 43 branch is
+  pushed. One untracked test file reproduces S6: `core/store/src/androidTest/.../SyncedTaskOverLimitTest.kt`. Four
+  tests fail with `TaskValidationError$TitleLength`: complete, complete with a recurrence spawn, snooze, and the
+  timer. A fifth passes and guards the rule that a typed edit must still fit the limit. No production code yet.
+- **Cause:** iOS counts characters, the web and Android count UTF-16 units, and pull stores a task as is. Android
+  alone validates the whole task on every mutation. The web validates in `create.ts` and `update.ts` only. iOS
+  validates in capture, create, and `save` only.
+- **Crash sites:** `MatrixViewModel` (complete, move, duplicate, snooze, timer), `BrowseViewModel` (complete), and
+  `NotificationActionReceiver` (Complete and Snooze, which kills the process in the background). `BulkActions`
+  already catches and counts a failure.
+- **Proposed design, not yet approved:** validate what the user types, where they type it. `TaskValidator` splits
+  into `normalize` (the three coercions, never throws) and `validate`. `add`, `update`, and `replaceAll` keep
+  validating. `setCompleted`, `snooze`, the timers, a new `change(id)`, and a new `duplicate(id)` only normalize.
+  Units stay UTF-16, as on the web. Spec 7.11 needs an amendment.
+- **Tier:** Non-trivial. It changes `TaskStore`, the single mutation path, and a written spec rule.
+- **Next:** get the design approved, then write `tasks/spec.md`, turn the tests green, and cover the view model
+  and receiver paths.
+
 ## Resuming From Here (2026-09-20, finding 43 Matrix tab)
 - **Done:** review finding 43 is fixed on branch `fix/matrix-tab-after-deep-link`, stacked on the S4 branch. Not
   merged, not pushed.
