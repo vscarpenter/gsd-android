@@ -33,6 +33,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.vinny.gsd.nav.Destination
 import dev.vinny.gsd.nav.GsdNavHost
+import dev.vinny.gsd.nav.navigateToTab
 import dev.vinny.gsd.prefs.ThemePref
 import dev.vinny.gsd.theme.GsdTheme
 
@@ -151,22 +152,22 @@ class MainActivity : ComponentActivity() {
                         if (route == null) return@collect
                         when (route) {
                             is dev.vinny.gsd.nav.GsdRoute.Capture -> {
-                                navController.navigate(Destination.MATRIX.route)
+                                navController.navigateToTab(Destination.MATRIX)
                                 container.palette.requestNewTask()
                             }
                             is dev.vinny.gsd.nav.GsdRoute.Focus,
                             is dev.vinny.gsd.nav.GsdRoute.QuadrantLink,
-                            -> navController.navigate(Destination.MATRIX.route)
+                            -> navController.navigateToTab(Destination.MATRIX)
                             is dev.vinny.gsd.nav.GsdRoute.TaskLink -> {
-                                navController.navigate(Destination.MATRIX.route)
+                                navController.navigateToTab(Destination.MATRIX)
                                 container.palette.requestOpenTask(route.id)
                             }
                             is dev.vinny.gsd.nav.GsdRoute.SmartViewLink ->
                                 navController.navigate("browse/view/${route.id}")
                             is dev.vinny.gsd.nav.GsdRoute.Dashboard ->
-                                navController.navigate(Destination.DASHBOARD.route)
+                                navController.navigateToTab(Destination.DASHBOARD)
                             is dev.vinny.gsd.nav.GsdRoute.Settings ->
-                                navController.navigate(Destination.SETTINGS.route)
+                                navController.navigateToTab(Destination.SETTINGS)
                             is dev.vinny.gsd.nav.GsdRoute.Archive -> navController.navigate("archive")
                             is dev.vinny.gsd.nav.GsdRoute.Trash -> navController.navigate("trash")
                         }
@@ -175,13 +176,7 @@ class MainActivity : ComponentActivity() {
                 }
                 // Window size classes per spec §6: <600 compact, <840 medium, else expanded
                 val widthDp = LocalConfiguration.current.screenWidthDp
-                val navigate: (Destination) -> Unit = { destination ->
-                    navController.navigate(destination.route) {
-                        launchSingleTop = true
-                        popUpTo(Destination.MATRIX.route) { saveState = true }
-                        restoreState = true
-                    }
-                }
+                val navigate: (Destination) -> Unit = navController::navigateToTab
                 when {
                     widthDp < 600 -> Scaffold(
                         bottomBar = {
