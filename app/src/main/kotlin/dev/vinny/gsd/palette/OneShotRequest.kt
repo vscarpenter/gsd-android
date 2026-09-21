@@ -9,14 +9,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * a request sent before the screen composes still arrives, and nothing is ever handled twice.
  */
 class OneShotRequest<T : Any> {
-    private val pending = MutableStateFlow<T?>(null)
+    /**
+     * Each send is its own object, compared by identity. A StateFlow skips a value equal to the last
+     * one its collector saw, and the real requests carry Unit. Without this, a request sent while a
+     * handler was suspended was never delivered, because Unit == Unit.
+     */
+    private class Sent<T>(val value: T)
+
+    private val pending = MutableStateFlow<Sent<T>?>(null)
 
     fun send(value: T) {
-        pending.value = value
+        pending.value = Sent(value)
     }
 
     suspend fun consume(handle: suspend (T) -> Unit): Nothing =
-        pending.collect { value ->
-            if (value != null && pending.compareAndSet(value, null)) handle(value)
+        pending.collect { sent ->
+            if (sent != null && pending.compareAndSet(sent, null)) handle(sent.value)
         }
 }
