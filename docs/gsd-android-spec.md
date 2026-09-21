@@ -240,7 +240,7 @@ Spacing is a strict **4dp grid**: 4 hairline gaps · 8 chip padding · 12 in-car
 
 ### 5.6 Task card anatomy
 
-> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 1
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1 and 48
 
 Row layout (top-aligned, 12dp gap), left → right:
 
@@ -251,7 +251,7 @@ Row layout (top-aligned, 12dp gap), left → right:
    - **Tag chips** — `#tag` capsules: quadrant **wash** background + quadrant **accent** text.
    - **Metadata row** — 13sp, `ink3`, single line: due date (calendar icon; *today* = Tide semibold; *overdue* = `alert` + warning icon) · recurrence repeat icon · blocked (`lock` + count, ink2) · blocking (`arrow-circle` + count) · running timer (pulsing dot + live `HH:MM:SS`) or tracked total (`clock` + `Xh Ym`) · snoozed (`bedtime` icon + remaining).
    - **Subtask progress** — 84×6dp capsule track (`sunken`) with accent fill (`success` green at 100%) + `done/total` label.
-3. **Trailing controls:** overflow menu (`⋯`, ink3, ≥48dp target) + the **completion disc** — 28dp circle in a 48dp target; incomplete = 2dp `ink3` ring; complete = accent-filled + `inkOnAccent` check. Tapping the disc toggles completion (never opens the editor). The overflow button opens the §8.1 context menu. A card drawn without that menu (Trash, Archive) shows no overflow button.
+3. **Trailing controls:** overflow menu (`⋯`, ink3, ≥48dp target) + the **completion disc** — 28dp circle in a 48dp target; incomplete = 2dp `ink3` ring; complete = accent-filled + `inkOnAccent` check. Tapping the disc toggles completion (never opens the editor). The overflow button opens the §8.1 context menu. A card drawn without that menu (Trash, Archive) shows no overflow button. Those two screens cannot complete a task, so their cards show no completion disc either.
 
 Blocked tasks show the lock badge but are **not** dimmed (an earlier whole-card dim was removed as too punishing). Completed tasks sort below incomplete within a quadrant and render dimmed/struck.
 
@@ -525,7 +525,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 ### 8.1 The Matrix
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
-> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1, 2, and 3
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1, 2, 3, and 48
 
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
@@ -539,7 +539,8 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
   - The swipe background (green check or red bin) is drawn only while a swipe is in progress. A row at rest paints nothing behind its content, so a dimmed row or a bare line of text never sits on it.
   - **Tap** → open editor. **Tap the completion disc** → toggle complete (never opens the editor).
   - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete.
-- **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11).
+  - One view model, `TaskActionsViewModel`, owns these row operations. Every screen that draws a task row builds its menu from it. The menu is the same on Matrix, on a smart view list (§8.13), and in Browse search results (§8.14). Delete offers Undo (§8.20) on all three.
+- **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11). A card in select mode has no context menu: no overflow button, and a long press opens nothing.
 - **Empty quadrants** show the dashed in-context prompt with tailored copy (§5.10) and an "add to this quadrant" affordance. A fully empty matrix shows "Capture your first task" with an example.
 - **First frame.** `MatrixViewModel.sections` is `StateFlow<List<QuadrantSectionState>?>` whose initial value is **`null`** until Room's first emission; the flag never resets for the ViewModel's lifetime. Gate order: `null` → skeleton; loaded-and-empty → the dashed prompts; else content. "Loaded" means the observer delivered its **first snapshot, even an empty one** — before that, an empty list is indistinguishable from an empty board, which is why cold starts used to flash the four dashed prompts. The **capture bar stays live** through the skeleton (it does not depend on tasks); below it sit four quadrant-section silhouettes in Q1→Q4 order, each a header (26dp icon tile, 120×16dp title bar, 24×12dp count bar) plus **3, 2, 2, 1** card silhouettes — deliberately uneven, because four identical columns read as a loading pattern rather than a preview. Each card silhouette is a 3dp accent-colored spine plus a 14dp title bar and a 10dp metadata bar on a `surface` tile. At expanded width the same silhouettes fill the 2×2 grid cells. There is **no timer and no minimum display time**: if the first snapshot lands within a frame the skeleton is never visibly drawn. Its job is removing the false empty state, not showing a loader. Primitive and shimmer: §5.10.
 - Lists must stay smooth with **hundreds of tasks** (`LazyColumn` keys + stable item contents).
@@ -653,6 +654,7 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 ### 8.13 Smart Views & filters
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48
 
 **Behavior.** A SmartView bundles FilterCriteria with a name/icon. **Nine built-ins** ship, read-only, with these exact IDs:
 
@@ -675,13 +677,14 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 - `status == COMPLETED` → `completedAt` **descending, nulls last**; ties by `createdAt` descending.
 - otherwise → `dueDate` **ascending, dated tasks before undated**; ties (same due date, or both undated) by `createdAt` descending — newest first.
 
-**Android reimagining.** Browse tab sections on compact; drawer section on expanded (§6). Each view shows a live count; opening one shows the flat filtered list (§8.1 rows) with `.searchable`-style in-list search layered onto the criteria; view-aware empty states (Overdue → green check "Nothing overdue"; Wins → trophy; search-miss message; generic otherwise). The **search-miss** empty state is one shared composable with one pair of strings, rendered byte-identically here and in the Browse root search (iOS renders them the same way in both places): title `No tasks match "{query}"` (straight double quotes, the query interpolated), message "Try a different word, tag, or quadrant." — the §5.10 empty-state anatomy, 28dp search icon in `ink3`.
+**Android reimagining.** Browse tab sections on compact; drawer section on expanded (§6). Each view shows a live count; opening one shows the flat filtered list (§8.1 rows, with the full §8.1 menu) with `.searchable`-style in-list search layered onto the criteria; view-aware empty states (Overdue → green check "Nothing overdue"; Wins → trophy; search-miss message; generic otherwise). The **search-miss** empty state is one shared composable with one pair of strings, rendered byte-identically here and in the Browse root search (iOS renders them the same way in both places): title `No tasks match "{query}"` (straight double quotes, the query interpolated), message "Try a different word, tag, or quadrant." — the §5.10 empty-state anatomy, 28dp search icon in `ink3`.
 
 **First frame.** `BrowseViewModel.tasks` is `StateFlow<List<Task>?>` with an initial value of **`null`** until Room's first emission, and the smart-view list gates on it exactly as the Matrix does (§8.1): `null` → skeleton; loaded-and-empty → the view-aware empty state; else rows. The list skeleton is six rows in a `surface` container (`GsdShapes.small`, 16dp side margins, 20dp top), each row a 22dp `sunken` circle plus two bars — 14dp tall × **210dp on even rows / 150dp on odd** and 10dp × 96dp — with 16dp × 14dp row padding and 1dp `hairline` dividers inset 50dp from the left. Archive, Trash, and Settings get no skeleton — parity with iOS, and the web's Archive has none either.
 
 ### 8.14 Search & command palette
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48
 
 **Behavior.** Full-text **case-insensitive substring** search across title, description, tags, and subtask titles, live-updating. The command palette matches both **tasks** and **commands** — substring matching (not fuzzy), sectioned results: **Tasks · Smart Views · Actions · Navigation**. Actions: New task, Toggle show completed, Toggle theme, **Send feedback** (navigates to the feedback screen, §8.17 — both siblings expose feedback from the palette). Navigation: Matrix, Dashboard, Archive, Settings, and each smart view.
 

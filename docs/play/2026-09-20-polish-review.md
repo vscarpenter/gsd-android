@@ -110,7 +110,16 @@ Review of #14 and #15, 2026-09-20: the CI review of #14 ran 13 turns in 36 secon
 
 Findings 4, 1, 2, and 3 are merged to `main` (#13 to #16, 2026-09-20).
 
-Findings 5 to 14, 37 to 42, and 44 to 48 remain open.
+Status, 2026-09-20: finding 48 is fixed on branch `fix/task-menu-everywhere`. The owner chose to wire all eight menu actions on the lists.
+The bug came from copying. `BrowseViewModel` had its own `toggleCompleted` and none of the other row operations, so the two list screens could build only two of the eight actions.
+One view model, `TaskActionsViewModel`, now owns the row operations. The members moved out of `MatrixViewModel`, and `BrowseViewModel` lost its copy. Matrix, Browse, and the smart view list each create one beside their own view model, the way they create the editor's. One builder, `taskRowActions`, turns it into the full menu, and one `UndoDeleteEffect` offers Undo on all three screens.
+A card in select mode has no menu now, which is what iOS does. Trash and Archive cards draw no completion disc.
+Ten tests failed first. Seven drive the real list screens against the real store: Delete, Delete then Undo, Duplicate, Start timer, Snooze, and Move to on a smart view list, and Delete in Browse search results. Each one opened the menu, tapped the item, and timed out waiting for the store to change. The other three cover select mode and the two discs.
+Share has no automated test, because the project has no intent-testing library. Checked live on `gsd-test`: Share from the No Deadline list opened the system chooser with the task's text.
+The work turned up findings 49 and 50.
+
+
+Findings 5 to 14, 37 to 42, 44 to 47, 49, and 50 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -140,6 +149,8 @@ Findings 5 to 14, 37 to 42, and 44 to 48 remain open.
 | 46 | A launcher shortcut that fires while GSD is on screen loses its link. "Today's Focus" restarts the task and lands on Matrix. The shortcut's `CLEAR_TASK` flag destroys the old activity and starts a new one. Probable cause: the old copy must pause before it dies, and its route collector has no lifecycle gate. It takes `pendingRoute` before the new copy composes. From the home screen the shortcut works, because a stopped activity is destroyed at once. Split-screen and a tablet taskbar can reach the failing case. Older than the finding 4 fix: a build with no launch mode does the same. | live on `gsd-test` with `am start -f 0x1000c000`, with and without the launch mode, `MainActivity.kt:150-175` |
 | 47 | A reminder tap opens nothing unless Matrix is on screen. The tap carries the task id as an extra, and the activity only calls `requestOpenTask`. The one consumer is `MatrixScreen`. On Dashboard, Browse, or Settings the editor opens later, on the next visit to Matrix. Spec 11.2 says the tap is `gsd://task/<id>`, and that route goes to Matrix first. Found by the reviewer of #13. | code, `MainActivity.kt:58-59` and `:161-164`, `matrix/MatrixScreen.kt:82`, `notifications/ReminderReceiver.kt:30-38` |
 | 48 | The task menu is mostly dead outside Matrix. Browse search results and smart view lists build `TaskRowActions` with only Edit and Complete, so the other six items close the menu and do nothing: Start timer, Snooze, Duplicate, Share, Move to, and Delete. In Matrix select mode the menu still opens, Edit and Complete toggle the selection, and the other six do nothing. A long press always reached these menus. Since finding 1 the "..." button reaches them in one tap. Trash and Archive also draw a completion disc that does nothing, and TalkBack announces it as "Mark complete". Found by the reviewer of #14. | code, `browse/BrowseScreen.kt:148-153`, `browse/SmartViewListScreen.kt:55-60`, `matrix/MatrixScreen.kt:139-146`, `browse/TrashScreen.kt:239`, `browse/ArchiveScreen.kt:150` |
+| 49 | Browse search results and smart view lists have no swipe gestures. Spec 8.13 calls their rows "§8.1 rows", and 8.1 gives a row a leading swipe to complete and a trailing swipe to delete. `SwipeTaskRow` wraps rows only on Matrix and Trash. iOS has both swipes on its smart view list. Found while fixing finding 48. | code, `browse/BrowseScreen.kt` `BrowseSearchResults`, `browse/SmartViewListScreen.kt` `ViewListContent`, iOS `Browse/SmartViewListView.swift:110-123` |
+| 50 | Completing a task outside Matrix gets no haptic and no confetti. Spec 8.4 says a completion is "always" celebrated. The handler that fires both lives in `MatrixScreen`, and the confetti overlay is drawn only there. Found while fixing finding 48. | code, `matrix/MatrixScreen.kt` `onToggle` and `ConfettiOverlay`, `matrix/TaskRowWithMenu.kt` `taskRowActions` |
 
 ## Play policy and listing accuracy
 

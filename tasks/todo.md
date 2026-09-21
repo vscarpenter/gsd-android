@@ -4,8 +4,9 @@
 
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
-43 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
-and 3 are fixed and merged (#13 to #16). That work added findings 46, 47, and 48.
+44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
+and 3 are fixed and merged (#13 to #16). Finding 48 is fixed on branch `fix/task-menu-everywhere`, not merged.
+The work since #13 added findings 46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -31,10 +32,13 @@ Everything already done is in the "Resuming From Here" blocks further down.
       merged in #15. A row at rest no longer paints a swipe background.
 - [x] **3.** Swipe-to-delete never shows the Undo snackbar. Done 2026-09-20, merged in #16. One swipe ran its
       action 8 or 9 times. The actions now run once, in `onDismiss`.
-- [ ] **48.** The task menu is mostly dead outside Matrix: six of eight items on Browse search results and
-      smart view lists, and in Matrix select mode. Finding 1 put those menus one tap away, so do this one
-      next. Owner decision: wire all eight actions on those lists, or show only the wired ones. In select
-      mode the card should have no menu. Trash and Archive also draw a dead completion disc.
+- [x] **48.** The task menu is mostly dead outside Matrix. Done 2026-09-20 on branch
+      `fix/task-menu-everywhere`. The owner chose to wire all eight actions. One `TaskActionsViewModel` owns the
+      row operations for Matrix, Browse, and the smart view list. Select mode has no menu, and Trash and
+      Archive cards draw no disc.
+- [ ] **49.** Browse search results and smart view lists have no swipe gestures. Spec 8.13 calls their rows
+      "§8.1 rows", and iOS has both swipes there. `SwipeTaskRow` is ready to wrap them.
+- [ ] **50.** Completing a task outside Matrix gets no haptic and no confetti. Spec 8.4 says "always".
 - [ ] **5.** "Snooze 1 hour" on a reminder never fires again. The reviewer of #4 confirmed it independently.
 - [ ] **44.** The editor saves a whole-row snapshot taken when it opened. It reverts a Complete tapped from the
       notification in the meantime, and the save wins last-write-wins elsewhere.
@@ -377,6 +381,32 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 48 the task menu works on every list)
+- **Done:** review finding 48 is fixed on branch `fix/task-menu-everywhere`, stacked on the docs branch of #17.
+  Tier was Non-trivial. The owner picked option A, "wire all eight", and approved the design in chat. The spec is
+  `tasks/spec.md`.
+  - `TaskActionsViewModel(store, trashStore)` owns the row operations. They moved out of `MatrixViewModel`, and
+    `BrowseViewModel` lost its copy of `toggleCompleted`. Each of the three screens creates one.
+  - `taskRowActions(...)` builds the full menu, and it holds the Share intent. `UndoDeleteEffect` offers Undo on
+    all three screens.
+  - `TaskRowWithMenu` takes `menuEnabled`, and Matrix passes `!selectionMode`. `TaskCard.onToggleComplete` is
+    nullable, and Trash and Archive pass null.
+  - Spec 5.6, 8.1, 8.13, and 8.14 are amended.
+- **Proof:** ten tests failed first. The seven in `ListMenuActionsTest` drive the real list screens against the
+  real store. Each opened the menu, tapped its item, and timed out waiting for the store to change.
+  `SelectModeMenuTest` found the button still there in select mode. The Trash and Archive tests found the disc.
+- **Checked live on `gsd-test`:** Share from the No Deadline list opened the system chooser with the task's
+  text. Share has no automated test, because the project has no intent-testing library.
+- **Found on the way:** findings 49 (no swipes on the two lists) and 50 (no celebration outside Matrix).
+- **Next:** findings 5 and 47 together, because both are reminder paths. Then 44, 45, 46, 49, and 50.
+- **Owner decision still open:** whether a tap on the GSD icon may close the sign-in tab (see "Owner
+  decisions").
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 175
+  on `gsd-test` (`:app` 120, `:core:store` 55), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
+  green. The connected run took 6m 36s. It has been slow since the run on `main`, with every test passing, and
+  the emulator has been up all day.
 
 ## Resuming From Here (2026-09-20, broken-behavior fixes merged to main)
 - **Done:** the owner merged pull requests #13 to #16 to `main`, in order, with merge commits: findings 4, 1, 2,
