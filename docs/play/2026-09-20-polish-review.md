@@ -93,7 +93,12 @@ The `when` now names all three states, and a row at rest draws nothing.
 A pixel test failed first: the center of a resting row was `0xFFB23A2E`, the alert red, where the paper color was expected. A second test guards the background during a swipe. I proved it by mutation: with the background never drawn, it failed on paper where the success green was expected.
 Checked live on `gsd-test`: the Trash row sits on paper, and all three labels are readable.
 
-Findings 3, 5 to 14, 37 to 42, and 44 to 46 remain open.
+Review of #13, 2026-09-20: the CI review ran 27 turns with 11 denied tool calls and posted nothing, so I ran a fresh-context review. It found no blocking defect.
+Its best catch: my three link tests also pass under `singleTop`. I checked, and they did. A fourth test now puts `ShareActivity` above `MainActivity` in the same task and sends a link. Under `singleTop` it fails with `expected 1 but was 2`.
+It also pointed out that a launcher tap clears the task too. I confirmed that on `gsd-test`, and spec 6.4 now says so. A user who leaves the sign-in tab and returns through the GSD icon starts sign-in again. Whether to accept that is an owner decision, listed in the todo.
+The review found finding 47 by reading code, and I confirmed it the same way.
+
+Findings 3, 5 to 14, 37 to 42, and 44 to 47 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -121,6 +126,7 @@ Findings 3, 5 to 14, 37 to 42, and 44 to 46 remain open.
 | 44 | The editor saves a whole-row snapshot taken when it opened. Open a task, tap Complete on its notification, then tap Save: the save writes `completed = false` with a fresh `updatedAt`, so it also wins last-write-wins elsewhere. On a recurring task, completing it again then spawns a second instance. A sync pull that lands while the editor is open is overwritten the same way. Found by the reviewer of #9. | code, `editor/TaskEditorViewModel.kt` `openExisting` and `save` |
 | 45 | `OneShotRequest<Unit>` can wedge if a handler ever suspends. A `send(Unit)` that lands during the suspension is conflated away, because `Unit == Unit`, and the stale value fires on the next consumer. It cannot happen today: both handlers return at once and every sender runs on the main thread. `ConsumeWhileStarted` still accepts a suspending handler, so make `handle` non-suspending. Found by the reviewer of #6, who ran the class against coroutines 1.10.2. | code, `palette/OneShotRequest.kt:18-21` |
 | 46 | A launcher shortcut that fires while GSD is on screen loses its link. "Today's Focus" restarts the task and lands on Matrix. The shortcut's `CLEAR_TASK` flag destroys the old activity and starts a new one. Probable cause: the old copy must pause before it dies, and its route collector has no lifecycle gate. It takes `pendingRoute` before the new copy composes. From the home screen the shortcut works, because a stopped activity is destroyed at once. Split-screen and a tablet taskbar can reach the failing case. Older than the finding 4 fix: a build with no launch mode does the same. | live on `gsd-test` with `am start -f 0x1000c000`, with and without the launch mode, `MainActivity.kt:150-175` |
+| 47 | A reminder tap opens nothing unless Matrix is on screen. The tap carries the task id as an extra, and the activity only calls `requestOpenTask`. The one consumer is `MatrixScreen`. On Dashboard, Browse, or Settings the editor opens later, on the next visit to Matrix. Spec 11.2 says the tap is `gsd://task/<id>`, and that route goes to Matrix first. Found by the reviewer of #13. | code, `MainActivity.kt:58-59` and `:161-164`, `matrix/MatrixScreen.kt:82`, `notifications/ReminderReceiver.kt:30-38` |
 
 ## Play policy and listing accuracy
 
