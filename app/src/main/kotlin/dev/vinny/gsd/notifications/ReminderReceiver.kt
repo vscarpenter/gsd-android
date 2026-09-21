@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import dev.vinny.gsd.GsdApp
 import dev.vinny.gsd.MainActivity
 import dev.vinny.gsd.R
@@ -30,10 +31,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 val tapIntent = PendingIntent.getActivity(
                     context,
                     taskId.hashCode(),
-                    Intent(context, MainActivity::class.java).apply {
-                        putExtra(ReminderScheduler.EXTRA_TASK_ID, taskId)
-                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    },
+                    tapIntent(context, taskId),
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
                 )
                 fun action(actionName: String, requestOffset: Int): PendingIntent =
@@ -77,5 +75,12 @@ class ReminderReceiver : BroadcastReceiver() {
                 result.finish()
             }
         }
+    }
+
+    companion object {
+        /** A tap is the gsd://task link (spec §11.2), so the router goes to Matrix first and then opens the task. */
+        fun tapIntent(context: Context, taskId: String): Intent =
+            Intent(Intent.ACTION_VIEW, Uri.parse("gsd://task/$taskId"), context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 }
