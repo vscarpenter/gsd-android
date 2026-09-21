@@ -43,6 +43,22 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         return stamped
     }
 
+    /**
+     * A save from the editor. It is typed input, so it validates. The row is read inside the
+     * transaction, so the transform sees the task as it is now and not as it was when the sheet
+     * opened. Null when the task is gone, and then nothing is written.
+     */
+    suspend fun edit(id: String, transform: (Task) -> Task): Task? {
+        val now = clock.instant()
+        return db.withTransaction {
+            val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
+            val edited = TaskValidator.validate(transform(current), now).copy(updatedAt = now)
+            db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, edited, now))
+            db.taskDao().upsert(edited.toEntity())
+            edited
+        }
+    }
+
     /** A state change to a stored task: quadrant, due date, snooze, timers. Null when the task is gone. */
     suspend fun change(id: String, transform: (Task) -> Task): Task? {
         val current = get(id) ?: return null
