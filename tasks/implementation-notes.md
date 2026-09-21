@@ -136,3 +136,10 @@
 - **I dropped the explicit `dismiss()`.** Material's `showSnackbar` clears `currentSnackbarData` in its own `finally`, under its mutex (1.4.0 sources). A dismiss from my `finally` could have closed the newer snackbar.
 - **My iOS claim was half true.** iOS drops the menu button and the disc in select mode, and keeps `.contextMenu`. I had read line 26 of `TaskListRow.swift` and not line 48. The review doc is corrected. The commit message and the first PR text were already published.
 - **Not settled:** whether the snackbar hides under a docked keyboard. `gsd-test` has none.
+
+## Finding 5 a snoozed reminder fires again (2026-09-20)
+
+- **Tier:** Trivial. One condition in a pure function. I skipped the design gate, because both siblings already fire again after a snooze.
+- **The spec was right and the code was not.** Spec 11.1 says a future snooze is the fire time. The planner had put the `notificationSent` check ahead of it.
+- **I corrected my own reasoning midway.** I argued for the planner because a snooze could arrive by sync. Spec 4.7 says `snoozedUntil` is device-local, so that case does not exist. The planner is still the right place: it is pure, and it covers the notification button, the menu presets, and the editor.
+- **An alarm is not observable from a test.** `ReminderScheduler.cancel` builds the same `PendingIntent` that `schedule` does, so `FLAG_NO_CREATE` cannot tell the two apart. The on-device test asserts the planner's answer for the state the real receivers leave behind.
