@@ -12,6 +12,7 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.LocalGsdColors
+import kotlinx.coroutines.launch
 
 /**
  * Row gestures (spec §8.1): leading full-swipe completes; trailing reveals
@@ -34,24 +36,21 @@ fun SwipeTaskRow(
     content: @Composable () -> Unit,
 ) {
     val gsd = LocalGsdColors.current
-    val state = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            when (value) {
-                SwipeToDismissBoxValue.StartToEnd -> {
-                    onComplete()
-                    false // snap back; the card re-renders in its completed state
-                }
-                SwipeToDismissBoxValue.EndToStart -> {
-                    onDelete()
-                    false
-                }
-                SwipeToDismissBoxValue.Settled -> true
-            }
-        },
-    )
+    val state = rememberSwipeToDismissBoxState()
+    val scope = rememberCoroutineScope()
     SwipeToDismissBox(
         state = state,
         modifier = modifier,
+        // Material asks confirmValueChange on every drag frame, so an action there ran eight or nine
+        // times per swipe. onDismiss runs once, when the swipe settles.
+        onDismiss = { direction ->
+            when (direction) {
+                SwipeToDismissBoxValue.StartToEnd -> onComplete()
+                SwipeToDismissBoxValue.EndToStart -> onDelete()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            scope.launch { state.reset() } // slide back; the row re-renders in its new state
+        },
         backgroundContent = {
             // A row at rest reveals nothing. Painting here shows through any content that is not opaque.
             val (color, icon, alignment) = when (state.dismissDirection) {
