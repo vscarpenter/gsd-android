@@ -40,8 +40,10 @@ import org.junit.Test
 /**
  * Review finding 50: only Matrix celebrated a completion. Spec 8.4 says a completion always gets
  * the success haptic and the confetti. The four smart view list and Browse search tests failed
- * first, and they are the proof. The three Matrix tests and the reopen test passed before the fix.
- * They are guards, and each one failed under a mutation of the line it guards.
+ * first, and they are the proof. The three Matrix tests and the no-confetti reopen test passed
+ * before the fix. They are guards, and each one failed under a mutation of the line it guards.
+ *
+ * Review finding 51: a reopen got no haptic, against spec 5.8. Its test failed first.
  */
 class CompletionCelebrationTest {
     @get:Rule
@@ -160,21 +162,35 @@ class CompletionCelebrationTest {
         assertTrue(confettiAppears())
     }
 
-    /** All Completed lists a finished task, and its disc reopens it. Reopening is not a celebration. */
+    /** Spec 5.8 gives the haptic to a completion and to a reopen. iOS does the same. */
     @Test
-    fun reopeningATaskCelebratesNothing() {
-        runBlocking { app.container.store.setCompleted(taskId, true) }
-        show { SmartViewListScreen(app.container, "all-completed") }
+    fun reopeningATaskGivesTheSuccessHapticToo() {
+        showTheTaskCompleted()
+
+        tapTheDisc("Mark incomplete")
+
+        awaitCompleted(false)
+        assertEquals(1, confirms())
+    }
+
+    @Test
+    fun reopeningATaskShowsNoConfetti() {
+        showTheTaskCompleted()
 
         tapTheDisc("Mark incomplete")
 
         assertFalse(confettiAppears())
-        awaitCompleted(false)
-        assertEquals(0, confirms())
+        awaitCompleted(false) // or the absence above could mean the tap never landed
     }
 
     private fun show(screen: @Composable () -> Unit) = rule.setContent {
         CompositionLocalProvider(LocalHapticFeedback provides haptics) { GsdTheme { screen() } }
+    }
+
+    /** All Completed lists a finished task, and its disc reopens it. */
+    private fun showTheTaskCompleted() {
+        runBlocking { app.container.store.setCompleted(taskId, true) }
+        show { SmartViewListScreen(app.container, "all-completed") }
     }
 
     private fun showBrowseSearchResults() {

@@ -22,11 +22,13 @@ class CompletionCelebration(private val haptics: HapticFeedback) {
     var confettiTrigger by mutableIntStateOf(0)
         private set
 
-    /** Takes the task as the user saw it, before the toggle. Reopening a task celebrates nothing. */
+    /**
+     * Takes the task as the user saw it, before the toggle. A completion and a reopen both get the
+     * haptic. Only a completion gets the confetti.
+     */
     fun onToggle(task: Task) {
-        if (task.completed) return
         haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-        confettiTrigger++
+        if (!task.completed) confettiTrigger++
     }
 }
 
