@@ -1,5 +1,6 @@
 package dev.vinny.gsd.palette
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -62,6 +63,31 @@ class OneShotRequestTest {
         requests.send("second")
 
         assertEquals(listOf("first", "second"), handled)
+        consumer.cancel()
+    }
+
+    /**
+     * Review finding 45: both real requests carry Unit, and Unit == Unit. A StateFlow skips a value
+     * equal to the last one its collector saw. A request sent while a handler was suspended was
+     * therefore never delivered. It sat there until some later consumer took it, stale.
+     */
+    @Test
+    fun `a request sent while the handler is suspended is still delivered`() = runTest {
+        val requests = OneShotRequest<Unit>()
+        var handled = 0
+        val firstHandlerMayReturn = CompletableDeferred<Unit>()
+        val consumer = launch(UnconfinedTestDispatcher(testScheduler)) {
+            requests.consume {
+                handled++
+                if (handled == 1) firstHandlerMayReturn.await()
+            }
+        }
+
+        requests.send(Unit) // claimed, and its handler suspends
+        requests.send(Unit) // lands during the suspension
+        firstHandlerMayReturn.complete(Unit)
+
+        assertEquals(2, handled)
         consumer.cancel()
     }
 }
