@@ -6,9 +6,9 @@ One list, in the order I would work it. A number in front of an item is its find
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
 and 3 are fixed and merged (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19).
-Findings 5, 47, and 44 are fixed and merged (#20, #21, and #22). Test commits from the review of #22 are in #23,
-and finding 45 is fixed on `fix/one-shot-handler-cannot-suspend`, stacked on it. Neither is merged. The work
-since #13 added findings 46 to 50.
+Findings 5, 47, and 44 are fixed and merged (#20, #21, and #22), and so are the test commits from the review of
+#22 (#23). Finding 45 is fixed on `fix/one-shot-handler-cannot-suspend`, not merged. The work since #13 added
+findings 46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -426,8 +426,8 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   a second `send(Unit)` landed, and it was never delivered.
 - **Owner decision recorded:** a tap on the GSD icon may close the sign-in tab. It moved to "Decided", with the
   launcher activity fix noted for after launch. The release smoke gained a two-way check of the sign-in tab.
-- **Housekeeping:** the owner asked for the merged local branches to go. Four went. The branch of #23 stays
-  until #23 merges.
+- **Housekeeping:** the owner asked for the merged local branches to go. All five went, the last one after
+  #23 merged.
 - **Next:** findings 46, 49, and 50. Then sections C to H of "Left to do".
 - **Blockers:** none.
 - **Gates:** `:core:model:test` 145, `testDebugUnitTest` 139 (`:core:sync` 95, `:app` 44), `connectedAndroidTest` 187
