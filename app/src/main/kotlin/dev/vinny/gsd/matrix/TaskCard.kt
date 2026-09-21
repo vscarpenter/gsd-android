@@ -65,7 +65,7 @@ import java.time.temporal.ChronoUnit
 @Composable
 fun TaskCard(
     task: Task,
-    onToggleComplete: () -> Unit,
+    onToggleComplete: (() -> Unit)?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     badges: TaskBadges = TaskBadges(0, 0),
@@ -135,7 +135,8 @@ fun TaskCard(
                     )
                 }
             }
-            CompletionDisc(task, onToggleComplete)
+            // Trash and Archive cannot complete a task, so they pass no callback and get no disc.
+            if (onToggleComplete != null) CompletionDisc(task, onToggleComplete)
         }
     }
 }

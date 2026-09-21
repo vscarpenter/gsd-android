@@ -74,11 +74,4 @@ class BrowseViewModel(
     fun deleteCustom(id: String) {
         viewModelScope.launch { smartViews.delete(id) }
     }
-
-    fun toggleCompleted(id: String) {
-        viewModelScope.launch {
-            val current = store.get(id) ?: return@launch
-            store.setCompleted(id, !current.completed)
-        }
-    }
 }

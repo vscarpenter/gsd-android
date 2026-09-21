@@ -117,3 +117,14 @@
 - **Read the library:** the Material 3 1.4.0 sources jar is in the Gradle cache. It shows `onDismiss` called from `LaunchedEffect(state.settledValue)`, and the official sample resets the state afterward. `SwipeTaskRow` follows that sample.
 - **A test that never went red:** `SwipeDeleteUndoTest` passed on the old code 8 times out of 8. I tried a 1.5 second swipe on the theory that speed hid the race. It passed 3 more times. I kept the test as a guard, said so in its KDoc, and proved it by mutation.
 - **Reviewer nits I left alone in #15:** the two color fields in `SwipeTaskRowTest` are not `@Volatile`, and a failed color assert prints decimal.
+
+## Finding 48 the task menu works on every list (2026-09-20)
+
+- **Tier:** Non-trivial. One new view model shared by three screens, and about ten files. The owner chose option A and approved the design in chat.
+- **Follow the pattern that was already there:** each screen already creates a `TaskEditorViewModel` beside its own view model. `TaskActionsViewModel` works the same way, so it needed no interface and no delegation.
+- **Moved, not copied:** `BrowseViewModel` had one copied method and none of the other six. The move leaves one copy of each operation in the app.
+- **No shims:** `MatrixViewModel` kept no forwarding methods. Its one test that used them, the S6 over-limit test, moved to `TaskActionsViewModelOverLimitTest`.
+- **All ten tests red before any wiring:** each list test failed on its last line, after the menu opened and the item was tapped. I checked the line numbers, because a broken row matcher would have failed earlier and for the wrong reason.
+- **A wait that passed too soon:** in the Browse test, the typed query put the title on screen before any result row existed. The menu helper now waits for the row's own "Task options" button.
+- **Comments moved into the new file lost their em dashes.** Moved prose counts as revised prose.
+- **Not done:** swipes on the two lists (finding 49) and the celebration outside Matrix (finding 50).

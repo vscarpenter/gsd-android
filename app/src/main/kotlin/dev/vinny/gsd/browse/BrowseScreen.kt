@@ -77,6 +77,12 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import java.time.Instant
 import java.time.ZoneId
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.platform.LocalContext
+import dev.vinny.gsd.matrix.TaskActionsViewModel
+import dev.vinny.gsd.matrix.UndoDeleteEffect
+import dev.vinny.gsd.matrix.taskRowActions
 
 /** Icon token → vector for both built-ins (§5.7) and the 10 curated custom options. */
 val smartViewIcons: Map<String, ImageVector> = mapOf(
@@ -134,25 +140,29 @@ fun BrowseScreen(
     val tasks by viewModel.tasks.collectAsStateWithLifecycle()
     val trashed by container.trashStore.observeTrash()
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    BrowseContent(
-        state = state,
-        onOpenArchive = onOpenArchive,
-        trashCount = trashed.size,
-        onOpenTrash = onOpenTrash,
-        onOpenView = onOpenView,
-        onNewView = onNewView,
-        onTogglePin = viewModel::togglePin,
-        onEditView = onEditView,
-        onDeleteView = viewModel::deleteCustom,
-        tasks = tasks,
-        rowActions = { task ->
-            TaskRowActions(
-                onEdit = { editorViewModel.openExisting(task.id) },
-                onToggleComplete = { viewModel.toggleCompleted(task.id) },
-            )
-        },
-        modifier = modifier,
-    )
+    val actions: TaskActionsViewModel =
+        viewModel { TaskActionsViewModel(container.store, container.trashStore) }
+    val snackbarHost = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    Box(modifier = modifier.fillMaxSize()) {
+        BrowseContent(
+            state = state,
+            onOpenArchive = onOpenArchive,
+            trashCount = trashed.size,
+            onOpenTrash = onOpenTrash,
+            onOpenView = onOpenView,
+            onNewView = onNewView,
+            onTogglePin = viewModel::togglePin,
+            onEditView = onEditView,
+            onDeleteView = viewModel::deleteCustom,
+            tasks = tasks,
+            rowActions = { task ->
+                taskRowActions(task, context, actions, onEdit = { editorViewModel.openExisting(task.id) })
+            },
+        )
+        SnackbarHost(hostState = snackbarHost, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    UndoDeleteEffect(actions, snackbarHost)
     if (editorDraft != null) {
         TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
     }

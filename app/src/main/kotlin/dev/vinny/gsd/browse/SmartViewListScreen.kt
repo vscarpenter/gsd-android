@@ -37,6 +37,12 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import java.time.Instant
 import java.time.ZoneId
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.platform.LocalContext
+import dev.vinny.gsd.matrix.TaskActionsViewModel
+import dev.vinny.gsd.matrix.UndoDeleteEffect
+import dev.vinny.gsd.matrix.taskRowActions
 
 /** A smart view's flat filtered list with in-list search (spec §8.13). */
 @Composable
@@ -49,17 +55,21 @@ fun SmartViewListScreen(container: AppContainer, viewId: String, modifier: Modif
     val view = (state.pinned + state.builtIn + state.custom).map { it.view }.firstOrNull { it.id == viewId }
         ?: return
     val allTasks by browseViewModel.tasks.collectAsStateWithLifecycle()
-    ViewListContent(
-        view = view,
-        allTasks = allTasks,
-        rowActions = { task ->
-            TaskRowActions(
-                onEdit = { editorViewModel.openExisting(task.id) },
-                onToggleComplete = { browseViewModel.toggleCompleted(task.id) },
-            )
-        },
-        modifier = modifier,
-    )
+    val actions: TaskActionsViewModel =
+        viewModel { TaskActionsViewModel(container.store, container.trashStore) }
+    val snackbarHost = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    Box(modifier = modifier.fillMaxSize()) {
+        ViewListContent(
+            view = view,
+            allTasks = allTasks,
+            rowActions = { task ->
+                taskRowActions(task, context, actions, onEdit = { editorViewModel.openExisting(task.id) })
+            },
+        )
+        SnackbarHost(hostState = snackbarHost, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    UndoDeleteEffect(actions, snackbarHost)
     if (editorDraft != null) {
         TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
     }

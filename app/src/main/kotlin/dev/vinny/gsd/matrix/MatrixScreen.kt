@@ -19,7 +19,6 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +30,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalView
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -63,7 +61,9 @@ fun MatrixScreen(
     onNavigate: (String) -> Unit = {},
 ) {
     val viewModel: MatrixViewModel =
-        viewModel { MatrixViewModel(container.store, container.prefs, container.trashStore) }
+        viewModel { MatrixViewModel(container.store, container.prefs) }
+    val actions: TaskActionsViewModel =
+        viewModel { TaskActionsViewModel(container.store, container.trashStore) }
     val captureViewModel: CaptureViewModel = viewModel { CaptureViewModel(container.store) }
     val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
     val sections by viewModel.sections.collectAsStateWithLifecycle()
@@ -126,7 +126,7 @@ fun MatrixScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
             val onToggle: (dev.vinny.gsd.model.Task) -> Unit = { task ->
-                viewModel.toggleCompleted(task.id)
+                actions.toggleCompleted(task.id)
                 if (!task.completed) {
                     // The one haptic in the app (spec §5.8) + the one celebration.
                     view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
@@ -144,22 +144,12 @@ fun MatrixScreen(
                     )
                 }
             } else { task ->
-                TaskRowActions(
+                taskRowActions(
+                    task = task,
+                    context = context,
+                    actions = actions,
                     onEdit = { editorViewModel.openExisting(task.id) },
-                    onToggleComplete = { onToggle(task) },
-                    onToggleTimer = { viewModel.toggleTimer(task.id) },
-                    onSnooze = { duration -> viewModel.snooze(task.id, duration) },
-                    onDuplicate = { viewModel.duplicate(task.id) },
-                    onShare = {
-                        val text = dev.vinny.gsd.model.ShareText.render(task, java.time.ZoneId.systemDefault())
-                        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_TEXT, text)
-                        }
-                        context.startActivity(android.content.Intent.createChooser(send, null))
-                    },
-                    onMoveTo = { quadrant -> viewModel.moveToQuadrant(task.id, quadrant) },
-                    onDelete = { viewModel.delete(task.id) },
+                    onToggleComplete = { onToggle(task) }, // Matrix celebrates a completion
                 )
             }
             if (selectionMode && selection.isNotEmpty()) {
@@ -182,8 +172,8 @@ fun MatrixScreen(
                         sections = currentSections,
                         onToggleComplete = onToggle,
                         onOpen = editorViewModel::openExisting,
-                        onDropToQuadrant = viewModel::moveToQuadrant,
-                        onDelete = { viewModel.delete(it.id) },
+                        onDropToQuadrant = actions::moveToQuadrant,
+                        onDelete = { actions.delete(it.id) },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -192,8 +182,9 @@ fun MatrixScreen(
                     sections = sections,
                     onToggleComplete = onToggle,
                     onOpen = editorViewModel::openExisting,
-                    onDelete = { viewModel.delete(it.id) },
+                    onDelete = { actions.delete(it.id) },
                     rowActions = rowActions,
+                    menuEnabled = !selectionMode,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -203,13 +194,6 @@ fun MatrixScreen(
             hostState = snackbarHost,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
-    }
-    val lastDeleted by viewModel.lastDeleted.collectAsStateWithLifecycle()
-    val deletedLabel = lastDeleted?.let { stringResource(R.string.snackbar_deleted, it.title) }
-    val undoLabel = stringResource(R.string.snackbar_undo)
-    val accessibilityOn = remember(view) {
-        (view.context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE)
-            as? android.view.accessibility.AccessibilityManager)?.isEnabled == true
     }
     val lastBulk by viewModel.lastBulkResult.collectAsStateWithLifecycle()
     val bulkLabel = lastBulk?.let {
@@ -221,19 +205,7 @@ fun MatrixScreen(
         snackbarHost.showSnackbar(bulkLabel)
         viewModel.clearBulkResult()
     }
-    LaunchedEffect(lastDeleted) {
-        if (lastDeleted == null || deletedLabel == null) return@LaunchedEffect
-        // ~6 s to undo, extended to ~12 s under TalkBack (spec §8.20)
-        val result = withTimeoutOrNull(if (accessibilityOn) 12_000L else 6_000L) {
-            snackbarHost.showSnackbar(message = deletedLabel, actionLabel = undoLabel)
-        }
-        if (result == SnackbarResult.ActionPerformed) {
-            viewModel.undoDelete()
-        } else {
-            snackbarHost.currentSnackbarData?.dismiss()
-            viewModel.clearUndo()
-        }
-    }
+    UndoDeleteEffect(actions, snackbarHost)
     if (editorDraft != null) {
         TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
     }
@@ -288,6 +260,7 @@ fun MatrixList(
     modifier: Modifier = Modifier,
     onDelete: (dev.vinny.gsd.model.Task) -> Unit = {},
     rowActions: ((dev.vinny.gsd.model.Task) -> TaskRowActions)? = null,
+    menuEnabled: Boolean = true,
 ) {
     if (sections == null) {
         MatrixSkeleton(modifier = modifier)
@@ -324,7 +297,7 @@ fun MatrixList(
                             onToggleComplete = { onToggleComplete(task) },
                             onDelete = { onDelete(task) },
                         )
-                        TaskRowWithMenu(task = task, badges = badges, actions = actions)
+                        TaskRowWithMenu(task = task, badges = badges, actions = actions, menuEnabled = menuEnabled)
                     }
                 }
             }

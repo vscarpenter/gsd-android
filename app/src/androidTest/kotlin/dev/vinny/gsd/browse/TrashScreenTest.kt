@@ -46,6 +46,25 @@ class TrashScreenTest {
         assertEquals(task.id, restored)
     }
 
+    /** Review finding 48: the disc did nothing here, and TalkBack announced it as "Mark complete". */
+    @Test
+    fun aTrashedCardShowsNoCompletionDisc() {
+        rule.setContent {
+            GsdTheme {
+                TrashContent(
+                    trashed = listOf(trashedTask("old thing") to t0),
+                    now = t0,
+                    onRestore = {},
+                    onDeleteForever = {},
+                    onEmptyTrash = {},
+                )
+            }
+        }
+        rule.onNodeWithText("old thing").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Mark complete").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Mark incomplete").assertDoesNotExist()
+    }
+
     @Test
     fun lastDayOfRetentionIsCalledOut() {
         val task = trashedTask("about to go")
