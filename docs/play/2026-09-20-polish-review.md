@@ -137,7 +137,14 @@ The reminder tap carried the task id as an extra, and `MainActivity` answered it
 The tap is now that link. `MainActivity` lost its special case for the extra, so one router handles every way into a task.
 An activity test failed first: from the Settings tab, the tap intent arrived and no editor opened. I extracted `ReminderReceiver.tapIntent` with its old shape before I wrote the test, so the test sends what the receiver sends.
 
-Findings 6 to 14, 37 to 42, 44 to 46, 49, and 50 remain open.
+Status, 2026-09-20: finding 44 is fixed on branch `fix/editor-saves-only-its-fields`, stacked on the finding 47 branch. The owner approved the design in chat.
+The editor holds three versions of a task: the row it opened, the row the user edited, and the row now in the store. Save wrote the edited one whole, so it threw away whatever had changed in the store.
+`EditorRules.merge` is a per-field three-way merge. For each of the twelve fields the editor owns, the user's value wins only where the user changed it. Everything else is the stored row. `TaskStore.edit` reads that row inside the transaction it writes in, and it validates, because a save is typed input.
+The web already merges its editor draft onto the stored row. This goes one step further: an owned field the user never touched keeps a newer stored value, where the web's form sends it back. iOS has the same bug as Android had, and it is on the upstream list now.
+A save on a task deleted while the sheet was open used to bring the task back, because the old save was an upsert. It now writes nothing and shows "Task not found".
+Seven tests failed first. Four are JVM tests of the merge. One store test ran eight concurrent edits, and 2 of 8 tags survived. Two view model tests caught the undone completion and the deleted task that came back.
+
+Findings 6 to 14, 37 to 42, 45, 46, 49, and 50 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|

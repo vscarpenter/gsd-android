@@ -6,8 +6,8 @@ One list, in the order I would work it. A number in front of an item is its find
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
 and 3 are fixed and merged (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19).
-Findings 5 and 47 are fixed on `fix/snoozed-reminder-fires-again` (#20) and `fix/reminder-tap-opens-the-task`,
-stacked in that order. Neither is merged. The work since #13 added findings 46 to 50.
+Findings 5 and 47 are fixed and merged (#20 and #21). Finding 44 is fixed on `fix/editor-saves-only-its-fields`
+(#22), not merged. The work since #13 added findings 46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -40,15 +40,15 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] **49.** Browse search results and smart view lists have no swipe gestures. Spec 8.13 calls their rows
       "§8.1 rows", and iOS has both swipes there. `SwipeTaskRow` is ready to wrap them.
 - [ ] **50.** Completing a task outside Matrix gets no haptic and no confetti. Spec 8.4 says "always".
-- [x] **5.** "Snooze 1 hour" on a reminder never fires again. Done 2026-09-20 on branch
-      `fix/snoozed-reminder-fires-again`. A future snooze now overrides the sent flag in `ReminderPlanner`.
-- [ ] **44.** The editor saves a whole-row snapshot taken when it opened. It reverts a Complete tapped from the
-      notification in the meantime, and the save wins last-write-wins elsewhere.
+- [x] **5.** "Snooze 1 hour" on a reminder never fires again. Done 2026-09-20, merged in #20. A future snooze
+      now overrides the sent flag in `ReminderPlanner`.
+- [x] **44.** The editor saves a whole-row snapshot taken when it opened. Done 2026-09-20 on branch
+      `fix/editor-saves-only-its-fields`. Save merges the fields the user changed onto the row as it is now.
 - [ ] **45.** `OneShotRequest` can wedge if a handler ever suspends. Make `handle` non-suspending.
 - [ ] **46.** A launcher shortcut that fires while GSD is on screen loses its link and lands on Matrix. It works
       from the home screen. Split-screen and a tablet taskbar can reach it. Older than the finding 4 fix.
-- [x] **47.** A reminder tap opens nothing unless Matrix is on screen. Done 2026-09-20 on branch
-      `fix/reminder-tap-opens-the-task`. The tap is now the `gsd://task/<id>` link, as spec 11.2 says.
+- [x] **47.** A reminder tap opens nothing unless Matrix is on screen. Done 2026-09-20, merged in #21. The tap
+      is now the `gsd://task/<id>` link, as spec 11.2 says.
 
 ### Notes for finding 46 (read before designing it)
 
@@ -206,9 +206,10 @@ Everything already done is in the "Resuming From Here" blocks further down.
       was fully pushed and already contained in `origin/main`. The branch that carried this tick went too.
 - [x] Origin no longer has `add-claude-github-actions-1788703830197`. `git branch -r` on 2026-09-20 showed only
       `main` and `fix/task-menu-everywhere`.
-- [ ] Origin still has `fix/task-menu-everywhere`. #18 and #19 both merged from it, and GitHub did not delete
-      it the second time. Two merged local branches also remain: that one and
-      `docs/record-broken-behavior-merges`. Deleting them waits for the owner's word.
+- [x] Origin no longer has `fix/task-menu-everywhere`. It was gone at the fetch on 2026-09-21.
+- [ ] Merged local branches remain on this machine: `fix/task-menu-everywhere`,
+      `docs/record-broken-behavior-merges`, `fix/snoozed-reminder-fires-again`, and
+      `fix/reminder-tap-opens-the-task`. Deleting them waits for the owner's word.
 - [ ] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
       seconds with a green check and no review.
 - [ ] Add a note to the workspace `CLAUDE.md` "Field limits" row. The numbers match, but iOS counts characters
@@ -227,6 +228,9 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] Web: a redundant completion still restamps `updatedAt` and `completedAt` (`lib/tasks/crud/toggle.ts`), so a
       tap that changes nothing can win last-write-wins. Found while fixing S5.
 - [ ] iOS: no tombstone-suppression guard on pull or SSE, so archived and trashed ids can come back.
+- [ ] iOS: the editor saves the whole row it opened (`App/Editor/TaskEditorView.swift`, `save()` starts from
+      `original`). A completion made while the editor is open is undone. Android had the same bug (finding 44).
+      The web merges its draft onto the stored row.
 
 ### Decided, no action needed
 
@@ -391,6 +395,35 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 44 the editor saves only what the user changed)
+- **Merge state:** the owner merged #20 and #21 while this was in progress. `main` at `7da3e87` has the same
+  tree as this branch's base, so #22 targets `main` and its gate run holds for the merge result.
+- **Done:** review finding 44 is fixed on branch `fix/editor-saves-only-its-fields` (#22). Tier was Standard.
+  The owner approved the design in chat.
+  - `EditorRules.merge(current, original, edited)` in `:core:model` is a per-field three-way merge over the
+    twelve fields the editor owns. The reminder reset runs on its result.
+  - `TaskStore.edit(id, transform)` reads the row inside its transaction, validates, stamps, enqueues, and
+    writes. It returns null when the task is gone.
+  - `TaskEditorViewModel.save` uses both for an existing task, and it takes an `onMissing` callback. The sheet
+    shows the "Task not found" toast.
+  - `EditorRules.applyReminderReset` had no caller left, so it is gone. Its three tests now go through `merge`.
+  - Spec 8.3 is amended.
+- **Assumption, stated to the owner:** a save on a task deleted while the sheet was open writes nothing. The
+  owner approved the design without choosing, so I took my recommendation. The task stays in Trash.
+- **Proof:** four JVM merge tests failed first against a stub that kept the old behavior. A store test ran
+  eight concurrent edits against a stub that read outside the transaction, and 2 of 8 tags survived. Two view
+  model tests failed on the old save: "the save undid a completion it never saw", and `expected missing but
+  was done`.
+- **Not changed:** `TaskStore.change` still reads outside its transaction. S5 fixed that pattern in
+  `setCompleted`, and `edit` avoids it. `change` is a state change on one field, so the window is small.
+- **Next:** findings 45, 46, 49, and 50. Then sections C to H of "Left to do".
+- **Owner decisions still open:** whether a tap on the GSD icon may close the sign-in tab, and the three
+  leftover branches under "Owner decisions".
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 143, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 185
+  on `gsd-test` (`:app` 127, `:core:store` 58, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green. The connected run took 2m 10s.
 
 ## Resuming From Here (2026-09-20, finding 47 a reminder tap opens the task)
 - **Done:** review finding 47 is fixed on branch `fix/reminder-tap-opens-the-task`, stacked on

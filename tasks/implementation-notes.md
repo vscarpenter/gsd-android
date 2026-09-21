@@ -150,3 +150,13 @@
 - **Refactor under green first:** I pulled the tap intent into `ReminderReceiver.tapIntent` with its old shape and ran the five notification tests. Then I wrote the red test against that function, and then I changed the shape. The test sends exactly what the receiver sends.
 - **One router, not two:** `MainActivity` had a second way into a task, the extra, and it skipped the navigation the link does. Removing it left one path, which the deep link tests already cover for cold start and a missing task.
 - **No shim for old notifications:** a posted notification holds the old intent only until the app updates. Android clears an app's notifications when its package is replaced. I did not verify that on a device. If an old notification did survive, its tap would open the app and no task. That is what it did before from any tab but Matrix.
+
+## Finding 44 the editor saves only what the user changed (2026-09-20)
+
+- **Tier:** Standard. Three modules, one new store method, one new pure function. The design went through the one approval gate.
+- **Sibling check decided the direction:** the web merges its 12-field draft onto the stored row inside its transaction. iOS writes `original` whole, as Android did.
+- **Three-way, not two-way:** copying every owned field from the draft would still revert an owned field the user never touched. A snooze set from the reminder is the live case. `pick` takes the draft's value only where it differs from the row the editor opened.
+- **Stubs gave honest reds:** `merge` first returned the edited row whole, and `edit` first read outside its transaction. Both are the old behavior, so each new test failed on behavior and not on a missing symbol.
+- **The vanished-task red lives in the view model.** At the store level a stub that returns null already passes. Only the old `save`, an upsert, brought the task back.
+- **A JUnit 4 trap:** a test written as `= runBlocking { ... }` returns its last expression. Mine ended in `assertNotNull(...)`, so the method was not void and the runner failed with `initializationError`. Declare `: Unit`.
+- **Dead code left the building:** `applyReminderReset` lost its only caller. I removed it and moved its tests onto `merge`, which added the reminder-offset case my merge tests lacked.

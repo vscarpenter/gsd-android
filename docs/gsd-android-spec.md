@@ -574,8 +574,13 @@ After parsing, the cleaned title has tokens/URLs removed and whitespace collapse
 ### 8.3 Task editor
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 44
 
 **Behavior.** Full create/edit surface for every field; save validates §7.2 limits; save disabled while the title is empty. Editing `dueDate` or `notifyBefore` **resets reminder state** (`notificationSent = false`, clears `lastNotificationAt` and `snoozedUntil`) so the user gets re-notified.
+
+**What Save writes.** Saving an existing task does not write the row the editor opened. The editor owns twelve fields: title, description, urgent, important, tags, due date, recurrence, subtasks, dependencies, reminder offset, estimate, and snooze. For each one, the user's value is written only where the user changed it. Everything else is the row as it is in the store at the moment of the write, read inside the same transaction (`TaskStore.edit` with `EditorRules.merge`). A completion, a timer, or a snooze that landed while the sheet was open survives the save. Where the user and another writer changed the same field, the user's save wins that field, which is ordinary last-write-wins.
+
+If the task was deleted while the sheet was open, Save writes nothing. The sheet closes with the "Task not found" toast, and the task stays in Trash.
 
 **Android reimagining** — sections in order:
 - **Title** (multiline-capable field).

@@ -1,11 +1,38 @@
 package dev.vinny.gsd.model
 
-/** Editing dueDate or notifyBefore resets reminder state so the user is re-notified (spec §8.3). */
+/** What the editor's Save means for a task that already exists (spec §8.3). */
 object EditorRules {
-    fun applyReminderReset(original: Task, edited: Task): Task =
-        if (edited.dueDate != original.dueDate || edited.notifyBefore != original.notifyBefore) {
-            edited.copy(notificationSent = false, lastNotificationAt = null, snoozedUntil = null)
-        } else {
-            edited
-        }
+    /**
+     * The row Save writes (review finding 44). The editor holds three versions of the task: the row it
+     * opened, the row the user edited, and the row now in the store. For each field the editor owns,
+     * the user's value wins only where the user changed it. Everything else is the stored row, so a
+     * completion, a timer, or a snooze that landed while the sheet was open survives.
+     *
+     * Editing dueDate or notifyBefore resets reminder state, so the user is notified again (spec §8.3).
+     */
+    fun merge(current: Task, original: Task, edited: Task): Task {
+        fun <T> pick(field: (Task) -> T): T =
+            if (field(edited) != field(original)) field(edited) else field(current)
+        val merged = current.copy(
+            title = pick { it.title },
+            description = pick { it.description },
+            urgent = pick { it.urgent },
+            important = pick { it.important },
+            tags = pick { it.tags },
+            dueDate = pick { it.dueDate },
+            recurrence = pick { it.recurrence },
+            subtasks = pick { it.subtasks },
+            dependencies = pick { it.dependencies },
+            notifyBefore = pick { it.notifyBefore },
+            estimatedMinutes = pick { it.estimatedMinutes },
+            snoozedUntil = pick { it.snoozedUntil },
+        )
+        return if (movedTheReminder(original, edited)) merged.withReminderReset() else merged
+    }
+
+    private fun movedTheReminder(original: Task, edited: Task): Boolean =
+        edited.dueDate != original.dueDate || edited.notifyBefore != original.notifyBefore
+
+    private fun Task.withReminderReset(): Task =
+        copy(notificationSent = false, lastNotificationAt = null, snoozedUntil = null)
 }
