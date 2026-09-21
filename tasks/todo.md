@@ -428,7 +428,13 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   launcher activity fix noted for after launch. The release smoke gained a two-way check of the sign-in tab.
 - **Housekeeping:** the owner asked for the merged local branches to go. All five went, the last one after
   #23 merged.
-- **Next:** findings 46, 49, and 50. Then sections C to H of "Left to do".
+- **Next, in this order:** finding 49 first (swipes on Browse search results and smart view lists). The spec
+  already asks for them and `SwipeTaskRow` is ready, so it needs no design gate. Then finding 50 (the haptic and
+  confetti outside Matrix), which means lifting both out of `MatrixScreen`. Then finding 46, which gets a design
+  gate: a lifecycle gate on the router, or an activity-scoped controller. After those, section C (findings 6 to
+  8, reminders and the listing) and section D (15 to 17, Play policy).
+- **Where the session stopped:** 2026-09-20, end of day, at the owner's word. #24 is open and not merged. The
+  tree is clean, and every gate below ran on the pushed tip.
 - **Blockers:** none.
 - **Gates:** `:core:model:test` 145, `testDebugUnitTest` 139 (`:core:sync` 95, `:app` 44), `connectedAndroidTest` 187
   on `gsd-test` (`:app` 127, `:core:store` 60, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
