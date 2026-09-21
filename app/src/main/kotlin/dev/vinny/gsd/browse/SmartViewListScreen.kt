@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -17,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -26,9 +29,12 @@ import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
+import dev.vinny.gsd.matrix.TaskActionsViewModel
 import dev.vinny.gsd.matrix.TaskBadges
 import dev.vinny.gsd.matrix.TaskRowActions
 import dev.vinny.gsd.matrix.TaskRowWithMenu
+import dev.vinny.gsd.matrix.UndoDeleteEffect
+import dev.vinny.gsd.matrix.taskRowActions
 import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.SmartView
 import dev.vinny.gsd.model.Task
@@ -37,12 +43,6 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import java.time.Instant
 import java.time.ZoneId
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.ui.platform.LocalContext
-import dev.vinny.gsd.matrix.TaskActionsViewModel
-import dev.vinny.gsd.matrix.UndoDeleteEffect
-import dev.vinny.gsd.matrix.taskRowActions
 
 /** A smart view's flat filtered list with in-list search (spec §8.13). */
 @Composable

@@ -16,9 +16,11 @@ import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdTheme
 import java.time.Instant
+import kotlin.test.assertEquals
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -35,9 +37,14 @@ class ListMenuActionsTest {
     private val title = "menu me on a list"
     private lateinit var taskId: String
 
-    /** Urgent and important, so the built-in Today's Focus view lists it. */
+    /**
+     * Urgent and important, so the built-in Today's Focus view lists it. These tests write through
+     * the real store, so a signed-in device would sync their tasks to the backend.
+     */
     @Before
     fun seedOneTask() = runBlocking {
+        assumeFalse("signed in: refusing to write test tasks", app.container.syncCoordinator.signedIn.value)
+        removeEveryCopy() // a killed run can leave one behind, and two rows would match the same finder
         val now = Instant.now()
         taskId = app.container.store.add(
             Task(title = title, urgent = true, important = true, createdAt = now, updatedAt = now),
@@ -46,8 +53,11 @@ class ListMenuActionsTest {
 
     /** Duplicate leaves a second task with the same title, so clear by title and not by id alone. */
     @After
-    fun removeEveryCopy() = runBlocking {
-        (tasksTitled().map { it.id } + taskId).forEach { id ->
+    fun cleanUp() = runBlocking { removeEveryCopy() }
+
+    private suspend fun removeEveryCopy() {
+        val seeded = if (::taskId.isInitialized) listOf(taskId) else emptyList()
+        (tasksTitled().map { it.id } + seeded).forEach { id ->
             app.container.store.delete(id)
             app.container.trashStore.deleteForever(id)
         }
@@ -76,6 +86,7 @@ class ListMenuActionsTest {
     @Test
     fun duplicateOnASmartViewListAddsACopy() {
         showTodaysFocus()
+        assertEquals(1, tasksTitled().size) // or a leftover copy could satisfy the wait below
 
         chooseFromTheMenu("Duplicate")
 

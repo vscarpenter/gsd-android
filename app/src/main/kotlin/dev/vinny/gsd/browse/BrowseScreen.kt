@@ -43,6 +43,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -64,9 +67,12 @@ import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
+import dev.vinny.gsd.matrix.TaskActionsViewModel
 import dev.vinny.gsd.matrix.TaskBadges
 import dev.vinny.gsd.matrix.TaskRowActions
 import dev.vinny.gsd.matrix.TaskRowWithMenu
+import dev.vinny.gsd.matrix.UndoDeleteEffect
+import dev.vinny.gsd.matrix.taskRowActions
 import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.FilterCriteria
 import dev.vinny.gsd.model.FilterStatus
@@ -77,12 +83,6 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import java.time.Instant
 import java.time.ZoneId
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.ui.platform.LocalContext
-import dev.vinny.gsd.matrix.TaskActionsViewModel
-import dev.vinny.gsd.matrix.UndoDeleteEffect
-import dev.vinny.gsd.matrix.taskRowActions
 
 /** Icon token → vector for both built-ins (§5.7) and the 10 curated custom options. */
 val smartViewIcons: Map<String, ImageVector> = mapOf(
