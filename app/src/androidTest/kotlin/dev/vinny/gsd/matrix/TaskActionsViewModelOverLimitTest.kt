@@ -1,17 +1,14 @@
 package dev.vinny.gsd.matrix
 
 import android.content.Context
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.Task
-import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.TaskStore
 import dev.vinny.gsd.store.TrashStore
 import dev.vinny.gsd.sync.RoomSyncLocalStore
-import java.io.File
 import java.time.Clock
 import java.time.Instant
 import kotlinx.coroutines.delay
@@ -29,12 +26,11 @@ import kotlin.test.assertEquals
  * These two went through validating store calls. A synced task over the limit must survive them.
  */
 @RunWith(AndroidJUnit4::class)
-class MatrixViewModelOverLimitTest {
+class TaskActionsViewModelOverLimitTest {
     private val now = Instant.parse("2026-07-19T12:00:00.000Z")
     private lateinit var db: GsdDatabase
     private lateinit var store: TaskStore
-    private lateinit var prefsFile: File
-    private lateinit var viewModel: MatrixViewModel
+    private lateinit var viewModel: TaskActionsViewModel
 
     /** 80 characters on iOS. The emoji is two UTF-16 units, so Android sees 81. */
     private val pulled = Task(
@@ -46,18 +42,12 @@ class MatrixViewModelOverLimitTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = GsdDatabase.buildInMemory(context)
         store = TaskStore(db, Clock.systemUTC())
-        prefsFile = File.createTempFile("gsd-prefs", ".preferences_pb", context.cacheDir)
-        viewModel = MatrixViewModel(
-            store, GsdPrefs(PreferenceDataStoreFactory.create(produceFile = { prefsFile })), TrashStore(db, Clock.systemUTC()),
-        )
+        viewModel = TaskActionsViewModel(store, TrashStore(db, Clock.systemUTC()))
         RoomSyncLocalStore(db).upsertFromRemote(pulled) // pull stores a task without validating it
     }
 
     @After
-    fun tearDown() {
-        db.close()
-        prefsFile.delete()
-    }
+    fun tearDown() = db.close()
 
     @Test
     fun itCanBeMovedToAnotherQuadrant() = runBlocking {

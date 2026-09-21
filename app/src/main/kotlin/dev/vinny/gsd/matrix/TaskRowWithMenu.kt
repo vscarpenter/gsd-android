@@ -1,5 +1,7 @@
 package dev.vinny.gsd.matrix
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -13,10 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Quadrant
+import dev.vinny.gsd.model.ShareText
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdType
 import java.time.Duration
+import java.time.ZoneId
 
 data class TaskBadges(val blocked: Int, val blocking: Int)
 
@@ -30,6 +34,30 @@ data class TaskRowActions(
     val onShare: () -> Unit = {},
     val onMoveTo: (Quadrant) -> Unit = {},
     val onDelete: () -> Unit = {},
+)
+
+/** The full §8.1 menu for one task. Every screen that draws a task row builds its actions here. */
+fun taskRowActions(
+    task: Task,
+    context: Context,
+    actions: TaskActionsViewModel,
+    onEdit: () -> Unit,
+    onToggleComplete: () -> Unit = { actions.toggleCompleted(task.id) },
+): TaskRowActions = TaskRowActions(
+    onEdit = onEdit,
+    onToggleComplete = onToggleComplete,
+    onToggleTimer = { actions.toggleTimer(task.id) },
+    onSnooze = { duration -> actions.snooze(task.id, duration) },
+    onDuplicate = { actions.duplicate(task.id) },
+    onShare = {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, ShareText.render(task, ZoneId.systemDefault()))
+        }
+        context.startActivity(Intent.createChooser(send, null))
+    },
+    onMoveTo = { quadrant -> actions.moveToQuadrant(task.id, quadrant) },
+    onDelete = { actions.delete(task.id) },
 )
 
 private val menuSnoozePresets: List<Pair<Duration, Int>> = listOf(
@@ -47,6 +75,7 @@ fun TaskRowWithMenu(
     badges: TaskBadges,
     actions: TaskRowActions,
     modifier: Modifier = Modifier,
+    menuEnabled: Boolean = true,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var snoozeOpen by remember { mutableStateOf(false) }
@@ -57,7 +86,8 @@ fun TaskRowWithMenu(
             onToggleComplete = actions.onToggleComplete,
             onClick = actions.onEdit,
             badges = badges,
-            onOpenMenu = { menuOpen = true },
+            // Select mode turns the menu off, and a card with no menu draws no button.
+            onOpenMenu = if (menuEnabled) { { menuOpen = true } } else null,
         )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             MenuItem(R.string.menu_edit) { menuOpen = false; actions.onEdit() }
