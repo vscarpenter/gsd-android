@@ -87,7 +87,13 @@ The "..." button now opens the same menu as a long press. `TaskCard` takes one `
 The finding was wider than an empty lambda. Trash, Archive, and the tablet grid draw a bare card with no menu, so a wired button would still have done nothing there. A card with no menu now shows no button. The tablet grid gets its button back with finding 14.
 Two component tests failed first: the menu never opened from the button, and a bare card still showed it.
 
-Findings 2, 3, 5 to 14, 37 to 42, and 44 to 46 remain open.
+Status, 2026-09-20: finding 2 is fixed on branch `fix/trash-row-background`, stacked on the finding 1 branch.
+`SwipeTaskRow` chose its background with a `when` whose `else` branch also covered the resting state, so every row painted solid red behind its content. An opaque card hid that on Matrix. Trash dims its rows to 72% and puts a bare line of text under each card, so the text sat on red.
+The `when` now names all three states, and a row at rest draws nothing.
+A pixel test failed first: the center of a resting row was `0xFFB23A2E`, the alert red, where the paper color was expected. A second test guards the background during a swipe. I proved it by mutation: with the background never drawn, it failed on paper where the success green was expected.
+Checked live on `gsd-test`: the Trash row sits on paper, and all three labels are readable.
+
+Findings 3, 5 to 14, 37 to 42, and 44 to 46 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|

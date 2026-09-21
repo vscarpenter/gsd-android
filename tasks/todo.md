@@ -5,8 +5,9 @@
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Finding 4 is fixed on
-branch `fix/single-main-activity`, and its walk added finding 46. Finding 1 is fixed on
-`fix/task-card-options-button`, stacked on it. Neither is merged.
+branch `fix/single-main-activity`, and its walk added finding 46. Findings 1 and 2 are fixed
+on `fix/task-card-options-button` (#14) and `fix/trash-row-background`, stacked in that order on #13. None is
+merged.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -28,7 +29,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
       went with it: a `gsd://capture` link now opens the sheet on the visible activity.
 - [x] **1.** The "..." button on every task card does nothing. Done 2026-09-20 on branch
       `fix/task-card-options-button`. The button opens the long-press menu. A card with no menu shows no button.
-- [ ] **2.** Trash rows draw over the red swipe background, so their text is unreadable.
+- [x] **2.** Trash rows draw over the red swipe background, so their text is unreadable. Done 2026-09-20 on
+      branch `fix/trash-row-background`. A row at rest no longer paints a swipe background.
 - [ ] **3.** Swipe-to-delete never shows the Undo snackbar.
 - [ ] **5.** "Snooze 1 hour" on a reminder never fires again. The reviewer of #4 confirmed it independently.
 - [ ] **44.** The editor saves a whole-row snapshot taken when it opened. It reverts a Complete tapped from the
@@ -364,6 +366,27 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 2 the Trash row background)
+- **Done:** review finding 2 is fixed on branch `fix/trash-row-background`, stacked on
+  `fix/task-card-options-button`. Tier was Trivial: one `when` in `matrix/SwipeTaskRow.kt`. No design gate,
+  because a resting row has one right answer.
+  - The `when` that picks the swipe background names all three states. `Settled` draws nothing.
+  - Spec 8.1 is amended.
+- **Proof:** the pixel test in `SwipeTaskRowTest` failed first with the alert red, `0xFFB23A2E`, where paper was
+  expected. The mid-swipe guard passed at once, so I proved it by mutation. With the background never drawn,
+  it failed on paper where the success green was expected.
+- **Checked live on `gsd-test`:** a task deleted through the new "..." menu, then `gsd://trash`. The row sits on
+  paper and its three labels are readable. One screenshot showed findings 4, 1, and 2 working together.
+- **Not changed:** Trash still dims its rows to 72%. During a swipe the background shows through the dimmed
+  row a little. That lasts only while the finger is down.
+- **Next:** finding 3 (no Undo snackbar after a swipe-delete), then 5, 44, 45, and 46, each test-first. The
+  probable cause of 3 is in the review: `confirmValueChange` fires twice, the second `store.delete` returns
+  null, and the null overwrites `_lastDeleted` (`matrix/MatrixViewModel.kt:64-68`).
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 161
+  on `gsd-test` (`:app` 106, `:core:store` 55), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
+  green. The connected run took 1m 29s.
 
 ## Resuming From Here (2026-09-20, finding 1 the options button)
 - **Done:** review finding 1 is fixed on branch `fix/task-card-options-button`, stacked on

@@ -94,3 +94,11 @@
 - **Wider than the review said:** the review named an empty lambda. Six surfaces draw a task card, and three of them have no menu: Trash, Archive, and the tablet grid. Filling in the lambda would have left a dead button on all three.
 - **One callback, not two:** `onLongPress` became `onOpenMenu`. A second parameter would let the two gestures drift apart.
 - **Menu position unchanged:** the menu still anchors to the row, as it does after a long press. Moving it under the button is polish, and nobody asked for it.
+
+## Finding 2 the Trash row background (2026-09-20)
+
+- **Tier:** Trivial. One `when` in one file. I skipped the design gate, because a row at rest has one right answer.
+- **The cause was an `else`:** `SwipeToDismissBoxValue` has three values. The `else` branch gave `Settled` the red delete background, and the background content is always composed.
+- **First pixel tests in the repo:** `captureToImage().toPixelMap()` on a row whose content paints nothing. Compare with `toArgb()`, and read the expected colors from `LocalGsdColors` inside the composition so the test holds in either theme.
+- **Sample points:** on `gsd-test` one dp is one pixel. The mid-swipe test samples 8 px from the left edge at mid height. That point is left of the check icon and clear of the rounded corners.
+- **Not done:** an opaque paper layer under the dimmed Trash row. It would stop the background showing through during a swipe. The finding is about the resting state, so I left it.
