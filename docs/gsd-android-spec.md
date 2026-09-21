@@ -240,6 +240,8 @@ Spacing is a strict **4dp grid**: 4 hairline gaps · 8 chip padding · 12 in-car
 
 ### 5.6 Task card anatomy
 
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 1
+
 Row layout (top-aligned, 12dp gap), left → right:
 
 1. **Accent spine** — 3dp-wide rounded bar in the quadrant accent. This is how a task wears its quadrant.
@@ -249,7 +251,7 @@ Row layout (top-aligned, 12dp gap), left → right:
    - **Tag chips** — `#tag` capsules: quadrant **wash** background + quadrant **accent** text.
    - **Metadata row** — 13sp, `ink3`, single line: due date (calendar icon; *today* = Tide semibold; *overdue* = `alert` + warning icon) · recurrence repeat icon · blocked (`lock` + count, ink2) · blocking (`arrow-circle` + count) · running timer (pulsing dot + live `HH:MM:SS`) or tracked total (`clock` + `Xh Ym`) · snoozed (`bedtime` icon + remaining).
    - **Subtask progress** — 84×6dp capsule track (`sunken`) with accent fill (`success` green at 100%) + `done/total` label.
-3. **Trailing controls:** overflow menu (`⋯`, ink3, ≥48dp target) + the **completion disc** — 28dp circle in a 48dp target; incomplete = 2dp `ink3` ring; complete = accent-filled + `inkOnAccent` check. Tapping the disc toggles completion (never opens the editor).
+3. **Trailing controls:** overflow menu (`⋯`, ink3, ≥48dp target) + the **completion disc** — 28dp circle in a 48dp target; incomplete = 2dp `ink3` ring; complete = accent-filled + `inkOnAccent` check. Tapping the disc toggles completion (never opens the editor). The overflow button opens the §8.1 context menu. A card drawn without that menu (Trash, Archive) shows no overflow button.
 
 Blocked tasks show the lock badge but are **not** dimmed (an earlier whole-card dim was removed as too punishing). Completed tasks sort below incomplete within a quadrant and render dimmed/struck.
 
@@ -523,6 +525,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 ### 8.1 The Matrix
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 1
 
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
@@ -533,7 +536,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
   - **Swipe right (leading)** → complete/uncomplete (full-swipe commits), with the success haptic + confetti on complete.
   - **Swipe left (trailing)** → reveal **Snooze** (quick-snooze **1 hour**) and **Delete**.
   - **Tap** → open editor. **Tap the completion disc** → toggle complete (never opens the editor).
-  - **Long-press** → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete.
+  - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete.
 - **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11).
 - **Empty quadrants** show the dashed in-context prompt with tailored copy (§5.10) and an "add to this quadrant" affordance. A fully empty matrix shows "Capture your first task" with an example.
 - **First frame.** `MatrixViewModel.sections` is `StateFlow<List<QuadrantSectionState>?>` whose initial value is **`null`** until Room's first emission; the flag never resets for the ViewModel's lifetime. Gate order: `null` → skeleton; loaded-and-empty → the dashed prompts; else content. "Loaded" means the observer delivered its **first snapshot, even an empty one** — before that, an empty list is indistinguishable from an empty board, which is why cold starts used to flash the four dashed prompts. The **capture bar stays live** through the skeleton (it does not depend on tasks); below it sit four quadrant-section silhouettes in Q1→Q4 order, each a header (26dp icon tile, 120×16dp title bar, 24×12dp count bar) plus **3, 2, 2, 1** card silhouettes — deliberately uneven, because four identical columns read as a loading pattern rather than a preview. Each card silhouette is a 3dp accent-colored spine plus a 14dp title bar and a 10dp metadata bar on a `surface` tile. At expanded width the same silhouettes fill the 2×2 grid cells. There is **no timer and no minimum display time**: if the first snapshot lands within a frame the skeleton is never visibly drawn. Its job is removing the false empty state, not showing a loader. Primitive and shimmer: §5.10.
