@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.theme.LocalGsdColors
@@ -69,7 +70,7 @@ fun ConfettiOverlay(trigger: Int, modifier: Modifier = Modifier) {
     }
     if (progress >= 1f) return
     val density = LocalDensity.current
-    Canvas(modifier = modifier.fillMaxSize()) {
+    Canvas(modifier = modifier.fillMaxSize().testTag("confetti")) {
         val t = progress * (ConfettiSpec.DURATION_MS / 1000f)
         particles.forEach { p ->
             val vx = p.speed * cos(p.angleRad)

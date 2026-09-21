@@ -8,8 +8,9 @@ One list, in the order I would work it. A number in front of an item is its find
 stale. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2, and 3 are fixed and merged
 (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19). Findings 5, 47, and 44
 are fixed and merged (#20, #21, and #22), and so are the test commits from the review of #22 (#23). Finding 45
-is merged (#24). Finding 49 is fixed on `fix/swipes-on-every-list`, not merged. The work since #13 added
-findings 46 to 50.
+is merged (#24). Finding 49 is fixed on `fix/swipes-on-every-list`, and findings 50 and 51 on
+`fix/celebrate-every-completion` stacked above it. Neither is merged. The work since #13 added findings 46
+to 52.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -48,7 +49,12 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [x] **49.** Browse search results and smart view lists have no swipe gestures. Done 2026-09-21 on branch
       `fix/swipes-on-every-list`. Both lists wrap each row in `SwipeTaskRow`, and the swipe calls the same
       callbacks as the row's menu.
-- [ ] **50.** Completing a task outside Matrix gets no haptic and no confetti. Spec 8.4 says "always".
+- [x] **50.** Completing a task outside Matrix gets no haptic and no confetti. Done 2026-09-21 on branch
+      `fix/celebrate-every-completion`. `CompletionCelebration` owns both, and all three list screens draw
+      the confetti.
+- [x] **51.** Reopening a task gives no haptic. Spec 5.8 says complete and uncomplete. Done 2026-09-21 on the
+      same branch, in its own commit. iOS fires the haptic on every toggle.
+- [ ] **52.** Bulk Done gives no haptic and no confetti. Spec 8.4 lists the bulk bar. Check iOS first.
 - [x] **5.** "Snooze 1 hour" on a reminder never fires again. Done 2026-09-20, merged in #20. A future snooze
       now overrides the sent flag in `ReminderPlanner`.
 - [x] **44.** The editor saves a whole-row snapshot taken when it opened. Done 2026-09-20, merged in #22. Save
@@ -417,6 +423,29 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-21, findings 50 and 51 every list celebrates)
+- **Done:** findings 50 and 51 are fixed on branch `fix/celebrate-every-completion`, stacked on the finding 49
+  branch. Tier was Standard for 50 and Trivial for 51. Neither had a design gate: 50 was a move the todo had
+  already called for, and 51 followed the spec and iOS.
+  - `CompletionCelebration` in `:app` owns the haptic and the confetti trigger. Matrix, the smart view list,
+    and Browse each remember one and draw `ConfettiOverlay`. `taskRowActions` requires it.
+  - The haptic goes through `LocalHapticFeedback`, which a test can replace. A reopen gets the haptic and no
+    confetti.
+  - Spec 5.8 and 8.4 are amended.
+- **Proof:** four list tests failed first with `expected 1 but was 0` and no confetti. The reopen haptic test
+  failed first the same way. Five guards passed on their first run and each failed under a mutation.
+- **Found on the way:** finding 51 (fixed) and finding 52 (Bulk Done celebrates nothing, open).
+- **Not checked live:** I did not tap on `gsd-test` by hand. The tests drive the real screens against the real
+  store, with a counting haptic in place of the platform's.
+- **Not pushed:** both branches are local. Pushing and opening the two stacked PRs waits for the owner's word.
+  Merge 49 first, then retarget 50's PR to `main`.
+- **Next, in this order:** finding 52 if the owner wants it before production, since it is small. Then
+  finding 46, which gets a design gate. Then section C (findings 6 to 8) and section D (15 to 17).
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 145, `testDebugUnitTest` 139 (`:core:sync` 95, `:app` 44), `connectedAndroidTest` 200
+  on `gsd-test` (`:app` 140, `:core:store` 60, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green on `bea2693`. The whole gate run took 2m 57s.
 
 ## Resuming From Here (2026-09-21, finding 49 swipes on every task list)
 - **Merge state:** #24 and #25 merged overnight, so `main` at `e49c5d4` held everything from 2026-09-20. This

@@ -41,11 +41,14 @@ fun taskRowActions(
     task: Task,
     context: Context,
     actions: TaskActionsViewModel,
+    celebration: CompletionCelebration,
     onEdit: () -> Unit,
-    onToggleComplete: () -> Unit = { actions.toggleCompleted(task.id) },
 ): TaskRowActions = TaskRowActions(
     onEdit = onEdit,
-    onToggleComplete = onToggleComplete,
+    onToggleComplete = {
+        celebration.onToggle(task)
+        actions.toggleCompleted(task.id)
+    },
     onToggleTimer = { actions.toggleTimer(task.id) },
     onSnooze = { duration -> actions.snooze(task.id, duration) },
     onDuplicate = { actions.duplicate(task.id) },
