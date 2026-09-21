@@ -109,3 +109,11 @@
 - **I verified each claim before acting.** The `singleTop` claim took one mutation run. The launcher tap claim took one `am start` with the launcher's action, category, and flags `0x10200000`. Finding 47 took one grep for the consumers of `openTaskRequests`.
 - **Follow-ups went on #13's own branch.** They touch only `RunningAppLinkTest.kt` and spec 6.4 and 10.2, which no branch above it edits. The shared records (this file, the todo, the review, the lessons) went on the top of the stack, so nothing conflicts.
 - **Not acted on:** the Recents replay is speculative, and I have no failing test for it. It is in the todo.
+
+## Finding 3 swipe actions run once (2026-09-20)
+
+- **Tier:** Standard. One composable, but both swipe directions change how they fire.
+- **Measure before fixing:** the review guessed that `confirmValueChange` fired twice. A counter in a component test showed 8 and 9. The fix for two calls and the fix for nine are the same, but the count explained the completion path too.
+- **Read the library:** the Material 3 1.4.0 sources jar is in the Gradle cache. It shows `onDismiss` called from `LaunchedEffect(state.settledValue)`, and the official sample resets the state afterward. `SwipeTaskRow` follows that sample.
+- **A test that never went red:** `SwipeDeleteUndoTest` passed on the old code 8 times out of 8. I tried a 1.5 second swipe on the theory that speed hid the race. It passed 3 more times. I kept the test as a guard, said so in its KDoc, and proved it by mutation.
+- **Reviewer nits I left alone in #15:** the two color fields in `SwipeTaskRowTest` are not `@Volatile`, and a failed color assert prints decimal.

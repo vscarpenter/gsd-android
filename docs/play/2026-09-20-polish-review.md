@@ -98,7 +98,17 @@ Its best catch: my three link tests also pass under `singleTop`. I checked, and 
 It also pointed out that a launcher tap clears the task too. I confirmed that on `gsd-test`, and spec 6.4 now says so. A user who leaves the sign-in tab and returns through the GSD icon starts sign-in again. Whether to accept that is an owner decision, listed in the todo.
 The review found finding 47 by reading code, and I confirmed it the same way.
 
-Findings 3, 5 to 14, 37 to 42, and 44 to 47 remain open.
+Status, 2026-09-20: finding 3 is fixed on branch `fix/swipe-delete-undo`, stacked on the finding 2 branch.
+The cause was not a double call. I counted: one swipe ran the delete 8 times, and one leading swipe ran the completion 9 times. `SwipeTaskRow` did its work inside `confirmValueChange`, which Material asks on every drag frame. Material 3 1.4.0 deprecates that parameter.
+The first delete recorded the task for Undo. A later one found no row, came back empty, and cleared the record, which cancelled the snackbar. The completion path had the same fault: `toggleCompleted` reads the task and flips it, so one swipe launched nine racing flips, with up to nine haptics.
+The actions now run in `onDismiss`, which Material calls once when the swipe settles. The row then resets.
+Two tests failed first: `expected 1 but was 8` and `expected 1 but was 9`.
+I could not reproduce the missing snackbar itself in a test. An activity test of swipe, Undo, and restore passed on the old code in eight runs out of eight, at both swipe speeds. I kept it as a guard for that path and proved it by mutation. My two guesses at the timing were both wrong. The exact path from eight calls to a lost snackbar on a device is still unexplained.
+Checked live on `gsd-test`: a 600 ms swipe deleted the task and the Undo snackbar appeared.
+
+Review of #14 and #15, 2026-09-20: the CI review of #14 ran 13 turns in 36 seconds and posted nothing, so I ran a fresh-context review of both. It found nothing above a nit in #15. In #14 it found finding 48, which is older than #14 and one tap closer because of it.
+
+Findings 5 to 14, 37 to 42, and 44 to 48 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -127,6 +137,7 @@ Findings 3, 5 to 14, 37 to 42, and 44 to 47 remain open.
 | 45 | `OneShotRequest<Unit>` can wedge if a handler ever suspends. A `send(Unit)` that lands during the suspension is conflated away, because `Unit == Unit`, and the stale value fires on the next consumer. It cannot happen today: both handlers return at once and every sender runs on the main thread. `ConsumeWhileStarted` still accepts a suspending handler, so make `handle` non-suspending. Found by the reviewer of #6, who ran the class against coroutines 1.10.2. | code, `palette/OneShotRequest.kt:18-21` |
 | 46 | A launcher shortcut that fires while GSD is on screen loses its link. "Today's Focus" restarts the task and lands on Matrix. The shortcut's `CLEAR_TASK` flag destroys the old activity and starts a new one. Probable cause: the old copy must pause before it dies, and its route collector has no lifecycle gate. It takes `pendingRoute` before the new copy composes. From the home screen the shortcut works, because a stopped activity is destroyed at once. Split-screen and a tablet taskbar can reach the failing case. Older than the finding 4 fix: a build with no launch mode does the same. | live on `gsd-test` with `am start -f 0x1000c000`, with and without the launch mode, `MainActivity.kt:150-175` |
 | 47 | A reminder tap opens nothing unless Matrix is on screen. The tap carries the task id as an extra, and the activity only calls `requestOpenTask`. The one consumer is `MatrixScreen`. On Dashboard, Browse, or Settings the editor opens later, on the next visit to Matrix. Spec 11.2 says the tap is `gsd://task/<id>`, and that route goes to Matrix first. Found by the reviewer of #13. | code, `MainActivity.kt:58-59` and `:161-164`, `matrix/MatrixScreen.kt:82`, `notifications/ReminderReceiver.kt:30-38` |
+| 48 | The task menu is mostly dead outside Matrix. Browse search results and smart view lists build `TaskRowActions` with only Edit and Complete, so the other six items close the menu and do nothing: Start timer, Snooze, Duplicate, Share, Move to, and Delete. In Matrix select mode the menu still opens, Edit and Complete toggle the selection, and the other six do nothing. A long press always reached these menus. Since finding 1 the "..." button reaches them in one tap. Trash and Archive also draw a completion disc that does nothing, and TalkBack announces it as "Mark complete". Found by the reviewer of #14. | code, `browse/BrowseScreen.kt:148-153`, `browse/SmartViewListScreen.kt:55-60`, `matrix/MatrixScreen.kt:139-146`, `browse/TrashScreen.kt:239`, `browse/ArchiveScreen.kt:150` |
 
 ## Play policy and listing accuracy
 

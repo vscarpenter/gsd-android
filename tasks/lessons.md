@@ -51,4 +51,7 @@
 - **A pixel test needs content that paints nothing.** An opaque card hid the resting background on Matrix. `captureToImage().toPixelMap()` over a bare `Spacer` showed it in one run. Read the expected colors from the theme inside the composition.
 - **Mutate to the design you rejected.** My tests for `singleTask` all passed under `singleTop`, so nothing guarded the choice. A reviewer saw it by reading. One mutation run would have shown it too (review of #13).
 - **A review that posts nothing has not passed.** Check `num_turns` and `permission_denials_count` in the run log. 27 turns with 11 denials and no comment means the verdict is unknown, so get another review.
+- **`confirmValueChange` is a question, not an event.** Material asks it on every drag frame, so an action placed there ran 8 or 9 times per swipe (review finding 3). Run swipe actions in `onDismiss`, then call `state.reset()`.
+- **Count the calls before you trust a cause.** The review said "fires twice". A counter said 8. The count took one test run, and it exposed the completion path as well.
+- **Say so when a test never went red.** A test that passes on the old code can still guard a path, if a mutation proves it. It is not proof of the fix, and its KDoc should say which test is.
 - **Fix a branch in the middle of a stack from a separate worktree.** `git worktree add <scratch> <branch>` leaves the main tree alone, which matters when reviewers or a build are reading it. `git merge-tree --write-tree` then shows whether the branches above still merge cleanly.

@@ -4,11 +4,11 @@
 
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
-43 numbered findings are open, with the three fixes below counted as closed. S1 to S6 and finding 43 are fixed
+43 numbered findings are open, with the four fixes below counted as closed. S1 to S6 and finding 43 are fixed
 and merged (#3 to #10). Finding 4 is fixed on
-branch `fix/single-main-activity`, and its walk added finding 46. Findings 1 and 2 are fixed
-on `fix/task-card-options-button` (#14) and `fix/trash-row-background`, stacked in that order on #13. None is
-merged.
+branch `fix/single-main-activity`, and its walk added finding 46. Findings 1, 2, and 3 are
+fixed on `fix/task-card-options-button` (#14), `fix/trash-row-background` (#15), and `fix/swipe-delete-undo`,
+stacked in that order on #13. None is merged. The reviews of those PRs added findings 47 and 48.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -32,7 +32,12 @@ Everything already done is in the "Resuming From Here" blocks further down.
       `fix/task-card-options-button`. The button opens the long-press menu. A card with no menu shows no button.
 - [x] **2.** Trash rows draw over the red swipe background, so their text is unreadable. Done 2026-09-20 on
       branch `fix/trash-row-background`. A row at rest no longer paints a swipe background.
-- [ ] **3.** Swipe-to-delete never shows the Undo snackbar.
+- [x] **3.** Swipe-to-delete never shows the Undo snackbar. Done 2026-09-20 on branch `fix/swipe-delete-undo`.
+      One swipe ran its action 8 or 9 times. The actions now run once, in `onDismiss`.
+- [ ] **48.** The task menu is mostly dead outside Matrix: six of eight items on Browse search results and
+      smart view lists, and in Matrix select mode. Finding 1 put those menus one tap away, so do this one
+      next. Owner decision: wire all eight actions on those lists, or show only the wired ones. In select
+      mode the card should have no menu. Trash and Archive also draw a dead completion disc.
 - [ ] **5.** "Snooze 1 hour" on a reminder never fires again. The reviewer of #4 confirmed it independently.
 - [ ] **44.** The editor saves a whole-row snapshot taken when it opened. It reverts a Complete tapped from the
       notification in the meantime, and the save wins last-write-wins elsewhere.
@@ -375,6 +380,31 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 3 swipe actions run once)
+- **Done:** review finding 3 is fixed on branch `fix/swipe-delete-undo`, stacked on `fix/trash-row-background`.
+  Tier was Standard: one composable, and a behavior change to both swipe directions.
+  - `SwipeTaskRow` runs its actions in `onDismiss` and then resets the row. It no longer passes
+    `confirmValueChange`, which Material 3 1.4.0 deprecates.
+  - Spec 8.1 is amended.
+- **Root cause, measured:** one trailing swipe called `onDelete` 8 times, and one leading swipe called
+  `onComplete` 9 times. Material asks `confirmValueChange` on every drag frame. The review had guessed two calls.
+- **Proof:** two tests in `SwipeTaskRowTest` failed first with `expected 1 but was 8` and `expected 1 but was 9`.
+- **What I could not do:** reproduce the lost snackbar in a test. `SwipeDeleteUndoTest` passed on the old code in
+  eight runs out of eight, at the default swipe speed and at 1.5 seconds. It stays as a guard for the path from a
+  swipe to Undo, proved by mutation. Both of my timing explanations were wrong. Do not repeat them as fact.
+- **Checked live on `gsd-test`:** a 600 ms swipe deleted the task, and the Undo snackbar appeared.
+- **Not changed:** `MatrixViewModel.delete` still lets an empty result clear the last Undo record, and
+  `TaskStore.delete` still reads the row outside its transaction. One call per swipe takes the pressure off
+  both. S5 fixed the same read pattern in `setCompleted`.
+- **Review of #14 and #15:** the CI review of #14 posted nothing after 13 turns. A fresh-context review found
+  nothing above a nit in #15, and finding 48 in #14. I confirmed 48 by reading the three call sites.
+- **Next:** finding 48, because finding 1 made it easier to hit. It needs the owner's choice first. Then 5 and
+  47 together (both are reminder paths), then 44, 45, and 46.
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 164
+  on `gsd-test` (`:app` 109, `:core:store` 55), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
+  green. The connected run took 1m 59s.
 
 ## Resuming From Here (2026-09-20, review of #13)
 - **Done:** #13 gained two commits after a fresh-context review, `ec977f4` and `0c2dff7`. The CI review of #13
