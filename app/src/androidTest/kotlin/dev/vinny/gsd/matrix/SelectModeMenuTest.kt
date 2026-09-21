@@ -14,6 +14,7 @@ import dev.vinny.gsd.theme.GsdTheme
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -30,8 +31,10 @@ class SelectModeMenuTest {
     private val title = "select me"
     private lateinit var taskId: String
 
+    /** These tests write through the real store, so a signed-in device would sync their tasks to the backend. */
     @Before
     fun seedOneTaskInDoFirst() = runBlocking {
+        assumeFalse("signed in: refusing to write test tasks", app.container.syncCoordinator.signedIn.value)
         val now = Instant.now()
         taskId = app.container.store.add(
             Task(title = title, urgent = true, important = true, createdAt = now, updatedAt = now),

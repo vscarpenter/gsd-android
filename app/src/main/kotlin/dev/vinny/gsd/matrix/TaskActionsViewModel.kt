@@ -49,8 +49,9 @@ class TaskActionsViewModel(
         }
     }
 
-    fun clearUndo() {
-        _lastDeleted.value = null
+    /** Ends one Undo offer. A newer delete may have replaced it, and that one stays. */
+    fun clearUndo(shown: DeletedSnapshot) {
+        _lastDeleted.compareAndSet(shown, null)
     }
 
     /** Drag-and-drop reclassification (spec §6.2): the flags change, quadrant follows. */

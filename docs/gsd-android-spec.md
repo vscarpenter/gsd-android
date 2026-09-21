@@ -815,6 +815,7 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 ### 8.20 Undo delete & Trash
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48 (review of #18)
 
 **Behavior.** Deleting an active task moves the full record to the trash store with `deletedAt = now`, rather than hard-deleting it. The remote `delete` is enqueued *before* the local move, in the same transaction — the enqueue-before-write invariant, extended; if the enqueue fails, the delete aborts. The store invariant is now three-state: a task id lives in exactly one of `tasks`, `archivedTasks`, `deletedTasks`.
 
@@ -825,7 +826,7 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 - Archiving is unaffected — a separate store; archive is for completed history, trash for deletions. Restoring from trash returns to active, never to archive.
 - Erase All Data clears the trash too (§8.16).
 
-**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete forever (trailing, confirmed "This can't be undone."), a multi-select bulk bar (Restore / Delete forever), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale).
+**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete forever (trailing, confirmed "This can't be undone."), a multi-select bulk bar (Restore / Delete forever), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
 
 ### 8.21 Account switching, account deletion, recovery
 

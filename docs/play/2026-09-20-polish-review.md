@@ -113,10 +113,16 @@ Findings 4, 1, 2, and 3 are merged to `main` (#13 to #16, 2026-09-20).
 Status, 2026-09-20: finding 48 is fixed on branch `fix/task-menu-everywhere`. The owner chose to wire all eight menu actions on the lists.
 The bug came from copying. `BrowseViewModel` had its own `toggleCompleted` and none of the other row operations, so the two list screens could build only two of the eight actions.
 One view model, `TaskActionsViewModel`, now owns the row operations. The members moved out of `MatrixViewModel`, and `BrowseViewModel` lost its copy. Matrix, Browse, and the smart view list each create one beside their own view model, the way they create the editor's. One builder, `taskRowActions`, turns it into the full menu, and one `UndoDeleteEffect` offers Undo on all three screens.
-A card in select mode has no menu now, which is what iOS does. Trash and Archive cards draw no completion disc.
+A card in select mode has no menu now. iOS goes halfway: it drops the row's menu button and disc in select mode, and a long press still opens its context menu. Trash and Archive cards draw no completion disc.
 Ten tests failed first. Seven drive the real list screens against the real store: Delete, Delete then Undo, Duplicate, Start timer, Snooze, and Move to on a smart view list, and Delete in Browse search results. Each one opened the menu, tapped the item, and timed out waiting for the store to change. The other three cover select mode and the two discs.
 Share has no automated test, because the project has no intent-testing library. Checked live on `gsd-test`: Share from the No Deadline list opened the system chooser with the task's text.
 The work turned up findings 49 and 50.
+
+Review of #18, 2026-09-20: a fresh-context review approved it and found one real bug, which is fixed on the same branch.
+`UndoDeleteEffect` cleared the delete record only when it finished normally. A tab switch cancels the effect and keeps the view model. The record survived, and the same Undo offer came back on the next visit. Matrix always had this. Finding 48's fix spread it to Browse and the smart view list.
+The reviewer suggested clearing in a `finally` block. I tried that first, and it broke a second delete: the newer delete cancels the first effect, whose `finally` then wiped the newer record. The effect now clears only the record it showed, through `compareAndSet`.
+One test failed first on the replayed offer. A second test guards the second delete, and the plain `finally` made it fail.
+The three test classes that write through the real store now skip on a signed-in device, so they cannot sync test tasks to the backend. `ListMenuActionsTest` also clears leftovers before it seeds.
 
 
 Findings 5 to 14, 37 to 42, 44 to 47, 49, and 50 remain open.

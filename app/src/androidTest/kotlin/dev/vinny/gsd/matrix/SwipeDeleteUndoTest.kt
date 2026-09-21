@@ -14,6 +14,7 @@ import dev.vinny.gsd.model.Task
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -31,8 +32,10 @@ class SwipeDeleteUndoTest {
     private val app get() = ApplicationProvider.getApplicationContext<GsdApp>()
     private lateinit var taskId: String
 
+    /** These tests write through the real store, so a signed-in device would sync their tasks to the backend. */
     @Before
     fun seedOneTaskInDoFirst() = runBlocking {
+        assumeFalse("signed in: refusing to write test tasks", app.container.syncCoordinator.signedIn.value)
         app.container.prefs.setHasOnboarded(true)
         val now = Instant.now()
         taskId = app.container.store.add(

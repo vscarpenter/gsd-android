@@ -36,6 +36,7 @@ One place owns the row operations, and every screen that draws a task row uses i
 - Duplicate on a smart view list adds a second row when the copy matches the view's criteria.
 - Move to on Today's Focus can take the task out of the view. The row leaves the list, which is correct.
 - A task deleted between the tap and the write: the store methods already return null and write nothing.
+- An Undo offer ends when its screen leaves. A tab switch keeps the view model, so the record must not survive the cancelled effect. A second delete replaces the first offer and keeps its own record. Added after the review of #18.
 - Select mode with the menu off: a tap still toggles the selection, and a long press does nothing.
 - A Trash or Archive card with no disc: the content column takes the freed width.
 
@@ -47,7 +48,8 @@ One place owns the row operations, and every screen that draws a task row uses i
 4. In Matrix select mode a card shows no "Task options" button.
 5. Trash and Archive cards expose no "Mark complete" node.
 6. Matrix outside select mode still passes every existing test.
-7. Every gate is green: `:core:model:test`, `testDebugUnitTest`, `connectedAndroidTest`, `assembleDebug`, and `assembleRelease`.
+7. After a delete, leaving the screen and coming back shows no second Undo offer, and a second delete still shows its own.
+8. Every gate is green: `:core:model:test`, `testDebugUnitTest`, `connectedAndroidTest`, `assembleDebug`, and `assembleRelease`.
 
 ## Out of scope
 
