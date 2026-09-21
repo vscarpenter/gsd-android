@@ -1006,7 +1006,9 @@ iOS pre-schedules every reminder with the system notification center; Android's 
 
 ### 11.1 Scheduling model (behavior shared with iOS)
 
-- A task with a `dueDate`, `notificationEnabled == true`, and a reminder offset (`notifyBefore`, else the global default) gets a reminder at `dueDate − offset` — unless `snoozedUntil` is in the future, in which case the fire time **is** `snoozedUntil`.
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 5
+
+- A task with a `dueDate`, `notificationEnabled == true`, and a reminder offset (`notifyBefore`, else the global default) gets a reminder at `dueDate − offset` — unless `snoozedUntil` is in the future, in which case the fire time **is** `snoozedUntil`. That holds after the first reminder posted too: a snooze asks for another reminder, so `notificationSent` does not block it. A posted reminder with no future snooze does not fire again.
 - **Reschedule** whenever `dueDate`, `notifyBefore`, `notificationEnabled`, snooze, or completion changes; **cancel** on complete, delete, or disable. Editing `dueDate`/`notifyBefore` resets reminder state (§8.3). Recurring spawns schedule their own reminder at spawn time.
 - **Quiet hours:** a fire time inside the quiet window defers to the window's end.
 - One stable identity per task (`task-<id>`) so reschedules replace, never stack.

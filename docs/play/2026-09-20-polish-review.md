@@ -125,7 +125,14 @@ One test failed first on the replayed offer. A second test guards the second del
 The three test classes that write through the real store now skip on a signed-in device, so they cannot sync test tasks to the backend. `ListMenuActionsTest` also clears leftovers before it seeds.
 
 
-Findings 5 to 14, 37 to 42, 44 to 47, 49, and 50 remain open.
+Status, 2026-09-20: finding 5 is fixed on branch `fix/snoozed-reminder-fires-again`.
+The planner checked `notificationSent` before it looked at the snooze, so a reminder that had posted could never be planned again. Spec 11.1 already said a future snooze is the fire time. The code had added a gate the spec never asked for.
+I checked both siblings first. iOS ignores the sent flag on its snooze branch. The web's notification snooze resets the flag. Both fire again. I followed iOS, because the planner is pure and one condition covers every snooze path.
+A JVM test failed first. Two guards sit beside it: a posted reminder with a spent snooze stays quiet, so the second reminder cannot loop, and a snooze never revives a completed or silenced task.
+An on-device test goes through the real Snooze receiver and asks the planner about the stored task. On the old planner it failed with "a snoozed reminder has no fire time".
+I did not watch an alarm fire. `ReminderResync` re-plans every alarm on any store change, and that path is unchanged.
+
+Findings 6 to 14, 37 to 42, 44 to 47, 49, and 50 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|

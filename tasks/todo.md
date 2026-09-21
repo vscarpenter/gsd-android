@@ -5,9 +5,9 @@
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
-and 3 are fixed and merged (#13 to #16). Finding 48 is fixed and merged (#18). Three follow-up commits from the
-review of #18 are on `fix/task-menu-everywhere` again, waiting for their own PR to merge. The work since #13
-added findings 46 to 50.
+and 3 are fixed and merged (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19).
+Finding 5 is fixed on branch `fix/snoozed-reminder-fires-again`, not merged. The work since #13 added findings
+46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -40,7 +40,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] **49.** Browse search results and smart view lists have no swipe gestures. Spec 8.13 calls their rows
       "§8.1 rows", and iOS has both swipes there. `SwipeTaskRow` is ready to wrap them.
 - [ ] **50.** Completing a task outside Matrix gets no haptic and no confetti. Spec 8.4 says "always".
-- [ ] **5.** "Snooze 1 hour" on a reminder never fires again. The reviewer of #4 confirmed it independently.
+- [x] **5.** "Snooze 1 hour" on a reminder never fires again. Done 2026-09-20 on branch
+      `fix/snoozed-reminder-fires-again`. A future snooze now overrides the sent flag in `ReminderPlanner`.
 - [ ] **44.** The editor saves a whole-row snapshot taken when it opened. It reverts a Complete tapped from the
       notification in the meantime, and the save wins last-write-wins elsewhere.
 - [ ] **45.** `OneShotRequest` can wedge if a handler ever suspends. Make `handle` non-suspending.
@@ -203,8 +204,11 @@ Everything already done is in the "Resuming From Here" blocks further down.
       Accept it, or give the tab its own task. The second choice means the callback no longer closes the tab.
 - [x] Delete the nine merged branches, on origin and locally. Done 2026-09-20, after a check that each one
       was fully pushed and already contained in `origin/main`. The branch that carried this tick went too.
-- [ ] Origin still has `add-claude-github-actions-1788703830197`, the branch behind pull request #1. It is
-      merged, and it was not part of that cleanup.
+- [x] Origin no longer has `add-claude-github-actions-1788703830197`. `git branch -r` on 2026-09-20 showed only
+      `main` and `fix/task-menu-everywhere`.
+- [ ] Origin still has `fix/task-menu-everywhere`. #18 and #19 both merged from it, and GitHub did not delete
+      it the second time. Two merged local branches also remain: that one and
+      `docs/record-broken-behavior-merges`. Deleting them waits for the owner's word.
 - [ ] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
       seconds with a green check and no review.
 - [ ] Add a note to the workspace `CLAUDE.md` "Field limits" row. The numbers match, but iOS counts characters
@@ -387,6 +391,29 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 5 a snoozed reminder fires again)
+- **Merge state:** the owner merged #19, so `main` at `dd05fae` holds finding 48 and its review follow-ups. Its
+  tree matched the branch tip the gates ran on.
+- **Done:** review finding 5 is fixed on branch `fix/snoozed-reminder-fires-again`, based on `main`. Tier was
+  Trivial: one condition in `ReminderPlanner.fireTime`, in `:core:model`. No design gate, because both siblings
+  already fire again after a snooze.
+  - A future snooze is the fire time even when `notificationSent` is true. A posted reminder with no future
+    snooze still returns null.
+  - Spec 11.1 is amended. It already said a future snooze is the fire time.
+- **Sibling check:** iOS ignores the sent flag on its snooze branch (`App/Notifications/LiveReminderScheduler.swift`).
+  The web's notification snooze resets the flag (`lib/notification-checker.ts`). I followed iOS.
+- **Proof:** one JVM test failed first, with two guards beside it. One on-device test goes through the real
+  Snooze receiver. On the old planner it failed with "a snoozed reminder has no fire time".
+- **Not observed:** an alarm firing. `ReminderResync` re-plans on every store change, and that path did not
+  change. The scheduler builds the same `PendingIntent` to schedule and to cancel, so a test cannot see an alarm.
+- **Next:** finding 47 (a reminder tap opens nothing unless Matrix is on screen), then 44, 45, 46, 49, and 50.
+- **Owner decisions still open:** whether a tap on the GSD icon may close the sign-in tab, and the three
+  leftover branches under "Owner decisions".
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 137, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 178
+  on `gsd-test` (`:app` 123, `:core:store` 55, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green. The connected run took 2m 26s.
 
 ## Resuming From Here (2026-09-20, finding 48 the task menu works on every list)
 - **Merge state:** the owner merged #17 and #18 to `main` on 2026-09-21 at 01:56 and 01:57 UTC, while the review
