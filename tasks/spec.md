@@ -1,54 +1,57 @@
-# Spec: state changes never reject a stored task (review finding S6)
+# Spec: the task menu works on every list (review finding 48)
 
-Approved in chat on 2026-09-20, option "Validate typed input only". Source: `docs/play/2026-09-20-polish-review.md`, finding S6.
-The S3 spec that lived in this file is in history at `f9a0ab1`.
+Approved in chat on 2026-09-20, option A, "wire all eight". Source: `docs/play/2026-09-20-polish-review.md`, finding 48.
+The S6 spec that lived in this file is in history at `9f51a0e`.
 
 ## Goal
 
-A task that arrived through sync must stay usable on Android even when it breaks an Android limit.
-iOS counts characters. The web and Android count UTF-16 units. A title of 79 letters plus one emoji is legal on iOS and is 81 units here.
-Pull stores it as is. Today any touch validates the whole task, throws, and crashes, because the view models and the notification receiver catch nothing.
+The task menu has eight items. On Matrix all eight work. On Browse search results and on a smart view list only Edit and Complete work, and the other six close the menu and change nothing.
+Spec 8.13 says a smart view opens "the flat filtered list (§8.1 rows)", and 8.1 defines the full menu. The lists fall short of the spec.
+A long press always reached these menus. Since finding 1 the "..." button reaches them in one tap.
 
 ## The rule
 
-Validate what the user types, where they type it. A state change never rejects a stored task.
-The web and iOS already work this way. The web validates in `create.ts` and `update.ts` only. iOS validates in capture, create, and `save` only.
+One place owns the row operations, and every screen that draws a task row uses it. A control with nothing behind it is not drawn.
 
 ## Inputs and outputs
 
-- `TaskValidator.normalize(task, now)` is new, pure, and never throws. It applies the three coercions spec 7.11 allows: tags trimmed, lowercased, deduplicated, and empties dropped; estimate 0 becomes unset; a snooze is capped at 365 days.
-- `TaskValidator.validate(task, now)` keeps its contract. It normalizes, checks every limit on the normalized task, and throws a typed error.
-- `TaskStore.add`, `update`, and `replaceAll` still validate. Their callers are the editor, capture, share, import, and bulk Add tag.
-- `TaskStore.setCompleted`, `snooze`, `startTimer`, and `stopTimer` only normalize. The recurrence spawn only normalizes.
-- `TaskStore.change(id, transform)` is new. It reads the stored task, applies the transform, normalizes, stamps `updatedAt`, enqueues an UPDATE, and writes. It returns null when the task is gone. Its callers are the quadrant move (Matrix and bulk), bulk Remove tag, and bulk Set due.
-- `TaskStore.duplicate(id)` is new. It copies through `TaskDuplicator`, normalizes, and enqueues a CREATE. It returns null when the task is gone.
+- `TaskActionsViewModel(store, trashStore)` is new. It takes these members out of `MatrixViewModel`, moved and not copied: `toggleCompleted`, `delete`, `undoDelete`, `clearUndo`, `lastDeleted`, `moveToQuadrant`, `duplicate`, `snooze`, and `toggleTimer`. `DeletedSnapshot` moves with them.
+- `MatrixViewModel` keeps `sections`, select mode, and the bulk actions. It no longer needs a `TrashStore`.
+- `BrowseViewModel` loses its copy of `toggleCompleted`.
+- `taskRowActions(task, context, actions, onEdit, onToggleComplete)` is new. It returns the full `TaskRowActions`, and it holds the Share intent that sat inline in `MatrixScreen`. The caller passes the completion handler, so Matrix keeps its haptic and confetti.
+- `UndoDeleteEffect(actions, snackbarHost)` is new, taken from `MatrixScreen`. Matrix, Browse, and the smart view list each show the Undo snackbar through it.
+- `TaskRowWithMenu` gains `menuEnabled`, true by default. When false the card gets no `onOpenMenu`, so it draws no button and a long press opens nothing. Matrix passes `!selectionMode`.
+- `TaskCard.onToggleComplete` becomes nullable. A null callback draws no completion disc. Trash and Archive pass null.
 
 ## Constraints
 
-- Every new path keeps the enqueue-before-write invariant: one transaction, queue row first.
-- Units stay UTF-16, as on the web. No limit changes.
-- `:core:model` stays free of Android imports. `normalize` gets JVM tests.
-- Typed input still fails with a typed error and human copy.
+- No behavior change on Matrix outside select mode. Its menu, swipes, celebration, and Undo work as before.
+- Every write still goes through `TaskStore`, so the enqueue-before-write invariant is untouched.
+- `:core:model` stays free of Android imports. Nothing in it changes.
+- No new dependency. Share has no automated test, because the project has no intent-testing library.
 
 ## Edge cases
 
-- An over-limit task opened in the editor: Save fails with the title message until the user shortens the title. The web does the same today.
-- Bulk Add tag on an over-limit task: counted as failed, as today. The tag is typed input, so the whole task validates.
-- A snooze more than 365 days out: still capped.
-- Completing a recurring task: the completion and the spawned instance land in one transaction, and neither validates.
-- A task deleted between the tap and the write: `change` and `duplicate` return null and write nothing.
+- Delete on a list removes the row from that list, and Undo brings it back with its original timestamps, as on Matrix.
+- Duplicate on a smart view list adds a second row when the copy matches the view's criteria.
+- Move to on Today's Focus can take the task out of the view. The row leaves the list, which is correct.
+- A task deleted between the tap and the write: the store methods already return null and write nothing.
+- Select mode with the menu off: a tap still toggles the selection, and a long press does nothing.
+- A Trash or Archive card with no disc: the content column takes the freed width.
 
 ## Acceptance criteria
 
-1. A pulled task titled with 79 letters plus one emoji can be completed, snoozed, timed, moved, and duplicated.
-2. Completing a recurring one spawns the next instance with the same title.
-3. `update` with that title still throws `TitleLength`.
-4. `normalize` never throws on an over-limit task, and it applies the three coercions.
-5. Bulk Move, Remove tag, and Set due succeed on that task. Bulk Add tag reports it as failed.
-6. Every gate is green: `:core:model:test`, `testDebugUnitTest`, `connectedAndroidTest`, `assembleDebug`, and `assembleRelease`.
+1. On a smart view list, Delete removes the task from the store, the Undo snackbar appears, and Undo restores the task.
+2. On a smart view list, Duplicate, Start timer, Snooze, and Move to each change the stored task as they do on Matrix.
+3. On Browse search results, Delete removes the task from the store.
+4. In Matrix select mode a card shows no "Task options" button.
+5. Trash and Archive cards expose no "Mark complete" node.
+6. Matrix outside select mode still passes every existing test.
+7. Every gate is green: `:core:model:test`, `testDebugUnitTest`, `connectedAndroidTest`, `assembleDebug`, and `assembleRelease`.
 
 ## Out of scope
 
-- Counting characters instead of UTF-16 units.
-- Review finding S5 (completing an already-completed recurring task).
-- A catch-all for other exceptions in the view models or the receiver.
+- Swipe gestures on Browse search results and smart view lists. They have none today. Recorded as a new finding.
+- The haptic and confetti when a task is completed on a list. Spec 8.4 says "always", and today only Matrix celebrates. Recorded as a new finding.
+- The tablet grid's missing menu, which is finding 14.
+- Review findings 5, 44, 45, 46, and 47.
