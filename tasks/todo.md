@@ -4,11 +4,8 @@
 
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
-43 numbered findings are open, with the four fixes below counted as closed. S1 to S6 and finding 43 are fixed
-and merged (#3 to #10). Finding 4 is fixed on
-branch `fix/single-main-activity`, and its walk added finding 46. Findings 1, 2, and 3 are
-fixed on `fix/task-card-options-button` (#14), `fix/trash-row-background` (#15), and `fix/swipe-delete-undo`,
-stacked in that order on #13. None is merged. The reviews of those PRs added findings 47 and 48.
+43 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
+and 3 are fixed and merged (#13 to #16). That work added findings 46, 47, and 48.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -25,15 +22,15 @@ Everything already done is in the "Resuming From Here" blocks further down.
 
 ### B. Broken behavior (fix before production)
 
-- [x] **4. Make `MainActivity` a single instance.** Done 2026-09-20 on branch `fix/single-main-activity`.
+- [x] **4. Make `MainActivity` a single instance.** Done 2026-09-20, merged in #13.
       `MainActivity` is `singleTask`, so links reach the one instance through `onNewIntent`. The S4 regression
       went with it: a `gsd://capture` link now opens the sheet on the visible activity.
-- [x] **1.** The "..." button on every task card does nothing. Done 2026-09-20 on branch
-      `fix/task-card-options-button`. The button opens the long-press menu. A card with no menu shows no button.
-- [x] **2.** Trash rows draw over the red swipe background, so their text is unreadable. Done 2026-09-20 on
-      branch `fix/trash-row-background`. A row at rest no longer paints a swipe background.
-- [x] **3.** Swipe-to-delete never shows the Undo snackbar. Done 2026-09-20 on branch `fix/swipe-delete-undo`.
-      One swipe ran its action 8 or 9 times. The actions now run once, in `onDismiss`.
+- [x] **1.** The "..." button on every task card does nothing. Done 2026-09-20, merged in #14. The button
+      opens the long-press menu. A card with no menu shows no button.
+- [x] **2.** Trash rows draw over the red swipe background, so their text is unreadable. Done 2026-09-20,
+      merged in #15. A row at rest no longer paints a swipe background.
+- [x] **3.** Swipe-to-delete never shows the Undo snackbar. Done 2026-09-20, merged in #16. One swipe ran its
+      action 8 or 9 times. The actions now run once, in `onDismiss`.
 - [ ] **48.** The task menu is mostly dead outside Matrix: six of eight items on Browse search results and
       smart view lists, and in Matrix select mode. Finding 1 put those menus one tap away, so do this one
       next. Owner decision: wire all eight actions on those lists, or show only the wired ones. In select
@@ -380,6 +377,24 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, broken-behavior fixes merged to main)
+- **Done:** the owner merged pull requests #13 to #16 to `main`, in order, with merge commits: findings 4, 1, 2,
+  and 3. Each PR was retargeted to `main` before its merge, and every commit from the stack is on `main`. The four
+  remote branches are gone.
+- **First run together:** #13 gained a fourth link test and a cleanup wait after the branches above it were cut.
+  Those changes never ran with #14 to #16 until this gate run on `main`.
+- **Reviews:** the CI review posted nothing useful on #13 or #14, so fresh-context reviewers covered #13 to #15.
+  #16 had no review that I read. Its root-cause tests went red first, and its guard test was proved by mutation.
+- **Next:** finding 48, which needs the owner's choice first. Either wire all eight menu actions on Browse
+  search results and smart view lists, or show only the wired ones. Then 5 and 47 together, then 44, 45, and 46.
+- **Owner decisions still open:** finding 48's choice, and whether a tap on the GSD icon may close the sign-in
+  tab (see "Owner decisions"). The four merged local branches still exist on this machine.
+- **Blockers:** none.
+- **Gates on `main` at `035a767`:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43),
+  `connectedAndroidTest` 165 on `gsd-test` (`:app` 110, `:core:store` 55), `:app:assembleDebug`, and
+  `:app:assembleRelease`. All green. The connected run took 5m 17s, against 1m 30s to 2m earlier the same day.
+  Every test passed, so I put it down to host load, as on the S6 run.
 
 ## Resuming From Here (2026-09-20, finding 3 swipe actions run once)
 - **Done:** review finding 3 is fixed on branch `fix/swipe-delete-undo`, stacked on `fix/trash-row-background`.

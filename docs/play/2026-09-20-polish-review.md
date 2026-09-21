@@ -108,6 +108,8 @@ Checked live on `gsd-test`: a 600 ms swipe deleted the task and the Undo snackba
 
 Review of #14 and #15, 2026-09-20: the CI review of #14 ran 13 turns in 36 seconds and posted nothing, so I ran a fresh-context review of both. It found nothing above a nit in #15. In #14 it found finding 48, which is older than #14 and one tap closer because of it.
 
+Findings 4, 1, 2, and 3 are merged to `main` (#13 to #16, 2026-09-20).
+
 Findings 5 to 14, 37 to 42, and 44 to 48 remain open.
 
 | # | Finding | Evidence |
