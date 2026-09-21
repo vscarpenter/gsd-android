@@ -15,7 +15,6 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.LocalFireDepartment
-import android.view.HapticFeedbackConstants
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -23,12 +22,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalView
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,9 +66,8 @@ fun MatrixScreen(
     val sections by viewModel.sections.collectAsStateWithLifecycle()
     val captureState by captureViewModel.state.collectAsStateWithLifecycle()
     val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
-    var confettiTrigger by remember { mutableIntStateOf(0) }
+    val celebration = rememberCompletionCelebration()
     val snackbarHost = remember { SnackbarHostState() }
-    val view = LocalView.current
     val showCompleted by container.prefs.showCompleted.collectAsStateWithLifecycle(initialValue = true)
     val scope = rememberCoroutineScope()
     var paletteVisible by remember { mutableStateOf(false) }
@@ -126,12 +122,8 @@ fun MatrixScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
             val onToggle: (dev.vinny.gsd.model.Task) -> Unit = { task ->
+                celebration.onToggle(task)
                 actions.toggleCompleted(task.id)
-                if (!task.completed) {
-                    // The one haptic in the app (spec §5.8) + the one celebration.
-                    view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                    confettiTrigger++
-                }
             }
             val context = androidx.compose.ui.platform.LocalContext.current
             val selectionMode by viewModel.selectionMode.collectAsStateWithLifecycle()
@@ -148,8 +140,8 @@ fun MatrixScreen(
                     task = task,
                     context = context,
                     actions = actions,
+                    celebration = celebration,
                     onEdit = { editorViewModel.openExisting(task.id) },
-                    onToggleComplete = { onToggle(task) }, // Matrix celebrates a completion
                 )
             }
             if (selectionMode && selection.isNotEmpty()) {
@@ -189,7 +181,7 @@ fun MatrixScreen(
                 )
             }
         }
-        ConfettiOverlay(trigger = confettiTrigger)
+        ConfettiOverlay(trigger = celebration.confettiTrigger)
         SnackbarHost(
             hostState = snackbarHost,
             modifier = Modifier.align(Alignment.BottomCenter),

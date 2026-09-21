@@ -67,12 +67,14 @@ import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
+import dev.vinny.gsd.matrix.ConfettiOverlay
 import dev.vinny.gsd.matrix.SwipeTaskRow
 import dev.vinny.gsd.matrix.TaskActionsViewModel
 import dev.vinny.gsd.matrix.TaskBadges
 import dev.vinny.gsd.matrix.TaskRowActions
 import dev.vinny.gsd.matrix.TaskRowWithMenu
 import dev.vinny.gsd.matrix.UndoDeleteEffect
+import dev.vinny.gsd.matrix.rememberCompletionCelebration
 import dev.vinny.gsd.matrix.taskRowActions
 import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.FilterCriteria
@@ -143,6 +145,7 @@ fun BrowseScreen(
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val actions: TaskActionsViewModel =
         viewModel { TaskActionsViewModel(container.store, container.trashStore) }
+    val celebration = rememberCompletionCelebration()
     val snackbarHost = remember { SnackbarHostState() }
     val context = LocalContext.current
     Box(modifier = modifier.fillMaxSize()) {
@@ -158,9 +161,10 @@ fun BrowseScreen(
             onDeleteView = viewModel::deleteCustom,
             tasks = tasks,
             rowActions = { task ->
-                taskRowActions(task, context, actions, onEdit = { editorViewModel.openExisting(task.id) })
+                taskRowActions(task, context, actions, celebration, onEdit = { editorViewModel.openExisting(task.id) })
             },
         )
+        ConfettiOverlay(trigger = celebration.confettiTrigger)
         SnackbarHost(hostState = snackbarHost, modifier = Modifier.align(Alignment.BottomCenter))
     }
     UndoDeleteEffect(actions, snackbarHost)
