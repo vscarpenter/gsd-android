@@ -43,6 +43,36 @@ class ContextMenuTest {
         assertEquals(true, duplicated)
     }
 
+    /** Review finding 1: TalkBack announces the button as "Task options", and it opened nothing. */
+    @Test
+    fun theOptionsButtonOpensTheSameMenu() {
+        var duplicated = false
+        rule.setContent {
+            GsdTheme {
+                TaskRowWithMenu(
+                    task = task(),
+                    badges = TaskBadges(0, 0),
+                    actions = TaskRowActions(onDuplicate = { duplicated = true }),
+                )
+            }
+        }
+        rule.onNodeWithContentDescription("Task options").performClick()
+        listOf("Edit", "Complete", "Start timer", "Snooze", "Duplicate", "Share", "Move to", "Delete")
+            .forEach { rule.onNodeWithText(it).assertIsDisplayed() }
+        rule.onNodeWithText("Duplicate").performClick()
+        assertEquals(true, duplicated)
+    }
+
+    /** Trash, Archive, and the tablet grid draw a bare card. A button with no menu behind it is a dead control. */
+    @Test
+    fun aCardWithNoMenuShowsNoOptionsButton() {
+        rule.setContent {
+            GsdTheme { TaskCard(task = task(), onToggleComplete = {}, onClick = {}) }
+        }
+        rule.onNodeWithText("menu me").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Task options").assertDoesNotExist()
+    }
+
     @Test
     fun blockedBadgeShowsCount() {
         rule.setContent {
