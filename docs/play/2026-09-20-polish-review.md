@@ -82,7 +82,12 @@ I walked every entry point on `gsd-test` with `dumpsys activity`. One record rem
 Not walked: a widget placed on a launcher, a share from another app's chooser, and a real sign-in, which needs the owner's account.
 The walk found finding 46.
 
-Findings 1 to 3, 5 to 14, 37 to 42, and 44 to 46 remain open.
+Status, 2026-09-20: finding 1 is fixed on branch `fix/task-card-options-button`, stacked on the finding 4 branch.
+The "..." button now opens the same menu as a long press. `TaskCard` takes one `onOpenMenu` callback, and both gestures call it.
+The finding was wider than an empty lambda. Trash, Archive, and the tablet grid draw a bare card with no menu, so a wired button would still have done nothing there. A card with no menu now shows no button. The tablet grid gets its button back with finding 14.
+Two component tests failed first: the menu never opened from the button, and a bare card still showed it.
+
+Findings 2, 3, 5 to 14, 37 to 42, and 44 to 46 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|

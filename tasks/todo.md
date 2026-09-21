@@ -5,7 +5,8 @@
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Finding 4 is fixed on
-branch `fix/single-main-activity`, and its walk added finding 46.
+branch `fix/single-main-activity`, and its walk added finding 46. Finding 1 is fixed on
+`fix/task-card-options-button`, stacked on it. Neither is merged.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -25,7 +26,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [x] **4. Make `MainActivity` a single instance.** Done 2026-09-20 on branch `fix/single-main-activity`.
       `MainActivity` is `singleTask`, so links reach the one instance through `onNewIntent`. The S4 regression
       went with it: a `gsd://capture` link now opens the sheet on the visible activity.
-- [ ] **1.** The "..." button on every task card does nothing.
+- [x] **1.** The "..." button on every task card does nothing. Done 2026-09-20 on branch
+      `fix/task-card-options-button`. The button opens the long-press menu. A card with no menu shows no button.
 - [ ] **2.** Trash rows draw over the red swipe background, so their text is unreadable.
 - [ ] **3.** Swipe-to-delete never shows the Undo snackbar.
 - [ ] **5.** "Snooze 1 hour" on a reminder never fires again. The reviewer of #4 confirmed it independently.
@@ -75,7 +77,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] **11.** Landscape and tablets draw content under the status bar. Only the phone layout applies insets.
 - [ ] **12.** Editor chip rows do not wrap at large font scales.
 - [ ] **13.** Select mode shows no selected state on any card.
-- [ ] **14.** The tablet 2x2 grid has no card menu at all.
+- [ ] **14.** The tablet 2x2 grid has no card menu at all. Since finding 1 its cards show no "..." button
+      either. Wrapping them in `TaskRowWithMenu` brings back both.
 - [ ] **37.** No paper background outside the phone layout, so text turns unreadable when the in-app theme
       differs from the system theme.
 - [ ] **38.** Status bar icons follow the system theme, not the in-app theme.
@@ -361,6 +364,21 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 1 the options button)
+- **Done:** review finding 1 is fixed on branch `fix/task-card-options-button`, stacked on
+  `fix/single-main-activity`. Tier was Trivial, with one design decision approved in chat: hide, not disable.
+  - `TaskCard` takes one `onOpenMenu` callback. A long press and the "..." button both call it.
+  - When the callback is null the card shows no button. Trash, Archive, and the tablet grid draw such a card.
+  - Spec 5.6 and 8.1 are amended.
+- **Proof:** two component tests in `ContextMenuTest` failed first. The button test found the button, tapped
+  it, and failed on `'Edit' is not displayed`. The bare card test failed on a found "Task options" node.
+- **Owner approvals that stand:** push and open a stacked PR when green, for findings 1 to 3, 5, 44, and 45.
+- **Next:** finding 2 (Trash rows over the red swipe background), then 3, 5, 44, 45, and 46, each test-first.
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 159
+  on `gsd-test` (`:app` 104, `:core:store` 55), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
+  green. The connected run took 2m 4s.
 
 ## Resuming From Here (2026-09-20, finding 4 one MainActivity)
 - **Done:** review finding 4 is fixed on branch `fix/single-main-activity`, based on `main`. Tier was Standard, and

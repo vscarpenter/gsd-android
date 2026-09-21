@@ -87,3 +87,10 @@
 - **Mutation check:** the three tests went red on the missing launch mode, so none had proved it guards `onNewIntent`. With the `handleIncomingIntent` call commented out, all three failed.
 - **Stray copies in a red run:** the scenario closes only the activity it launched. The test class finishes any other `MainActivity` in `@After`, so one failure cannot leak into the next test.
 - **Not changed:** `openTaskRequests` is still a nullable `StateFlow`. One instance ends its double-open, so it needs no one-shot treatment.
+
+## Finding 1 the options button (2026-09-20)
+
+- **Tier:** Trivial. About ten production lines in two files. One decision went to the owner: hide the button on a card with no menu, or disable it. The answer was hide.
+- **Wider than the review said:** the review named an empty lambda. Six surfaces draw a task card, and three of them have no menu: Trash, Archive, and the tablet grid. Filling in the lambda would have left a dead button on all three.
+- **One callback, not two:** `onLongPress` became `onOpenMenu`. A second parameter would let the two gestures drift apart.
+- **Menu position unchanged:** the menu still anchors to the row, as it does after a long press. Moving it under the button is polish, and nobody asked for it.

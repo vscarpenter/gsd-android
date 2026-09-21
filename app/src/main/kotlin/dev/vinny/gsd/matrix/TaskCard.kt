@@ -69,7 +69,7 @@ fun TaskCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     badges: TaskBadges = TaskBadges(0, 0),
-    onLongPress: (() -> Unit)? = null,
+    onOpenMenu: (() -> Unit)? = null,
 ) {
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(task.quadrant)
@@ -79,7 +79,7 @@ fun TaskCard(
         modifier = modifier
             .fillMaxWidth()
             .border(1.dp, gsd.hairline, GsdShapes.card)
-            .combinedClickable(onClick = onClick, onLongClick = onLongPress),
+            .combinedClickable(onClick = onClick, onLongClick = onOpenMenu),
     ) {
         Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
@@ -125,12 +125,15 @@ fun TaskCard(
                 MetadataRow(task, badges)
                 SubtaskProgress(task)
             }
-            IconButton(onClick = {}) {
-                Icon(
-                    Icons.Outlined.MoreHoriz,
-                    contentDescription = stringResource(R.string.cd_task_options),
-                    tint = gsd.ink3,
-                )
+            // A card with no menu shows no button. A long press and the button open the same menu (§8.1).
+            if (onOpenMenu != null) {
+                IconButton(onClick = onOpenMenu) {
+                    Icon(
+                        Icons.Outlined.MoreHoriz,
+                        contentDescription = stringResource(R.string.cd_task_options),
+                        tint = gsd.ink3,
+                    )
+                }
             }
             CompletionDisc(task, onToggleComplete)
         }

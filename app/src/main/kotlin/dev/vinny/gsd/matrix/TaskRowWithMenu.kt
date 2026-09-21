@@ -57,7 +57,7 @@ fun TaskRowWithMenu(
             onToggleComplete = actions.onToggleComplete,
             onClick = actions.onEdit,
             badges = badges,
-            onLongPress = { menuOpen = true },
+            onOpenMenu = { menuOpen = true },
         )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             MenuItem(R.string.menu_edit) { menuOpen = false; actions.onEdit() }
