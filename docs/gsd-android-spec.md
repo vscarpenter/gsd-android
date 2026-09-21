@@ -660,6 +660,7 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48
+> Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 49
 
 **Behavior.** A SmartView bundles FilterCriteria with a name/icon. **Nine built-ins** ship, read-only, with these exact IDs:
 
@@ -682,7 +683,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 - `status == COMPLETED` → `completedAt` **descending, nulls last**; ties by `createdAt` descending.
 - otherwise → `dueDate` **ascending, dated tasks before undated**; ties (same due date, or both undated) by `createdAt` descending — newest first.
 
-**Android reimagining.** Browse tab sections on compact; drawer section on expanded (§6). Each view shows a live count; opening one shows the flat filtered list (§8.1 rows, with the full §8.1 menu) with `.searchable`-style in-list search layered onto the criteria; view-aware empty states (Overdue → green check "Nothing overdue"; Wins → trophy; search-miss message; generic otherwise). The **search-miss** empty state is one shared composable with one pair of strings, rendered byte-identically here and in the Browse root search (iOS renders them the same way in both places): title `No tasks match "{query}"` (straight double quotes, the query interpolated), message "Try a different word, tag, or quadrant." — the §5.10 empty-state anatomy, 28dp search icon in `ink3`.
+**Android reimagining.** Browse tab sections on compact; drawer section on expanded (§6). Each view shows a live count; opening one shows the flat filtered list (§8.1 rows, with the full §8.1 menu and both §8.1 swipes as Matrix builds them: leading toggles completion, trailing deletes and offers Undo) with `.searchable`-style in-list search layered onto the criteria; view-aware empty states (Overdue → green check "Nothing overdue"; Wins → trophy; search-miss message; generic otherwise). The **search-miss** empty state is one shared composable with one pair of strings, rendered byte-identically here and in the Browse root search (iOS renders them the same way in both places): title `No tasks match "{query}"` (straight double quotes, the query interpolated), message "Try a different word, tag, or quadrant." It uses the §5.10 empty-state anatomy, with a 28dp search icon in `ink3`.
 
 **First frame.** `BrowseViewModel.tasks` is `StateFlow<List<Task>?>` with an initial value of **`null`** until Room's first emission, and the smart-view list gates on it exactly as the Matrix does (§8.1): `null` → skeleton; loaded-and-empty → the view-aware empty state; else rows. The list skeleton is six rows in a `surface` container (`GsdShapes.small`, 16dp side margins, 20dp top), each row a 22dp `sunken` circle plus two bars — 14dp tall × **210dp on even rows / 150dp on odd** and 10dp × 96dp — with 16dp × 14dp row padding and 1dp `hairline` dividers inset 50dp from the left. Archive, Trash, and Settings get no skeleton — parity with iOS, and the web's Archive has none either.
 
@@ -690,6 +691,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48
+> Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 49
 
 **Behavior.** Full-text **case-insensitive substring** search across title, description, tags, and subtask titles, live-updating. The command palette matches both **tasks** and **commands** — substring matching (not fuzzy), sectioned results: **Tasks · Smart Views · Actions · Navigation**. Actions: New task, Toggle show completed, Toggle theme, **Send feedback** (navigates to the feedback screen, §8.17 — both siblings expose feedback from the palette). Navigation: Matrix, Dashboard, Archive, Settings, and each smart view.
 
@@ -700,7 +702,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 - **Nothing is persisted.** The field is plain `remember` state — not saved state, not a ViewModel field, not restored across process death; it clears when the screen leaves composition.
 - **Semantics.** Results are `FilterCriteria(status = ACTIVE, searchQuery = query)` matched against the **full active task set** by the §7.9 rule — title, description, every tag, every subtask title, lowercased both sides, the whole trimmed query as one substring, no diacritic folding. Completed tasks are never returned. There is **no result cap**.
 - **Order.** `TaskOrdering.forList` (§8.13), the same rule a smart-view list uses.
-- **Rows and actions** are the smart-view list's composable and `TaskRowActions`: tap → editor sheet; completion disc → toggle with the usual confetti; blocked/blocking badges computed over the **full** task set, not the filtered one.
+- **Rows and actions** are the smart-view list's composable and `TaskRowActions`: tap → editor sheet; completion disc → toggle with the usual confetti; leading swipe → toggle completion; trailing swipe → delete with Undo (§8.20); blocked/blocking badges computed over the **full** task set, not the filtered one.
 - **Miss** shows the shared search-miss empty state (§8.13). Results show **no skeleton** — they exist only after the task set has loaded; Browse's composable takes the task list as an optional parameter defaulting to `null` (so previews and the Browse-only tests need not supply one), and a query typed before the first snapshot simply matches the empty set and shows the miss state.
 
 **Android reimagining.** Invoked by the toolbar search button on any surface, or Ctrl+K / Ctrl+F on hardware keyboards. Full-screen search surface on compact (keyboard-first); a centered palette dialog on expanded with arrow-key navigation + Enter. Archive keeps its own plain in-list search.

@@ -174,3 +174,12 @@
 - **I reproduced the reviewer's mechanism before I believed it.** `send`, a handler that suspends, a second `send`, and the collector never fired again: `expected 2 but was 1`.
 - **Fix the cause, not the trigger.** Making `handle` non-suspending would stop today's only route to the bug. The conflation would remain, and a test for it could not compile. A private `Sent` wrapper removes the equality that caused it.
 - **Conflation of several pending requests stays.** Two sends during one suspension still arrive as one delivery. For "open the palette" and "new task" that is the wanted behavior.
+
+## Finding 49 swipes on every task list (2026-09-21)
+
+- **Tier:** Standard. Two composables change how a row behaves, with no new contract. Spec 8.13 already asked for it, so there was no design gate.
+- **The citation was wrong and the conclusion was right.** The finding cited `SmartViewListView.swift:110-123` as the iOS swipes. Those lines swipe a smart view link in Browse. The task swipes are in `TaskListRow.swift`, which both iOS lists draw. I opened the cited lines before the green step, because I meant to copy the toggle behavior from them.
+- **One binding per row.** Each call site holds `rowActions(task)` in a local and passes it to the swipe and to the menu. Two calls to the builder would work today and could drift later.
+- **The row finder on Browse:** the typed query puts the title in the search field too. The tests match `hasText(title) and !hasSetTextAction()`, and they wait for that node before they swipe.
+- **Red for the right reason:** all four failed on their last line, the wait on the store. I checked the line numbers in the result XML, because a finder that matched nothing would have failed one line earlier.
+- **Not done:** the haptic and confetti on these lists (finding 50), and the two-button trailing reveal of spec 8.1, which no Android list has.

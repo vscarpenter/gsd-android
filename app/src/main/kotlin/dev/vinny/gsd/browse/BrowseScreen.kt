@@ -67,6 +67,7 @@ import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
+import dev.vinny.gsd.matrix.SwipeTaskRow
 import dev.vinny.gsd.matrix.TaskActionsViewModel
 import dev.vinny.gsd.matrix.TaskBadges
 import dev.vinny.gsd.matrix.TaskRowActions
@@ -286,7 +287,10 @@ fun BrowseSearchResults(
                 blocked = DependencyGraph.uncompletedBlockers(allTasks, task).size,
                 blocking = DependencyGraph.blocking(allTasks, task).size,
             )
-            TaskRowWithMenu(task = task, badges = badges, actions = rowActions(task))
+            val actions = rowActions(task)
+            SwipeTaskRow(task = task, onComplete = actions.onToggleComplete, onDelete = actions.onDelete) {
+                TaskRowWithMenu(task = task, badges = badges, actions = actions)
+            }
         }
     }
 }
