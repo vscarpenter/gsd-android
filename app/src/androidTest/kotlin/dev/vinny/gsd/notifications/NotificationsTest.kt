@@ -6,8 +6,10 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vinny.gsd.GsdApp
+import dev.vinny.gsd.model.ReminderPlanner
 import dev.vinny.gsd.model.Task
 import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -114,5 +116,39 @@ class NotificationsTest {
         }
         assertTrue(completed, "complete action never landed")
         container.store.delete(task.id) // leave the shared app db clean
+    }
+
+    /**
+     * Review finding 5: the posted reminder sets notificationSent, and the Snooze button left it set.
+     * The planner then refused the task, so "Snooze 1 hour" never fired again.
+     */
+    @Test
+    fun aReminderSnoozedFromItsNotificationIsPlannedAgain(): Unit = runBlocking {
+        val container = (context.applicationContext as GsdApp).container
+        val now = Instant.now()
+        val task = container.store.add(
+            Task(title = "snooze me", urgent = true, important = true, createdAt = now, updatedAt = now,
+                dueDate = now.plusSeconds(2 * 3600)),
+        )
+        container.store.markReminderSent(task.id, now) // what the receiver records when the reminder posts
+
+        val snooze = Intent(context, NotificationActionReceiver::class.java).apply {
+            action = NotificationActionReceiver.ACTION_SNOOZE
+            putExtra(ReminderScheduler.EXTRA_TASK_ID, task.id)
+        }
+        context.sendBroadcast(snooze) // real broadcast so goAsync() has a PendingResult
+
+        val deadline = System.currentTimeMillis() + 10_000
+        while (container.store.get(task.id)?.snoozedUntil == null && System.currentTimeMillis() < deadline) delay(100)
+        val snoozed = assertNotNull(container.store.get(task.id), "the task vanished")
+        assertNotNull(snoozed.snoozedUntil, "snooze action never landed")
+        assertTrue(snoozed.notificationSent, "the first reminder did post")
+
+        val fireAt = ReminderPlanner.fireTime(
+            snoozed, container.notificationSettingsStore.get(), Instant.now(), ZoneId.systemDefault(),
+        )
+        assertNotNull(fireAt, "a snoozed reminder has no fire time, so it never fires again")
+        container.store.delete(task.id) // leave the shared app db clean
+        container.trashStore.deleteForever(task.id)
     }
 }

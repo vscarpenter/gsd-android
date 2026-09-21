@@ -21,10 +21,12 @@ data class ReminderSettings(
 object ReminderPlanner {
     fun fireTime(task: Task, settings: ReminderSettings, now: Instant, zone: ZoneId): Instant? {
         if (!settings.enabled || !task.notificationEnabled) return null
-        if (task.completed || task.notificationSent) return null
+        if (task.completed) return null
         val due = task.dueDate ?: return null
 
         val snoozed = task.snoozedUntil?.takeIf { it.isAfter(now) }
+        // A future snooze asks for another reminder, even after the first one posted (iOS does the same).
+        if (task.notificationSent && snoozed == null) return null
         val base = snoozed
             ?: due.minusSeconds((task.notifyBefore ?: settings.defaultReminderMinutes) * 60L)
         if (!base.isAfter(now)) return null

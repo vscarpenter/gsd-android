@@ -46,6 +46,30 @@ class ReminderPlannerTest {
         assertEquals(snooze, ReminderPlanner.fireTime(task(snoozedUntil = snooze), settings, now, zone))
     }
 
+    /** Review finding 5: "Snooze 1 hour" on a reminder that had already posted never fired again. */
+    @Test
+    fun `a snooze asks for another reminder after the first one posted`() {
+        val snooze = now.plusSeconds(3600)
+        assertEquals(snooze,
+            ReminderPlanner.fireTime(task(notificationSent = true, snoozedUntil = snooze), settings, now, zone))
+    }
+
+    /** Once the snoozed reminder posts, its snooze is in the past. The sent flag must hold, or it would loop. */
+    @Test
+    fun `a posted reminder with a spent snooze stays quiet`() {
+        val spent = now.minusSeconds(60)
+        assertNull(ReminderPlanner.fireTime(task(notificationSent = true, snoozedUntil = spent), settings, now, zone))
+    }
+
+    @Test
+    fun `a snooze never revives a completed or silenced task`() {
+        val snooze = now.plusSeconds(3600)
+        val posted = task(notificationSent = true, snoozedUntil = snooze)
+        assertNull(ReminderPlanner.fireTime(posted.copy(completed = true), settings, now, zone))
+        assertNull(ReminderPlanner.fireTime(posted.copy(notificationEnabled = false), settings, now, zone))
+        assertNull(ReminderPlanner.fireTime(posted, settings.copy(enabled = false), now, zone))
+    }
+
     @Test
     fun `skip rules yield null`() {
         assertNull(ReminderPlanner.fireTime(task(), settings.copy(enabled = false), now, zone))
