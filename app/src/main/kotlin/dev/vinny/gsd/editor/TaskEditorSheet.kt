@@ -1,5 +1,6 @@
 package dev.vinny.gsd.editor
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -51,6 +53,7 @@ fun TaskEditorSheet(viewModel: TaskEditorViewModel, onDismiss: () -> Unit) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val task = draft ?: return
     val gsd = LocalGsdColors.current
+    val context = LocalContext.current
     var error by remember { mutableStateOf<String?>(null) }
     ModalBottomSheet(
         onDismissRequest = {
@@ -67,7 +70,14 @@ fun TaskEditorSheet(viewModel: TaskEditorViewModel, onDismiss: () -> Unit) {
                 canSave = task.title.isNotBlank(),
                 onEdit = viewModel::edit,
                 onSave = {
-                    viewModel.save(onDone = onDismiss, onError = { error = it })
+                    viewModel.save(
+                        onDone = onDismiss,
+                        onError = { error = it },
+                        onMissing = {
+                            Toast.makeText(context, context.getString(R.string.task_not_found), Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        },
+                    )
                 },
                 allTasks = allTasks,
                 isNew = viewModel.isNew,

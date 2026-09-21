@@ -60,15 +60,23 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
         _draft.value = _draft.value?.let(transform)
     }
 
-    fun save(onDone: () -> Unit, onError: (String) -> Unit) {
+    /**
+     * A new task is added whole. An existing task is merged onto the row as it is now (spec §8.3), so
+     * a completion, a timer, or a snooze that landed while the sheet was open survives the save.
+     * [onMissing] runs when the task was deleted in the meantime. Nothing is written then.
+     */
+    fun save(onDone: () -> Unit, onError: (String) -> Unit, onMissing: () -> Unit = {}) {
         val edited = _draft.value ?: return
-        // Editing dueDate/notifyBefore resets reminder state (spec §8.3)
-        val task = original?.let { EditorRules.applyReminderReset(it, edited) } ?: edited
+        val opened = original
         viewModelScope.launch {
             try {
-                if (isNew) store.add(task) else store.update(task)
+                val saved = if (isNew || opened == null) {
+                    store.add(edited)
+                } else {
+                    store.edit(edited.id) { current -> EditorRules.merge(current, opened, edited) }
+                }
                 _draft.value = null
-                onDone()
+                if (saved == null) onMissing() else onDone()
             } catch (error: TaskValidationError) {
                 onError(error.message ?: "Couldn't save task")
             }
