@@ -1,13 +1,14 @@
 # GSD Android — progress
 
-## Left to do (as of 2026-09-20)
+## Left to do (as of 2026-09-21)
 
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
-44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
-and 3 are fixed and merged (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19).
-Findings 5, 47, and 44 are fixed and merged (#20, #21, and #22), and so are the test commits from the review of
-#22 (#23). Finding 45 is fixed on `fix/one-shot-handler-cannot-suspend`, not merged. The work since #13 added
+39 numbered findings are open, counted from the unticked numbered items below. An earlier count of 44 was
+stale. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2, and 3 are fixed and merged
+(#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19). Findings 5, 47, and 44
+are fixed and merged (#20, #21, and #22), and so are the test commits from the review of #22 (#23). Finding 45
+is merged (#24). Finding 49 is fixed on `fix/swipes-on-every-list`, not merged. The work since #13 added
 findings 46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
@@ -44,16 +45,17 @@ Everything already done is in the "Resuming From Here" blocks further down.
       wire all eight actions. One `TaskActionsViewModel` owns the
       row operations for Matrix, Browse, and the smart view list. Select mode has no menu, and Trash and
       Archive cards draw no disc.
-- [ ] **49.** Browse search results and smart view lists have no swipe gestures. Spec 8.13 calls their rows
-      "§8.1 rows", and iOS has both swipes there. `SwipeTaskRow` is ready to wrap them.
+- [x] **49.** Browse search results and smart view lists have no swipe gestures. Done 2026-09-21 on branch
+      `fix/swipes-on-every-list`. Both lists wrap each row in `SwipeTaskRow`, and the swipe calls the same
+      callbacks as the row's menu.
 - [ ] **50.** Completing a task outside Matrix gets no haptic and no confetti. Spec 8.4 says "always".
 - [x] **5.** "Snooze 1 hour" on a reminder never fires again. Done 2026-09-20, merged in #20. A future snooze
       now overrides the sent flag in `ReminderPlanner`.
 - [x] **44.** The editor saves a whole-row snapshot taken when it opened. Done 2026-09-20, merged in #22. Save
       merges the fields the user changed onto the row as it is now.
-- [x] **45.** `OneShotRequest` can wedge if a handler ever suspends. Done 2026-09-20 on branch
-      `fix/one-shot-handler-cannot-suspend`. Each send is its own object now, so two equal values stay two
-      requests. I fixed the cause and did not take the note's fix. A handler may suspend safely.
+- [x] **45.** `OneShotRequest` can wedge if a handler ever suspends. Done 2026-09-20, merged in #24. Each send
+      is its own object now, so two equal values stay two requests. I fixed the cause and did not take the
+      note's fix. A handler may suspend safely.
 - [ ] **46.** A launcher shortcut that fires while GSD is on screen loses its link and lands on Matrix. It works
       from the home screen. Split-screen and a tablet taskbar can reach it. Older than the finding 4 fix.
 - [x] **47.** A reminder tap opens nothing unless Matrix is on screen. Done 2026-09-20, merged in #21. The tap
@@ -219,9 +221,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [x] Origin no longer has `add-claude-github-actions-1788703830197`. `git branch -r` on 2026-09-20 showed only
       `main` and `fix/task-menu-everywhere`.
 - [x] Origin no longer has `fix/task-menu-everywhere`. It was gone at a fetch late on 2026-09-20.
-- [ ] Merged local branches remain on this machine: `fix/task-menu-everywhere`,
-      `docs/record-broken-behavior-merges`, `fix/snoozed-reminder-fires-again`, and
-      `fix/reminder-tap-opens-the-task`. Deleting them waits for the owner's word.
+- [ ] One merged branch remains, here and on origin: `docs/record-production-application` (#25). The owner
+      had the earlier ones deleted on 2026-09-20. Deleting this one waits for the owner's word.
 - [ ] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
       seconds with a green check and no review.
 - [ ] Add a note to the workspace `CLAUDE.md` "Field limits" row. The numbers match, but iOS counts characters
@@ -416,6 +417,32 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-21, finding 49 swipes on every task list)
+- **Merge state:** #24 and #25 merged overnight, so `main` at `e49c5d4` held everything from 2026-09-20. This
+  branch is cut from it.
+- **Done:** review finding 49 is fixed on branch `fix/swipes-on-every-list`. Tier was Standard: two composables
+  change how a row behaves, and spec 8.13 already asked for it, so it had no design gate.
+  - `ViewListContent` and `BrowseSearchResults` wrap each row in `SwipeTaskRow`. The swipe takes
+    `onToggleComplete` and `onDelete` from the same `TaskRowActions` the menu uses.
+  - A swipe delete offers Undo through the `UndoDeleteEffect` already on both screens. The leading swipe is a
+    toggle, as on Matrix and iOS, so it reopens a task in This Week's Wins.
+  - Spec 8.13 and 8.14 are amended.
+- **Proof:** four tests in `ListSwipeActionsTest` failed first. Each found its row, swiped, and timed out on
+  its last line, waiting for the real store to change.
+- **A correction to the finding:** it cited iOS swipes at `SmartViewListView.swift:110-123`. Those lines swipe a
+  smart view link. The task swipes are in `TaskListRow.swift:33-47`, which both iOS lists draw. The conclusion
+  held, and the review doc's table row is corrected.
+- **Not checked live:** I did not swipe by hand on `gsd-test`. The tests swipe the real screens against the
+  real store.
+- **Not pushed:** the branch is local. Pushing and opening the PR waits for the owner's word.
+- **Next, in this order:** finding 50 (the haptic and confetti outside Matrix), which means lifting both out of
+  `MatrixScreen`. Then finding 46, which gets a design gate. Then section C (findings 6 to 8) and section D
+  (15 to 17).
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 145, `testDebugUnitTest` 139 (`:core:sync` 95, `:app` 44), `connectedAndroidTest` 191
+  on `gsd-test` (`:app` 131, `:core:store` 60, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green on the fix commit `024689f`. The whole gate run took 2m 58s.
 
 ## Resuming From Here (2026-09-20, finding 45 equal requests stay distinct)
 - **Done:** review finding 45 is fixed on branch `fix/one-shot-handler-cannot-suspend`, stacked on the branch of
