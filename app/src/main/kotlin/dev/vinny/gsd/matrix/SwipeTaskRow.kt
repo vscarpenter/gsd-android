@@ -53,12 +53,13 @@ fun SwipeTaskRow(
         state = state,
         modifier = modifier,
         backgroundContent = {
-            val target = state.dismissDirection
-            val (color, icon, alignment) = when (target) {
+            // A row at rest reveals nothing. Painting here shows through any content that is not opaque.
+            val (color, icon, alignment) = when (state.dismissDirection) {
                 SwipeToDismissBoxValue.StartToEnd ->
                     Triple(gsd.success, Icons.Outlined.Check, Alignment.CenterStart)
-                else ->
+                SwipeToDismissBoxValue.EndToStart ->
                     Triple(gsd.alert, Icons.Outlined.Delete, Alignment.CenterEnd)
+                SwipeToDismissBoxValue.Settled -> return@SwipeToDismissBox
             }
             Box(
                 modifier = Modifier

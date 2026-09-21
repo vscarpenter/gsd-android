@@ -94,3 +94,18 @@
 - **Wider than the review said:** the review named an empty lambda. Six surfaces draw a task card, and three of them have no menu: Trash, Archive, and the tablet grid. Filling in the lambda would have left a dead button on all three.
 - **One callback, not two:** `onLongPress` became `onOpenMenu`. A second parameter would let the two gestures drift apart.
 - **Menu position unchanged:** the menu still anchors to the row, as it does after a long press. Moving it under the button is polish, and nobody asked for it.
+
+## Finding 2 the Trash row background (2026-09-20)
+
+- **Tier:** Trivial. One `when` in one file. I skipped the design gate, because a row at rest has one right answer.
+- **The cause was an `else`:** `SwipeToDismissBoxValue` has three values. The `else` branch gave `Settled` the red delete background, and the background content is always composed.
+- **First pixel tests in the repo:** `captureToImage().toPixelMap()` on a row whose content paints nothing. Compare with `toArgb()`, and read the expected colors from `LocalGsdColors` inside the composition so the test holds in either theme.
+- **Sample points:** on `gsd-test` one dp is one pixel. The mid-swipe test samples 8 px from the left edge at mid height. That point is left of the check icon and clear of the rounded corners.
+- **Not done:** an opaque paper layer under the dimmed Trash row. It would stop the background showing through during a swipe. The finding is about the resting state, so I left it.
+
+## Review of #13 (2026-09-20)
+
+- **The CI review said nothing, and that was not a verdict.** The run log showed `num_turns` 27, `permission_denials_count` 11, and no comment on the PR. The action hides the result text, so I ran a fresh-context reviewer.
+- **I verified each claim before acting.** The `singleTop` claim took one mutation run. The launcher tap claim took one `am start` with the launcher's action, category, and flags `0x10200000`. Finding 47 took one grep for the consumers of `openTaskRequests`.
+- **Follow-ups went on #13's own branch.** They touch only `RunningAppLinkTest.kt` and spec 6.4 and 10.2, which no branch above it edits. The shared records (this file, the todo, the review, the lessons) went on the top of the stack, so nothing conflicts.
+- **Not acted on:** the Recents replay is speculative, and I have no failing test for it. It is in the todo.

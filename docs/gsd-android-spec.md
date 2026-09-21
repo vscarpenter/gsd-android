@@ -525,7 +525,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 ### 8.1 The Matrix
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
-> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 1
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1 and 2
 
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
@@ -535,6 +535,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 - **Row interactions (both):**
   - **Swipe right (leading)** → complete/uncomplete (full-swipe commits), with the success haptic + confetti on complete.
   - **Swipe left (trailing)** → reveal **Snooze** (quick-snooze **1 hour**) and **Delete**.
+  - The swipe background (green check or red bin) is drawn only while a swipe is in progress. A row at rest paints nothing behind its content, so a dimmed row or a bare line of text never sits on it.
   - **Tap** → open editor. **Tap the completion disc** → toggle complete (never opens the editor).
   - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete.
 - **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11).
