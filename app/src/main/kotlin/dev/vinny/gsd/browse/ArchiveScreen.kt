@@ -147,7 +147,7 @@ fun ArchiveContent(
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(visible, key = { it.id }) { task ->
                     Column(modifier = Modifier.alpha(0.72f)) {
-                        TaskCard(task = task, onToggleComplete = {}, onClick = {})
+                        TaskCard(task = task, onToggleComplete = null, onClick = {})
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             TextButton(onClick = { onRestore(task.id) }) {
                                 Text(stringResource(R.string.archive_restore), style = GsdType.metadata, color = gsd.tint)

@@ -236,7 +236,7 @@ private fun TrashRow(
     val gsd = LocalGsdColors.current
     val (label, color) = trashRetentionLabel(deletedAt, now)
     Column(modifier = Modifier.alpha(0.72f)) {
-        TaskCard(task = task, onToggleComplete = {}, onClick = onClick)
+        TaskCard(task = task, onToggleComplete = null, onClick = onClick)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(label, style = GsdType.metadata, color = color, modifier = Modifier.weight(1f))
             if (!selectionMode) {

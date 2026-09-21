@@ -3,6 +3,7 @@ package dev.vinny.gsd.browse
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import dev.vinny.gsd.model.Task
@@ -22,6 +23,27 @@ class ArchiveScreenTest {
     private fun archivedTask(title: String) =
         Task(title = title, urgent = false, important = false, completed = true,
             completedAt = t0, createdAt = t0, updatedAt = t0)
+
+    /** Review finding 48: the disc did nothing here, and TalkBack announced it as "Mark incomplete". */
+    @Test
+    fun anArchivedCardShowsNoCompletionDisc() {
+        rule.setContent {
+            GsdTheme {
+                ArchiveContent(
+                    archived = listOf(archivedTask("old thing")),
+                    autoArchiveEnabled = false,
+                    archiveAfterDays = 30,
+                    onRestore = {},
+                    onDeletePermanently = {},
+                    onSetAutoArchive = { _, _ -> },
+                    onArchiveNow = {},
+                )
+            }
+        }
+        rule.onNodeWithText("old thing").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Mark complete").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Mark incomplete").assertDoesNotExist()
+    }
 
     @Test
     fun restoreFiresAndPermanentDeleteConfirmsFirst() {
