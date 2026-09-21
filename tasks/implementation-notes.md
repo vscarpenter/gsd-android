@@ -128,3 +128,11 @@
 - **A wait that passed too soon:** in the Browse test, the typed query put the title on screen before any result row existed. The menu helper now waits for the row's own "Task options" button.
 - **Comments moved into the new file lost their em dashes.** Moved prose counts as revised prose.
 - **Not done:** swipes on the two lists (finding 49) and the celebration outside Matrix (finding 50).
+
+## Review of #18 (2026-09-20)
+
+- **One real bug, older than the PR and spread by it:** a cancelled `UndoDeleteEffect` skipped its cleanup. I extracted that effect for three screens, so the stale Undo offer went with it.
+- **I tested the reviewer's fix before using it.** A plain `finally` cleared the record on every cancellation, and a second delete is a cancellation. The guard test failed on it, so the clear became `compareAndSet(shown, null)`.
+- **I dropped the explicit `dismiss()`.** Material's `showSnackbar` clears `currentSnackbarData` in its own `finally`, under its mutex (1.4.0 sources). A dismiss from my `finally` could have closed the newer snackbar.
+- **My iOS claim was half true.** iOS drops the menu button and the disc in select mode, and keeps `.contextMenu`. I had read line 26 of `TaskListRow.swift` and not line 48. The review doc is corrected. The commit message and the first PR text were already published.
+- **Not settled:** whether the snackbar hides under a docked keyboard. `gsd-test` has none.

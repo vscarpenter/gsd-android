@@ -171,6 +171,11 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] Every sync lists the whole remote collection twice.
 - [ ] The share target drops `EXTRA_TEXT` when it arrives as a `CharSequence`.
 - [ ] A deep link on the very first launch can be lost behind onboarding. Seen live once.
+- [ ] The Undo snackbar may sit under the keyboard on Browse search and in-view search. The app is edge to
+      edge, and nothing uses `imePadding`. The reviewer of #18 raised it. `gsd-test` shows only the floating
+      stylus toolbar, so it needs a device with a docked keyboard.
+- [ ] Older tests also write through the real store with no signed-out guard (`NotificationsTest` is one). On
+      a signed-in device they would sync test tasks. The three classes from 2026-09-20 have the guard.
 - [ ] Opening GSD from Recents after a reboot may run the last link again. `singleTask` makes the last link
       the task's base intent, and `handleIncomingIntent` never checks `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`.
       The reviewer of #13 raised it as speculative. Nobody has tried it.
@@ -399,14 +404,18 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 - **Checked live on `gsd-test`:** Share from the No Deadline list opened the system chooser with the task's
   text. Share has no automated test, because the project has no intent-testing library.
 - **Found on the way:** findings 49 (no swipes on the two lists) and 50 (no celebration outside Matrix).
+- **Review of #18:** a fresh-context review approved it and found one real bug. A cancelled `UndoDeleteEffect`
+  never cleared its record, so a tab switch brought the same Undo offer back. The plain `finally` the reviewer
+  suggested broke a second delete, and a guard test showed it. The effect now clears only the record it
+  showed (`clearUndo(shown)`, a `compareAndSet`). The real-store tests skip on a signed-in device.
 - **Next:** findings 5 and 47 together, because both are reminder paths. Then 44, 45, 46, 49, and 50.
 - **Owner decision still open:** whether a tap on the GSD icon may close the sign-in tab (see "Owner
   decisions").
 - **Blockers:** none.
-- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 175
-  on `gsd-test` (`:app` 120, `:core:store` 55), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
-  green. The connected run took 6m 36s. It has been slow since the run on `main`, with every test passing, and
-  the emulator has been up all day.
+- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 177
+  on `gsd-test` (`:app` 122, `:core:store` 55, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green, after the review follow-ups. The connected run took 2m 24s. Two runs before it took
+  5m 17s and 6m 36s with every test passing, which looks like host load.
 
 ## Resuming From Here (2026-09-20, broken-behavior fixes merged to main)
 - **Done:** the owner merged pull requests #13 to #16 to `main`, in order, with merge commits: findings 4, 1, 2,
