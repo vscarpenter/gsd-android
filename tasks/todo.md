@@ -178,6 +178,12 @@ Everything already done is in the "Resuming From Here" blocks further down.
       stylus toolbar, so it needs a device with a docked keyboard.
 - [ ] Older tests also write through the real store with no signed-out guard (`NotificationsTest` is one). On
       a signed-in device they would sync test tasks. The three classes from 2026-09-20 have the guard.
+- [ ] `TaskStore.change` still reads the row outside its transaction. A snooze or a timer write can then
+      overwrite an editor save that committed a moment earlier. `edit` and `setCompleted` read inside. The
+      reviewer of #22 raised it.
+- [ ] `TaskStore.edit` validates the merged row, so it now covers the stored fields too. A title over the limit
+      that arrives by sync while the sheet is open would fail the save, and the sheet shows a legal title.
+      Speculative, from the reviewer of #22.
 - [ ] Opening GSD from Recents after a reboot may run the last link again. `singleTask` makes the last link
       the task's base intent, and `handleIncomingIntent` never checks `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`.
       The reviewer of #13 raised it as speculative. Nobody has tried it.
@@ -206,7 +212,7 @@ Everything already done is in the "Resuming From Here" blocks further down.
       was fully pushed and already contained in `origin/main`. The branch that carried this tick went too.
 - [x] Origin no longer has `add-claude-github-actions-1788703830197`. `git branch -r` on 2026-09-20 showed only
       `main` and `fix/task-menu-everywhere`.
-- [x] Origin no longer has `fix/task-menu-everywhere`. It was gone at the fetch on 2026-09-21.
+- [x] Origin no longer has `fix/task-menu-everywhere`. It was gone at a fetch late on 2026-09-20.
 - [ ] Merged local branches remain on this machine: `fix/task-menu-everywhere`,
       `docs/record-broken-behavior-merges`, `fix/snoozed-reminder-fires-again`, and
       `fix/reminder-tap-opens-the-task`. Deleting them waits for the owner's word.
@@ -406,7 +412,7 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   - `TaskStore.edit(id, transform)` reads the row inside its transaction, validates, stamps, enqueues, and
     writes. It returns null when the task is gone.
   - `TaskEditorViewModel.save` uses both for an existing task, and it takes an `onMissing` callback. The sheet
-    shows the "Task not found" toast.
+    shows the not-found toast, "That task no longer exists".
   - `EditorRules.applyReminderReset` had no caller left, so it is gone. Its three tests now go through `merge`.
   - Spec 8.3 is amended.
 - **Assumption, stated to the owner:** a save on a task deleted while the sheet was open writes nothing. The
@@ -415,15 +421,20 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   eight concurrent edits against a stub that read outside the transaction, and 2 of 8 tags survived. Two view
   model tests failed on the old save: "the save undid a completion it never saw", and `expected missing but
   was done`.
+- **Review of #22:** a fresh-context review approved it with no production defect. It found two test gaps,
+  both confirmed by mutation and closed. Nothing pinned the queue row or the stamp `edit` writes: with the
+  queue insert deleted, every test stayed green, and an editor save would never have synced. The merge tests
+  pinned 4 of its 12 fields, so a table now covers all twelve in both directions. It also caught my misquote
+  of the toast, which says "That task no longer exists".
 - **Not changed:** `TaskStore.change` still reads outside its transaction. S5 fixed that pattern in
   `setCompleted`, and `edit` avoids it. `change` is a state change on one field, so the window is small.
 - **Next:** findings 45, 46, 49, and 50. Then sections C to H of "Left to do".
 - **Owner decisions still open:** whether a tap on the GSD icon may close the sign-in tab, and the three
   leftover branches under "Owner decisions".
 - **Blockers:** none.
-- **Gates:** `:core:model:test` 143, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 185
-  on `gsd-test` (`:app` 127, `:core:store` 58, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
-  (R8 clean). All green. The connected run took 2m 10s.
+- **Gates:** `:core:model:test` 145, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 187
+  on `gsd-test` (`:app` 127, `:core:store` 60, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green, after the review follow-ups. The connected run took 2m 23s.
 
 ## Resuming From Here (2026-09-20, finding 47 a reminder tap opens the task)
 - **Done:** review finding 47 is fixed on branch `fix/reminder-tap-opens-the-task`, stacked on
