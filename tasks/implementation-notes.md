@@ -77,3 +77,13 @@
 - **#5 changed under review.** The CI review found the erase and cursor ordering bug. I fixed it in a worktree so the reviewers reading the main tree were not disturbed. A second reviewer then found that my new test had gone vacuous, that the spec contradicted the code in three places, and a sibling bug with an unrecorded first owner. All three landed in #5 before it merged.
 - **#6 merged with a known regression, by owner decision.** I reproduced it by hand first: app on screen, capture link sent, no sheet on the visible activity, sheet found on the covered one after Back. I did not improvise a lifecycle fix inside the merge window, because the proper cure is finding 4.
 - **Not done:** no branch was deleted, and no PR comment was posted. Both need the owner's go-ahead.
+
+## Finding 4 one MainActivity (2026-09-20)
+
+- **Tier:** Standard. One manifest attribute, with no Kotlin change. `onNewIntent` already called `handleIncomingIntent`. The design went through the one approval gate.
+- **Reproduction before design:** `RunningAppLinkTest` came first. Its instance count fails under the activity-scoped controller and under the RESUMED gate too, because both leave the second copy in place. That settled the choice of design.
+- **`singleTask`, not `singleTop`:** the sign-in Custom Tab sits above `MainActivity` in GSD's task. `singleTop` would still stack a copy on the OAuth callback.
+- **Reviewer claims, both confirmed:** the static shortcuts carry `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME` (`dumpsys shortcut`, `flg=0x1000c000`). The reminder tap's `SINGLE_TOP` already landed in `onNewIntent` before this change.
+- **Mutation check:** the three tests went red on the missing launch mode, so none had proved it guards `onNewIntent`. With the `handleIncomingIntent` call commented out, all three failed.
+- **Stray copies in a red run:** the scenario closes only the activity it launched. The test class finishes any other `MainActivity` in `@After`, so one failure cannot leak into the next test.
+- **Not changed:** `openTaskRequests` is still a nullable `StateFlow`. One instance ends its double-open, so it needs no one-shot treatment.

@@ -356,7 +356,7 @@ Tapping a destination keeps one copy of it on the back stack, and the tab being 
 ### 6.4 Deep links
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
-> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4 and 43
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4, 43, and 4
 
 Register the **`gsd://` scheme** (intent filters on the main activity). Routes — identical to iOS so widgets, shortcuts, and notifications share one router:
 
@@ -373,6 +373,8 @@ Register the **`gsd://` scheme** (intent filters on the main activity). Routes �
 A deep link arriving before the UI is ready is persisted and consumed on first composition (cold-start). A `task/<id>` link to a task that no longer exists shows a friendly "not found" state, never a blank screen.
 
 A deep link runs once. The activity handles its launch intent only on a fresh start, when `savedInstanceState` is null. A rotation or any other recreation does not run the link again. A link that reaches a running activity arrives through `onNewIntent`.
+
+There is one `MainActivity`. Its launch mode is `singleTask`, so a link, a widget tap, or a reminder tap that reaches a running app goes to that activity. It never stacks a second copy. Any page above the activity in its task closes first, and that includes the sign-in Custom Tab (§10.2). A tap on the launcher icon closes such a page too. A user who leaves the sign-in tab and comes back through the icon starts sign-in again. The two static shortcuts (§6.5) are the exception. The system launches them with `NEW_TASK` and `CLEAR_TASK`, so each one restarts the task and arrives as a fresh launch.
 
 ### 6.5 App shortcuts (launcher long-press)
 
@@ -960,10 +962,12 @@ Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (c
 
 ### 10.2 The flow (OAuth2 + PKCE via Custom Tabs)
 
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 4
+
 1. `GET /api/collections/users/auth-methods` → `oauth2.providers[]`, each `{name, displayName, state, authURL, codeVerifier, codeChallenge, codeChallengeMethod}`. **PocketBase generates the PKCE material per attempt** — hold it locally, never cache it.
 2. Build the authorization URL: the provider's `authURL` already ends with `redirect_uri=` — append the percent-encoded redirect URI.
 3. **Redirect URI: `https://api.vinny.io/ios-oauth-redirect/`** — a server-side bounce page that re-emits the provider callback to the **`gsd://` custom scheme**. This bounce is what makes Apple work (Apple posts `response_mode=form_post` to an HTTPS URL; the page forwards `code`/`state` to the app scheme). Android registers an intent filter for the `gsd` scheme and receives the same bounce. *(Despite the "ios-" name it is client-agnostic; see Open Questions §17.)*
-4. Launch the URL in a **Custom Tab**; the `gsd://` callback re-enters the app with `code` + `state` query params.
+4. Launch the URL in a **Custom Tab**; the `gsd://` callback re-enters the app with `code` + `state` query params. A Custom Tab runs in GSD's task, so the callback closes it and reaches the one `MainActivity` through `onNewIntent` (§6.4). A device with no Custom Tabs provider opens a full browser in its own task, and that browser stays open.
 5. **Validate `state`** against the provider's issued state (mismatch → abort).
 6. `POST /api/collections/users/auth-with-oauth2` with JSON `{"provider","code","codeVerifier","redirectURL"}` → `{token, record:{id, email, …}}`.
 7. Persist the token (Keystore-encrypted, §3). The JWT's `id` claim is the `owner` for pushed records; a token without an `id` claim fails fast.
