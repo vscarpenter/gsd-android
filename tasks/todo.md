@@ -4,7 +4,8 @@
 
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
-44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10).
+44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Finding 4 is fixed on
+branch `fix/single-main-activity`, and its walk added finding 46.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -15,14 +16,15 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] **Cut a new build.** Nothing merged on 2026-09-20 is in a Play build. Testers still have 0.9.0
       (versionCode 9). Bump the version, run every gate, and build the signed `.aab`.
 - [ ] **Release smoke on a real device, from a signed build.** Walk sync, a reminder, the widget, and a deep
-      link. This has been open since 2026-08-29.
+      link. This has been open since 2026-08-29. Add one real sign-in: the callback should close the Custom Tab
+      and land on the screen that started it (finding 4).
 - [ ] **Upload the new build to Closed testing.** Promote it to Production once Google grants access.
 
 ### B. Broken behavior (fix before production)
 
-- [ ] **4. Make `MainActivity` a single instance.** Deep links and widget taps stack copies, and the visible copy
-      does not navigate. Do this one first. It now carries the one regression from S4. A `gsd://capture` link
-      that arrives while the app is on screen opens the New Task sheet on the covered copy.
+- [x] **4. Make `MainActivity` a single instance.** Done 2026-09-20 on branch `fix/single-main-activity`.
+      `MainActivity` is `singleTask`, so links reach the one instance through `onNewIntent`. The S4 regression
+      went with it: a `gsd://capture` link now opens the sheet on the visible activity.
 - [ ] **1.** The "..." button on every task card does nothing.
 - [ ] **2.** Trash rows draw over the red swipe background, so their text is unreadable.
 - [ ] **3.** Swipe-to-delete never shows the Undo snackbar.
@@ -30,29 +32,25 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] **44.** The editor saves a whole-row snapshot taken when it opened. It reverts a Complete tapped from the
       notification in the meantime, and the save wins last-write-wins elsewhere.
 - [ ] **45.** `OneShotRequest` can wedge if a handler ever suspends. Make `handle` non-suspending.
+- [ ] **46.** A launcher shortcut that fires while GSD is on screen loses its link and lands on Matrix. It works
+      from the home screen. Split-screen and a tablet taskbar can reach it. Older than the finding 4 fix.
 
-### Notes for finding 4 (read before designing it)
+### Notes for finding 46 (read before designing it)
 
-- **The cause.** `MainActivity` has no `launchMode`, so every deep link, widget tap, and shortcut stacks a new
-  copy. `PaletteController` lives in the process-wide `AppContainer`, so the copies share `pendingRoute`, both
-  one-shot requests, and `openTaskRequests`. The route collector in `MainActivity` has no lifecycle gate, and a
-  covered activity stays STARTED until the new one is up. The covered copy therefore handles the route first.
-- **Three designs I weighed.** One: a single instance, with later links arriving through `onNewIntent`. It ends
-  the contention for every request type, and I would start there. Two: scope `PaletteController` to the
-  activity, as a ViewModel. Three: gate the router and `ConsumeWhileStarted` on RESUMED. Three treats the
-  symptom, and I could not get a deterministic failing test for it.
-- **Check by hand on the emulator.** The compose test rules queue effects, which hides this race. Seen on
-  2026-09-20 with `adb shell am start -a android.intent.action.VIEW -d "gsd://capture" dev.vinny.gsd`:
-  - App on screen: no sheet on the visible copy. After Back, the covered copy shows the sheet. This is the bug.
-  - App in the background: the sheet opens. Cold start: the sheet opens. Rotation: nothing replays.
-- **Walk every entry point after the change.** The widget header, a widget row, both launcher shortcuts, a
-  reminder tap, the notification buttons, the OAuth callback after a real sign-in, and the share target, which
-  is a separate activity. A launch mode changes how each one arrives.
-- **Unverified claims from the reviewer of #6.** The static "New Task" shortcut launches with NEW_TASK and
-  CLEAR_TASK. The reminder tap uses SINGLE_TOP and lands in `onNewIntent`. Confirm both before relying on them.
-- **A test idea.** Start one activity, start a second with the capture link through `startActivitySync`, wait for
-  "New Task", finish the second, and assert the sheet is gone. With the bug the sheet belongs to the first copy
-  and stays on screen.
+- **The cause, probable and not proved.** A static shortcut carries `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`
+  (`dumpsys shortcut`, `flg=0x1000c000`). The system destroys the old `MainActivity` and starts a new one. A
+  resumed activity must pause before it dies, so for a moment both copies exist. `PaletteController` lives in the
+  process-wide `AppContainer`, and the route collector in `MainActivity` has no lifecycle gate. The dying copy
+  takes `pendingRoute` first. A stopped activity is destroyed at once, which is why the home screen path works.
+- **Reproduce it by hand.** With GSD on screen:
+  `adb shell am start -n dev.vinny.gsd/.MainActivity -a android.intent.action.VIEW -d "gsd://smart-view/today-focus" -f 0x1000c000`.
+  The app restarts on Matrix. Press Home first and the same command opens Today's Focus.
+- **Two designs left over from finding 4.** Scope `PaletteController` to the activity, as a ViewModel. Or gate
+  the router and `ConsumeWhileStarted` on RESUMED. Finding 4 needed neither, because `singleTask` leaves one
+  living copy. `CLEAR_TASK` still makes a dying copy and a fresh one.
+- **The test is the hard part.** I could not get a deterministic failing test for the RESUMED gate during S4.
+  The compose test rules queue effects, which hides this race. `RunningAppLinkTest` shows how to count live
+  activities, and an intent with the shortcut's flags may give a red test here.
 
 ### C. Reminders must match the listing
 
@@ -363,6 +361,39 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 4 one MainActivity)
+- **Done:** review finding 4 is fixed on branch `fix/single-main-activity`, based on `main`. Tier was Standard, and
+  the design was approved in chat.
+  - `MainActivity` is `singleTask`. That is the whole production change: one manifest attribute. `onNewIntent`
+    already called the intent handler.
+  - Spec 6.4 and 10.2 are amended.
+- **Proof:** three on-device tests in `RunningAppLinkTest` failed first. The instance count gave
+  `expected 1 but was 2`. The Dashboard link never selected its tab on the visible copy. The capture link never
+  showed the New Task sheet on screen, which is the S4 regression. With the `handleIncomingIntent` call removed
+  from `onNewIntent`, all three failed again, so they guard that path too.
+- **Why `singleTask` and not `singleTop`:** the sign-in Custom Tab sits above `MainActivity` in GSD's task.
+  `singleTop` only reuses an activity at the top of its task, so the OAuth callback would still stack a copy.
+- **Both reviewer claims held.** The static shortcuts carry `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`. The
+  reminder tap's `SINGLE_TOP` already landed in `onNewIntent`.
+- **Checked by hand on `gsd-test`, with `dumpsys activity` after each step.** One record remained after a link
+  on screen, a link with no activity, a cold start, both widget intent shapes, and the reminder shape. With a
+  Chrome page above `MainActivity`, a forged `oauth-callback` closed the page, reached the original activity,
+  and logged `StateMismatch`. A share started with `NEW_TASK` sat above `MainActivity` and left it intact.
+- **Found on the way:** finding 46. A shortcut that fires while GSD is on screen lands on Matrix. A build with no
+  launch mode does the same, so it is older than this fix. Notes are under "Left to do".
+- **Not walked:** a widget placed on a launcher, a share from another app's chooser, and a real sign-in. The
+  sign-in needs the owner's account, and it is now part of the release smoke.
+- **Next:** findings 1 to 3, then 5, 44, 45, and 46, each test-first. Finding 1 is `IconButton(onClick = {})` at
+  `matrix/TaskCard.kt:128`. The menu state lives in `TaskRowWithMenu`, which opens it only on a long press.
+- **Blockers:** none.
+- **Assumptions:** a link or a launcher tap may close another app's page that sits above GSD in its task. That
+  came with the approved design.
+- **Emulator:** `gsd-test` holds the fixed debug build with onboarding done. The sign-in tap opened Chrome's
+  first-run screen, and I did not complete it.
+- **Gates:** `:core:model:test` 134, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 157
+  on `gsd-test` (`:app` 102, `:core:store` 55), `:app:assembleDebug`, and `:app:assembleRelease` (R8 clean). All
+  green. The connected run took 1m 50s.
 
 ## Resuming From Here (2026-09-20, review fixes merged to main)
 - **Done:** pull requests #3 to #9 are merged to `main`, in order, with merge commits: S1, S2, S3, S4, finding 43,

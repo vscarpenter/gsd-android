@@ -72,7 +72,17 @@ Going to Matrix is now a pop with `saveState`, never a `navigate`. Matrix is the
 Deep links and palette rows that name Matrix, Dashboard, or Settings go through the same tab helper, so none of them pushes a second copy.
 My first fix only turned `restoreState` off for Matrix, and it was wrong. `launchSingleTop` then swapped the visible Matrix entry for a copy that never rose past CREATED, which silenced every lifecycle-aware collector on the screen. The S4 launch test caught it before any push.
 Four activity tests failed first on the old code. Two more activity tests, and two on a stub `NavHost` that read the entry's lifecycle, failed on my first fix. A ninth guards the stack a sibling tab keeps across a visit to Matrix.
-Findings 1 to 14 and 37 to 42 remain open.
+
+Status, 2026-09-20: finding 4 is fixed on branch `fix/single-main-activity`.
+`MainActivity` is now `singleTask`, so there is one instance. A link that reaches a running app arrives through `onNewIntent`, which already called the intent handler. The change is one manifest attribute.
+I chose `singleTask` over `singleTop` because of sign-in. The Custom Tab sits above `MainActivity` in GSD's task, and `singleTop` only reuses an activity at the top of its task.
+Three activity tests failed first. The instance count gave `expected 1 but was 2`. The Dashboard link never selected its tab on the visible copy, and the capture link never showed the New Task sheet on screen. That last one is the S4 regression the owner accepted at merge time, so it is fixed too.
+Both of the reviewer's claims held. `dumpsys shortcut` shows the static shortcuts with `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`. The reminder tap's `SINGLE_TOP` already landed in `onNewIntent`.
+I walked every entry point on `gsd-test` with `dumpsys activity`. One record remained after a link on screen, a link with no activity, a cold start, both widget intent shapes, and the reminder shape. With a Chrome page above `MainActivity` in the task, a forged `oauth-callback` closed that page, reached the original activity, and logged `StateMismatch`.
+Not walked: a widget placed on a launcher, a share from another app's chooser, and a real sign-in, which needs the owner's account.
+The walk found finding 46.
+
+Findings 1 to 3, 5 to 14, 37 to 42, and 44 to 46 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -99,6 +109,7 @@ Findings 1 to 14 and 37 to 42 remain open.
 | 43 | The Matrix tab stops working after a deep link or a palette Navigation row opens another screen. Tapping Matrix leaves the user on that screen. Going through Browse first lands on the same screen again. Only the system Back button reaches Matrix. Those paths call a plain `navigate()`, which pushes the screen on top of Matrix. The tab handler pops it with `saveState`. Navigation files that saved stack under the `popUpTo` target, which is Matrix. `restoreState` then puts it straight back in the same call. Ordinary tab switching escapes only because its first pop saves nothing. I reproduced it with Dashboard through both paths, and with the smart view link that the widget header and the "Today's Focus" shortcut open. Routes that target Matrix push a second Matrix entry instead: after a cold start on `gsd://focus`, leaving the app took two Back presses. Found while writing the S4 tests. | live (palette Dashboard row, and cold starts on `gsd://dashboard`, `gsd://smart-view/today-focus`, and `gsd://focus`), `MainActivity.kt:153-171`, `:178-184`, `matrix/MatrixScreen.kt:269-274`, `nav/GsdNavHost.kt:30` |
 | 44 | The editor saves a whole-row snapshot taken when it opened. Open a task, tap Complete on its notification, then tap Save: the save writes `completed = false` with a fresh `updatedAt`, so it also wins last-write-wins elsewhere. On a recurring task, completing it again then spawns a second instance. A sync pull that lands while the editor is open is overwritten the same way. Found by the reviewer of #9. | code, `editor/TaskEditorViewModel.kt` `openExisting` and `save` |
 | 45 | `OneShotRequest<Unit>` can wedge if a handler ever suspends. A `send(Unit)` that lands during the suspension is conflated away, because `Unit == Unit`, and the stale value fires on the next consumer. It cannot happen today: both handlers return at once and every sender runs on the main thread. `ConsumeWhileStarted` still accepts a suspending handler, so make `handle` non-suspending. Found by the reviewer of #6, who ran the class against coroutines 1.10.2. | code, `palette/OneShotRequest.kt:18-21` |
+| 46 | A launcher shortcut that fires while GSD is on screen loses its link. "Today's Focus" restarts the task and lands on Matrix. The shortcut's `CLEAR_TASK` flag destroys the old activity and starts a new one. Probable cause: the old copy must pause before it dies, and its route collector has no lifecycle gate. It takes `pendingRoute` before the new copy composes. From the home screen the shortcut works, because a stopped activity is destroyed at once. Split-screen and a tablet taskbar can reach the failing case. Older than the finding 4 fix: a build with no launch mode does the same. | live on `gsd-test` with `am start -f 0x1000c000`, with and without the launch mode, `MainActivity.kt:150-175` |
 
 ## Play policy and listing accuracy
 
