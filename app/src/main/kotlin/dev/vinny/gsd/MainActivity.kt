@@ -55,8 +55,6 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIncomingIntent(intent: android.content.Intent) {
         val container = (application as GsdApp).container
-        intent.getStringExtra(dev.vinny.gsd.notifications.ReminderScheduler.EXTRA_TASK_ID)
-            ?.let { container.palette.requestOpenTask(it) }
         val data = intent.data
         if (data?.scheme == "gsd" && data.host != "oauth-callback") {
             dev.vinny.gsd.nav.GsdRoute.parse(data.toString())

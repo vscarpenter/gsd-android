@@ -132,7 +132,12 @@ A JVM test failed first. Two guards sit beside it: a posted reminder with a spen
 An on-device test goes through the real Snooze receiver and asks the planner about the stored task. On the old planner it failed with "a snoozed reminder has no fire time".
 I did not watch an alarm fire. `ReminderResync` re-plans every alarm on any store change, and that path is unchanged.
 
-Findings 6 to 14, 37 to 42, 44 to 47, 49, and 50 remain open.
+Status, 2026-09-20: finding 47 is fixed on branch `fix/reminder-tap-opens-the-task`, stacked on the finding 5 branch.
+The reminder tap carried the task id as an extra, and `MainActivity` answered it with `requestOpenTask` alone. Only the Matrix screen consumes that request, so from any other tab the tap did nothing. Spec 11.2 already said the tap is `gsd://task/<id>`, and that route goes to Matrix first.
+The tap is now that link. `MainActivity` lost its special case for the extra, so one router handles every way into a task.
+An activity test failed first: from the Settings tab, the tap intent arrived and no editor opened. I extracted `ReminderReceiver.tapIntent` with its old shape before I wrote the test, so the test sends what the receiver sends.
+
+Findings 6 to 14, 37 to 42, 44 to 46, 49, and 50 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
