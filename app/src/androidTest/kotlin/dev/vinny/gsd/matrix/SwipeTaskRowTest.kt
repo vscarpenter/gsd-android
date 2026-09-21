@@ -15,6 +15,8 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdTheme
@@ -38,7 +40,7 @@ class SwipeTaskRowTest {
     private var success = Color.Unspecified
 
     /** The content paints nothing, like the line of text under a Trash card. */
-    private fun showRowOnPaper() = rule.setContent {
+    private fun showRowOnPaper(onComplete: () -> Unit = {}, onDelete: () -> Unit = {}) = rule.setContent {
         GsdTheme {
             paper = LocalGsdColors.current.paper
             success = LocalGsdColors.current.success
@@ -48,8 +50,8 @@ class SwipeTaskRowTest {
                         id = "task-under-test-00000", title = "at rest", urgent = true, important = true,
                         createdAt = t0, updatedAt = t0,
                     ),
-                    onComplete = {},
-                    onDelete = {},
+                    onComplete = onComplete,
+                    onDelete = onDelete,
                     modifier = Modifier.testTag("row"),
                 ) {
                     Spacer(Modifier.fillMaxWidth().height(48.dp))
@@ -80,5 +82,28 @@ class SwipeTaskRowTest {
 
         // Left of the check icon, and clear of the rounded corners.
         assertEquals(success.toArgb(), pixels[8, pixels.height / 2].toArgb())
+    }
+
+    /** Review finding 3: a second call made the view model forget the task it had just deleted. */
+    @Test
+    fun aFullTrailingSwipeDeletesOnce() {
+        var deletes = 0
+        showRowOnPaper(onDelete = { deletes++ })
+
+        rule.onNodeWithTag("row").performTouchInput { swipeLeft() }
+        rule.waitForIdle()
+
+        assertEquals(1, deletes)
+    }
+
+    @Test
+    fun aFullLeadingSwipeCompletesOnce() {
+        var completes = 0
+        showRowOnPaper(onComplete = { completes++ })
+
+        rule.onNodeWithTag("row").performTouchInput { swipeRight() }
+        rule.waitForIdle()
+
+        assertEquals(1, completes)
     }
 }
