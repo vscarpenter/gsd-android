@@ -6,8 +6,8 @@ One list, in the order I would work it. A number in front of an item is its find
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
 and 3 are fixed and merged (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19).
-Findings 5 and 47 are fixed and merged (#20 and #21). Finding 44 is fixed on `fix/editor-saves-only-its-fields`
-(#22), not merged. The work since #13 added findings 46 to 50.
+Findings 5, 47, and 44 are fixed and merged (#20, #21, and #22). Two test commits from the review of #22 wait
+for their own PR to merge. The work since #13 added findings 46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -42,8 +42,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] **50.** Completing a task outside Matrix gets no haptic and no confetti. Spec 8.4 says "always".
 - [x] **5.** "Snooze 1 hour" on a reminder never fires again. Done 2026-09-20, merged in #20. A future snooze
       now overrides the sent flag in `ReminderPlanner`.
-- [x] **44.** The editor saves a whole-row snapshot taken when it opened. Done 2026-09-20 on branch
-      `fix/editor-saves-only-its-fields`. Save merges the fields the user changed onto the row as it is now.
+- [x] **44.** The editor saves a whole-row snapshot taken when it opened. Done 2026-09-20, merged in #22. Save
+      merges the fields the user changed onto the row as it is now.
 - [ ] **45.** `OneShotRequest` can wedge if a handler ever suspends. Make `handle` non-suspending.
 - [ ] **46.** A launcher shortcut that fires while GSD is on screen loses its link and lands on Matrix. It works
       from the home screen. Split-screen and a tablet taskbar can reach it. Older than the finding 4 fix.
