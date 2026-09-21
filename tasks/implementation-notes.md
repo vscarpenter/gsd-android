@@ -183,3 +183,21 @@
 - **The row finder on Browse:** the typed query puts the title in the search field too. The tests match `hasText(title) and !hasSetTextAction()`, and they wait for that node before they swipe.
 - **Red for the right reason:** all four failed on their last line, the wait on the store. I checked the line numbers in the result XML, because a finder that matched nothing would have failed one line earlier.
 - **Not done:** the haptic and confetti on these lists (finding 50), and the two-button trailing reveal of spec 8.1, which no Android list has.
+
+## Finding 50 every list celebrates a completion (2026-09-21)
+
+- **Tier:** Standard. One new class, one changed builder signature, and three screens. The todo had said it needed no design gate. I found one fork anyway and took the reversible side.
+- **The fork:** an event from `TaskActionsViewModel`, or a holder in the composition. The view model outlives a tab switch, so a trigger there would replay the confetti on return. It would also move the haptic from the tap to after the database write. The holder is what Matrix already did with `remember`, so lifting it changes no timing.
+- **Seam first, under green:** Matrix moved to `LocalHapticFeedback` and the confetti canvas got a test tag before any test existed. Without that, the Matrix tests would have failed only because nothing could observe them.
+- **I read the library before I trusted the swap.** `PlatformHapticFeedback.android.kt` in the Compose UI 1.11.3 sources jar maps `Confirm` to `HapticFeedbackConstantsCompat.CONFIRM`.
+- **A test clock trap, caught before the first run:** with `autoAdvance` on, a finder's idle wait runs the 1.6 second confetti to its end. The tests turn it off before the tap and step ten frames by hand. The Matrix confetti test passing on old code is what proved the finder can see the overlay at all.
+- **Mutations:** three runs. Celebrating a reopen plus dropping Matrix's overlay failed two guards. A builder that never celebrates failed the Matrix disc guard. Matrix's own toggle not celebrating failed the swipe guard. I restored each file and compared hashes.
+- **A required parameter, on purpose:** `taskRowActions` takes the celebration with no default. Matrix's `onToggleComplete` override went away, so all three screens build their menu the same way.
+- **Not done:** Bulk Done (finding 52) and the notification action.
+
+## Finding 51 a reopen gets the haptic (2026-09-21)
+
+- **Tier:** Trivial. One condition in the class finding 50 had just added.
+- **How I found it:** I was amending spec 5.8 and read "on complete/uncomplete". My new test pinned the opposite. iOS settled it: the haptic fires on every toggle, and the confetti on a completion only.
+- **Its own commit:** it changes Matrix for every user, and nobody asked for it today. The spec did. A separate commit can be reverted alone.
+- **I split the test I had just written.** One test asserted no haptic and no confetti on a reopen. Half of it was wrong. Two tests now, and the confetti half went through a fresh mutation because its line changed.

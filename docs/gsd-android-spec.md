@@ -293,13 +293,15 @@ Built-in smart-view icons: Today's Focus `target`-style crosshair (`adjust`), Th
 
 ### 5.8 Motion & haptics
 
+> Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, findings 50 and 51
+
 Motion is intentional and sparse; **all non-essential animation is suppressed when the system reports animations disabled** (animator duration scale 0 / "Remove animations" accessibility setting — check `ValueAnimator.areAnimatorsEnabled()`).
 
 - **Confetti on completion** — the one celebration. Parameters (feel reference from iOS): **160 particles**, 1.6s duration, gravity 700, launch speed 150–460 with an upward bias (−220 vertical offset), particle size 5–10dp, opacity fading 1→0, origin around the card/center (normalized x 0.3–0.7). **Colors: the four quadrant pigments + success green** — never generic rainbow. Draw on a Compose `Canvas` driven by a frame clock; skip entirely under reduced motion.
 - **Running-timer dot:** 7dp dot pulsing opacity 1↔0.35, ~0.85s ease-in-out, repeating; static under reduced motion.
 - **Count changes** roll numerically (Compose `AnimatedContent`-style numeric transition) on quadrant headers.
 - **Snackbars/toasts** slide+fade from bottom (fade-only under reduced motion). Sheet expansions and list reorders use default snappy springs.
-- **Haptics:** exactly one — a success haptic (`HapticFeedbackConstants.CONFIRM`) on complete/uncomplete. Resist adding more.
+- **Haptics:** exactly one. A success haptic on complete and on uncomplete, sent through `LocalHapticFeedback` as `HapticFeedbackType.Confirm`, which Compose maps to `HapticFeedbackConstants.CONFIRM`. A test can replace that local and count the calls. Resist adding more.
 
 ### 5.9 App icon & brand mark
 
@@ -599,9 +601,13 @@ If the task was deleted while the sheet was open, Save writes nothing. The sheet
 
 ### 8.4 Completion (+ celebration)
 
+> Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, findings 50 and 51
+
 **Behavior.** Complete sets `completed = true`, `completedAt = now`; un-complete clears `completedAt`. Completing a **recurring** task also spawns the next instance (§8.5).
 
 **Android reimagining.** Complete via leading swipe, disc tap, context menu, notification action (§11.4), or bulk bar — always with the success haptic and **confetti** (§5.8, suppressed under reduced motion). The card animates to its dimmed/sorted position.
+
+One `CompletionCelebration` owns the haptic and the confetti trigger. Matrix, a smart view list (§8.13), and Browse search results (§8.14) each remember one and draw the overlay. `taskRowActions` requires it, so a screen cannot build a task menu that forgets the celebration. It lives in the composition and not in a view model, because a view model outlives a tab switch and would replay the confetti on the way back. A reopen gets the haptic and no confetti (§5.8). Two paths in the list above do not celebrate yet: the bulk bar (review finding 52) and the notification action, which has no screen to draw on.
 
 ### 8.5 Recurrence engine
 

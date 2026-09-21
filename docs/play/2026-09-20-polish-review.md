@@ -156,7 +156,21 @@ The finding cited the wrong iOS lines. `Browse/SmartViewListView.swift:110-123` 
 Four tests failed first. Each found its row, swiped, and timed out waiting for the real store to change.
 The trailing swipe still deletes outright on every Android list. The two-button reveal of spec 8.1 (Snooze and Delete) is not built anywhere, and it stays in the older backlog.
 
-Findings 6 to 14, 37 to 42, 46, and 50 remain open.
+Status, 2026-09-21: finding 50 is fixed on branch `fix/celebrate-every-completion`, stacked on the finding 49 branch.
+The haptic and the confetti trigger both lived inside `MatrixScreen`, so no other screen could celebrate. `CompletionCelebration` owns both now. Matrix, the smart view list, and Browse each remember one and draw the overlay.
+It lives in the composition and not in `TaskActionsViewModel`. A view model outlives a tab switch, and a trigger kept there would replay the confetti on the way back. The Undo offer that came back in the review of #18 was the same kind of state: a record in a view model, shown again after a tab switch.
+`taskRowActions` requires the celebration. Finding 48 came from default callbacks that let a screen forget its wiring, and a required parameter cannot be forgotten. Matrix lost its special toggle override.
+I changed no behavior first. Matrix moved to `LocalHapticFeedback`, which a test can replace, and the confetti canvas got a test tag. Compose 1.11.3 maps `HapticFeedbackType.Confirm` to the same platform constant the old call used (read in its sources jar). With that in place the Matrix tests passed at once, and the four list tests failed for the true reason: `expected 1 but was 0`, and no confetti.
+Four guards passed on their first run: three for Matrix and one for a reopen. Each failed under a mutation of the line it guards. The Matrix swipe needed its own guard, because a swipe skips the menu builder and goes through the screen's own toggle.
+The confetti tests step frames by hand. An idle wait on an advancing test clock runs the 1.6 second confetti to its end, and the node goes with it. That would have made the list tests fail for the wrong reason and the reopen test pass with nothing to see.
+
+Status, 2026-09-21: finding 51 is fixed on the same branch, in its own commit.
+I found it while amending spec 5.8 for finding 50. The spec gives the haptic to a completion and to a reopen. The code has given it to a completion only since Phase 1, and my new class carried that over. iOS fires its success haptic on every toggle and its confetti on a completion only (`App/Matrix/TaskActions.swift:22-30`). The spec and the sibling agreed, so the code was the outlier.
+A reopen now gets the haptic and no confetti, on Matrix too. One test failed first with `expected 1 but was 0`.
+
+Finding 52 is new and open: Bulk Done celebrates nothing. I have not checked what iOS does there.
+
+Findings 6 to 14, 37 to 42, 46, and 52 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
@@ -188,6 +202,8 @@ Findings 6 to 14, 37 to 42, 46, and 50 remain open.
 | 48 | The task menu is mostly dead outside Matrix. Browse search results and smart view lists build `TaskRowActions` with only Edit and Complete, so the other six items close the menu and do nothing: Start timer, Snooze, Duplicate, Share, Move to, and Delete. In Matrix select mode the menu still opens, Edit and Complete toggle the selection, and the other six do nothing. A long press always reached these menus. Since finding 1 the "..." button reaches them in one tap. Trash and Archive also draw a completion disc that does nothing, and TalkBack announces it as "Mark complete". Found by the reviewer of #14. | code, `browse/BrowseScreen.kt:148-153`, `browse/SmartViewListScreen.kt:55-60`, `matrix/MatrixScreen.kt:139-146`, `browse/TrashScreen.kt:239`, `browse/ArchiveScreen.kt:150` |
 | 49 | Browse search results and smart view lists have no swipe gestures. Spec 8.13 calls their rows "§8.1 rows", and 8.1 gives a row a leading swipe to complete and a trailing swipe to delete. `SwipeTaskRow` wraps rows only on Matrix and Trash. iOS has both swipes on both lists, because they live in the row itself. Found while fixing finding 48. | code, `browse/BrowseScreen.kt` `BrowseSearchResults`, `browse/SmartViewListScreen.kt` `ViewListContent`, iOS `Matrix/TaskListRow.swift:33-47`, drawn by `Browse/FilteredTaskListView.swift:65` and `Browse/SmartViewListView.swift:219` |
 | 50 | Completing a task outside Matrix gets no haptic and no confetti. Spec 8.4 says a completion is "always" celebrated. The handler that fires both lives in `MatrixScreen`, and the confetti overlay is drawn only there. Found while fixing finding 48. | code, `matrix/MatrixScreen.kt` `onToggle` and `ConfettiOverlay`, `matrix/TaskRowWithMenu.kt` `taskRowActions` |
+| 51 | Reopening a task gives no haptic. Spec 5.8 gives the one haptic to "complete/uncomplete", and iOS fires it on every toggle. Android has given it to a completion only since Phase 1. Found while fixing finding 50. | code, `matrix/MatrixScreen.kt` `onToggle` before 2026-09-21, iOS `Matrix/TaskActions.swift:22-30` |
+| 52 | Bulk Done gives no haptic and no confetti. Spec 8.4 lists the bulk bar among the paths that always celebrate. `runBulk` is a view model call with nothing around it. Found while fixing finding 50. | code, `matrix/MatrixViewModel.kt` `runBulk`, `matrix/MatrixScreen.kt` `BulkActionBar(onRun = viewModel::runBulk)` |
 
 ## Play policy and listing accuracy
 
