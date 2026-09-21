@@ -1,5 +1,6 @@
 package dev.vinny.gsd
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.test.hasText
@@ -13,6 +14,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
+import dev.vinny.gsd.share.ShareActivity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -34,11 +36,12 @@ class RunningAppLinkTest {
     @Before
     fun skipOnboarding() = runBlocking { app.container.prefs.setHasOnboarded(true) }
 
-    /** The scenario closes only the activity it launched. A stacked copy would leak into the next test. */
+    /** The scenario closes only the activity it launched. A stacked copy or a page above it would leak into the next test. */
     @After
     fun finishStrayCopies() {
-        val strays = mainActivities()
+        val strays = live<Activity>()
         InstrumentationRegistry.getInstrumentation().runOnMainSync { strays.forEach { it.finish() } }
+        rule.waitUntil(5_000) { live<Activity>().isEmpty() }
     }
 
     @Test
@@ -48,9 +51,9 @@ class RunningAppLinkTest {
 
             send("gsd://dashboard")
             // Either outcome ends the wait: the link stacked a copy, or the one activity handled it.
-            rule.waitUntil(5_000) { mainActivities().size > 1 || tabIsSelected("Dashboard") }
+            rule.waitUntil(5_000) { live<MainActivity>().size > 1 || tabIsSelected("Dashboard") }
 
-            assertEquals(1, mainActivities().size)
+            assertEquals(1, live<MainActivity>().size)
         }
     }
 
@@ -78,18 +81,43 @@ class RunningAppLinkTest {
         }
     }
 
+    /**
+     * The sign-in Custom Tab sits above MainActivity in the same task. singleTop only reuses an
+     * activity at the top of its task, so it would stack a copy over the tab. ShareActivity stands
+     * in for the tab.
+     */
+    @Test
+    fun aLinkClosesAPageAboveTheActivityAndStacksNoCopy() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            awaitSelected("Matrix")
+            scenario.onActivity { main ->
+                main.startActivity(
+                    Intent(Intent.ACTION_SEND).setClass(main, ShareActivity::class.java)
+                        .setType("text/plain").putExtra(Intent.EXTRA_TEXT, "a page above"),
+                )
+            }
+            rule.waitUntil(5_000) { live<ShareActivity>().isNotEmpty() }
+
+            send("gsd://dashboard")
+            rule.waitUntil(5_000) { live<MainActivity>().size > 1 || tabIsSelected("Dashboard") }
+
+            assertEquals(1, live<MainActivity>().size)
+            rule.waitUntil(5_000) { live<ShareActivity>().isEmpty() }
+        }
+    }
+
     /** The widget builds this same intent. RemoteViews adds NEW_TASK when it fires one. */
     private fun send(link: String) = app.startActivity(
         Intent(Intent.ACTION_VIEW, Uri.parse(link), app, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
     )
 
-    private fun mainActivities(): List<MainActivity> {
-        val found = mutableListOf<MainActivity>()
+    private inline fun <reified A : Activity> live(): List<A> {
+        val found = mutableListOf<A>()
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             val registry = ActivityLifecycleMonitorRegistry.getInstance()
             Stage.values().filter { it != Stage.DESTROYED }.forEach { stage ->
-                found += registry.getActivitiesInStage(stage).filterIsInstance<MainActivity>()
+                found += registry.getActivitiesInStage(stage).filterIsInstance<A>()
             }
         }
         return found
