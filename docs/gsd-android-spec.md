@@ -388,9 +388,9 @@ For tablets/DeX/Chromebooks: **Ctrl+K** command palette · **Ctrl+N** new task �
 
 ### 6.7 State & system behavior
 
-> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S4
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4 and 45
 
-- **Requests are one-shot.** A "new task" or "open palette" request (deep links, app shortcuts, the §6.6 keys) is an event, delivered exactly once. Only a Matrix screen that is at least STARTED may take it. Returning to the Matrix tab never replays one, and an activity under another never claims one. A request sent before the Matrix screen composes waits for it. A new-task request that arrives while the editor is open is dropped, because the open draft wins.
+- **Requests are one-shot.** A "new task" or "open palette" request (deep links, app shortcuts, the §6.6 keys) is an event, delivered exactly once. Only a Matrix screen that is at least STARTED may take it. Returning to the Matrix tab never replays one, and an activity under another never claims one. A request sent before the Matrix screen composes waits for it. A new-task request that arrives while the editor is open is dropped, because the open draft wins. Two requests with equal payloads are still two requests: each send is its own object, so one that arrives while a handler is still running is delivered when it returns.
 - Persist (DataStore, mirroring iOS `@AppStorage`): `showCompleted`, theme preference, `hasOnboarded`, `fetchShareTitles`, plus the pending deep link. Tab/drawer selection and scroll positions are **not** persisted across process death (parity with shipped iOS; standard Compose saved-instance-state within a session is fine).
 - **Predictive back** enabled; **edge-to-edge** rendering with proper inset handling.
 - First run shows the onboarding flow (§8.19), skippable, gated on `hasOnboarded`.

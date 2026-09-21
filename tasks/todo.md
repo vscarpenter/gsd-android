@@ -6,8 +6,9 @@ One list, in the order I would work it. A number in front of an item is its find
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
 and 3 are fixed and merged (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19).
-Findings 5, 47, and 44 are fixed and merged (#20, #21, and #22). Two test commits from the review of #22 wait
-for their own PR to merge. The work since #13 added findings 46 to 50.
+Findings 5, 47, and 44 are fixed and merged (#20, #21, and #22). Test commits from the review of #22 are in #23,
+and finding 45 is fixed on `fix/one-shot-handler-cannot-suspend`, stacked on it. Neither is merged. The work
+since #13 added findings 46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -19,7 +20,9 @@ Everything already done is in the "Resuming From Here" blocks further down.
       (versionCode 9). Bump the version, run every gate, and build the signed `.aab`.
 - [ ] **Release smoke on a real device, from a signed build.** Walk sync, a reminder, the widget, and a deep
       link. This has been open since 2026-08-29. Add one real sign-in: the callback should close the Custom Tab
-      and land on the screen that started it (finding 4).
+      and land on the screen that started it (finding 4). During that sign-in, leave the tab and come back
+      two ways. Through Recents the tab should still be there. Through the GSD icon it will be gone, which is
+      the accepted cost. If Recents loses it too, move the launcher activity fix up (see "Decided").
 - [ ] **Upload the new build to Closed testing.** Promote it to Production once Google grants access.
 
 ### B. Broken behavior (fix before production)
@@ -44,7 +47,9 @@ Everything already done is in the "Resuming From Here" blocks further down.
       now overrides the sent flag in `ReminderPlanner`.
 - [x] **44.** The editor saves a whole-row snapshot taken when it opened. Done 2026-09-20, merged in #22. Save
       merges the fields the user changed onto the row as it is now.
-- [ ] **45.** `OneShotRequest` can wedge if a handler ever suspends. Make `handle` non-suspending.
+- [x] **45.** `OneShotRequest` can wedge if a handler ever suspends. Done 2026-09-20 on branch
+      `fix/one-shot-handler-cannot-suspend`. Each send is its own object now, so two equal values stay two
+      requests. I fixed the cause and did not take the note's fix. A handler may suspend safely.
 - [ ] **46.** A launcher shortcut that fires while GSD is on screen loses its link and lands on Matrix. It works
       from the home screen. Split-screen and a tablet taskbar can reach it. Older than the finding 4 fix.
 - [x] **47.** A reminder tap opens nothing unless Matrix is on screen. Done 2026-09-20, merged in #21. The tap
@@ -205,9 +210,6 @@ Everything already done is in the "Resuming From Here" blocks further down.
 
 ### L. Owner decisions and housekeeping
 
-- [ ] **Sign-in and the launcher icon.** Since finding 4, a tap on the GSD icon closes the sign-in tab. A user
-      who leaves for a 2FA code and returns through the icon starts sign-in again. Confirmed on `gsd-test`.
-      Accept it, or give the tab its own task. The second choice means the callback no longer closes the tab.
 - [x] Delete the nine merged branches, on origin and locally. Done 2026-09-20, after a check that each one
       was fully pushed and already contained in `origin/main`. The branch that carried this tick went too.
 - [x] Origin no longer has `add-claude-github-actions-1788703830197`. `git branch -r` on 2026-09-20 showed only
@@ -245,6 +247,15 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - A snooze the user asks for still restamps and syncs, as on the web and iOS.
 - Two published commit subjects run past 72 characters. Fixing them would rewrite published history.
 - The declared absences in the parity spec stay absent.
+- A tap on the GSD icon may close the sign-in tab. Decided by the owner on 2026-09-20. `singleTask` clears what
+  sits above `MainActivity` on a launcher tap. A user who leaves mid sign-in and returns through the icon
+  taps "Sign in" again. Three things must all hold for that: they sign in on Android, their provider sends
+  them to another app, and they come back through the icon. The cost is one more tap, with no data lost.
+  Giving the tab its own task was rejected: every sign-in would leave a stray tab in Recents, because the
+  callback could no longer close it.
+- If a tester ever reports it, the fix is a small launcher activity that holds the `LAUNCHER` filter. It
+  finishes at once when it is not the task root. It moves the launcher filter, the splash theme, and the
+  shortcut targets, so it waits until after the production launch.
 
 ## Done
 - **Phase 0** foundations · **Phase 1** core local app (`v0.1.0-phase1`) · **Phase 2** task depth
@@ -401,6 +412,27 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 45 equal requests stay distinct)
+- **Done:** review finding 45 is fixed on branch `fix/one-shot-handler-cannot-suspend`, stacked on the branch of
+  #23. Tier was Trivial: one class in `:app`, with a JVM test.
+  - `OneShotRequest` wraps each `send` in a private `Sent` object, compared by identity. A `StateFlow` skips a
+    value equal to the last one its collector saw, and both real requests carry `Unit`.
+  - Spec 6.7 is amended.
+- **A deviation from the note, on purpose:** the todo said to make `handle` non-suspending. That forbids the
+  trigger and leaves the cause. A sender on another thread could still wedge it, and no regression test can
+  exist for a case that no longer compiles. With the wrapper, a handler may suspend, and a test pins it.
+- **Proof:** one JVM test failed first with `expected 2 but was 1`. The handler suspended on its first call,
+  a second `send(Unit)` landed, and it was never delivered.
+- **Owner decision recorded:** a tap on the GSD icon may close the sign-in tab. It moved to "Decided", with the
+  launcher activity fix noted for after launch. The release smoke gained a two-way check of the sign-in tab.
+- **Housekeeping:** the owner asked for the merged local branches to go. Four went. The branch of #23 stays
+  until #23 merges.
+- **Next:** findings 46, 49, and 50. Then sections C to H of "Left to do".
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 145, `testDebugUnitTest` 139 (`:core:sync` 95, `:app` 44), `connectedAndroidTest` 187
+  on `gsd-test` (`:app` 127, `:core:store` 60, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green. The connected run took 2m 16s.
 
 ## Resuming From Here (2026-09-20, finding 44 the editor saves only what the user changed)
 - **Merge state:** the owner merged #20 and #21 while this was in progress. `main` at `7da3e87` has the same

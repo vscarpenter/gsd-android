@@ -167,3 +167,10 @@
 - **A fixed clock hides a stamp.** `TaskStoreEditTest` seeded and edited at the same fixed instant, so `updatedAt` could not show whether `edit` stamped it. The test clock moves now.
 - **A table beats a sample.** The merge has one rule applied to twelve fields. A test per interesting field left eight unguarded. The table runs the rule over all twelve, in both directions, and names the field in its failure message.
 - **I misquoted a string I never opened.** The toast says "That task no longer exists". I wrote "Task not found" from the resource name `task_not_found`.
+
+## Finding 45 equal requests stay distinct (2026-09-20)
+
+- **Tier:** Trivial. One class and one JVM test.
+- **I reproduced the reviewer's mechanism before I believed it.** `send`, a handler that suspends, a second `send`, and the collector never fired again: `expected 2 but was 1`.
+- **Fix the cause, not the trigger.** Making `handle` non-suspending would stop today's only route to the bug. The conflation would remain, and a test for it could not compile. A private `Sent` wrapper removes the equality that caused it.
+- **Conflation of several pending requests stays.** Two sends during one suspension still arrive as one delivery. For "open the palette" and "new task" that is the wanted behavior.

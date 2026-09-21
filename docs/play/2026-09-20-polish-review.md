@@ -144,7 +144,12 @@ The web already merges its editor draft onto the stored row. This goes one step 
 A save on a task deleted while the sheet was open used to bring the task back, because the old save was an upsert. It now writes nothing and shows "That task no longer exists".
 Seven tests failed first. Four are JVM tests of the merge. One store test ran eight concurrent edits, and 2 of 8 tags survived. Two view model tests caught the undone completion and the deleted task that came back.
 
-Findings 6 to 14, 37 to 42, 45, 46, 49, and 50 remain open.
+Status, 2026-09-20: finding 45 is fixed on branch `fix/one-shot-handler-cannot-suspend`.
+The reviewer's mechanism held when I reproduced it. A `StateFlow` skips a value equal to the last one its collector saw, and both real requests carry `Unit`. A request sent while a handler was suspended was never delivered, and it sat there until a later consumer took it, stale.
+The note said to make the handler non-suspending. I fixed the cause: each send is its own object, compared by identity, so two equal values stay two requests. A handler may suspend safely now, and a sender on another thread cannot wedge it either.
+One JVM test failed first with `expected 2 but was 1`.
+
+Findings 6 to 14, 37 to 42, 46, 49, and 50 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
