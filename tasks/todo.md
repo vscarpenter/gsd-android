@@ -6,8 +6,8 @@ One list, in the order I would work it. A number in front of an item is its find
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
 and 3 are fixed and merged (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19).
-Finding 5 is fixed on branch `fix/snoozed-reminder-fires-again`, not merged. The work since #13 added findings
-46 to 50.
+Findings 5 and 47 are fixed on `fix/snoozed-reminder-fires-again` (#20) and `fix/reminder-tap-opens-the-task`,
+stacked in that order. Neither is merged. The work since #13 added findings 46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -47,8 +47,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] **45.** `OneShotRequest` can wedge if a handler ever suspends. Make `handle` non-suspending.
 - [ ] **46.** A launcher shortcut that fires while GSD is on screen loses its link and lands on Matrix. It works
       from the home screen. Split-screen and a tablet taskbar can reach it. Older than the finding 4 fix.
-- [ ] **47.** A reminder tap opens nothing unless Matrix is on screen. The tap should be `gsd://task/<id>`, as
-      spec 11.2 says. That route goes to Matrix first. Found by the reviewer of #13. Pairs well with finding 5.
+- [x] **47.** A reminder tap opens nothing unless Matrix is on screen. Done 2026-09-20 on branch
+      `fix/reminder-tap-opens-the-task`. The tap is now the `gsd://task/<id>` link, as spec 11.2 says.
 
 ### Notes for finding 46 (read before designing it)
 
@@ -391,6 +391,25 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-20, finding 47 a reminder tap opens the task)
+- **Done:** review finding 47 is fixed on branch `fix/reminder-tap-opens-the-task`, stacked on
+  `fix/snoozed-reminder-fires-again` (#20). Tier was Trivial: two files and about ten lines.
+  - `ReminderReceiver.tapIntent` builds a VIEW intent on `gsd://task/<id>`. The deep link router goes to Matrix
+    first and then opens the task, so the tap works from any tab.
+  - `MainActivity.handleIncomingIntent` no longer reads `EXTRA_TASK_ID`. The alarm and the two notification
+    buttons still use that extra in their broadcasts.
+  - Spec 11.2 is amended. It already named the link.
+- **Proof:** `ReminderTapTest` failed first. From the Settings tab the old tap arrived, and "Edit Task" never
+  showed. I extracted `tapIntent` with its old shape first, so the test sends what the receiver sends.
+- **Next:** findings 44 (the editor saves a stale whole-row snapshot), 45, 46, 49, and 50. Finding 44 needs a
+  design gate: it changes what Save writes.
+- **Owner decisions still open:** whether a tap on the GSD icon may close the sign-in tab, and the three
+  leftover branches under "Owner decisions".
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 137, `testDebugUnitTest` 138 (`:core:sync` 95, `:app` 43), `connectedAndroidTest` 179
+  on `gsd-test` (`:app` 124, `:core:store` 55, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green. The connected run took 2m 27s.
 
 ## Resuming From Here (2026-09-20, finding 5 a snoozed reminder fires again)
 - **Merge state:** the owner merged #19, so `main` at `dd05fae` holds finding 48 and its review follow-ups. Its

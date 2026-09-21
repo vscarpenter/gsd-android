@@ -143,3 +143,10 @@
 - **The spec was right and the code was not.** Spec 11.1 says a future snooze is the fire time. The planner had put the `notificationSent` check ahead of it.
 - **I corrected my own reasoning midway.** I argued for the planner because a snooze could arrive by sync. Spec 4.7 says `snoozedUntil` is device-local, so that case does not exist. The planner is still the right place: it is pure, and it covers the notification button, the menu presets, and the editor.
 - **An alarm is not observable from a test.** `ReminderScheduler.cancel` builds the same `PendingIntent` that `schedule` does, so `FLAG_NO_CREATE` cannot tell the two apart. The on-device test asserts the planner's answer for the state the real receivers leave behind.
+
+## Finding 47 a reminder tap opens the task (2026-09-20)
+
+- **Tier:** Trivial. The spec already named the mechanism, so there was nothing to design.
+- **Refactor under green first:** I pulled the tap intent into `ReminderReceiver.tapIntent` with its old shape and ran the five notification tests. Then I wrote the red test against that function, and then I changed the shape. The test sends exactly what the receiver sends.
+- **One router, not two:** `MainActivity` had a second way into a task, the extra, and it skipped the navigation the link does. Removing it left one path, which the deep link tests already cover for cold start and a missing task.
+- **No shim for old notifications:** a posted notification holds the old intent only until the app updates. Android clears an app's notifications when its package is replaced. I did not verify that on a device. If an old notification did survive, its tap would open the app and no task. That is what it did before from any tab but Matrix.

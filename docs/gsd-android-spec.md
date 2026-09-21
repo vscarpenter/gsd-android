@@ -1016,8 +1016,10 @@ iOS pre-schedules every reminder with the system notification center; Android's 
 
 ### 11.2 Android mechanics
 
+> Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 47
+
 - `AlarmManager.setExactAndAllowWhileIdle` for fire times, with the **`SCHEDULE_EXACT_ALARM`** permission (user-grantable special access). If exact alarms are not permitted, degrade gracefully to inexact windows and say so in Settings — never silently fail.
-- A `BroadcastReceiver` posts the notification at alarm time: title = task title, body = description (if any), tap → `gsd://task/<id>`.
+- A `BroadcastReceiver` posts the notification at alarm time: title = task title, body = description (if any), tap → `gsd://task/<id>`. The tap is that link and nothing else, so the router goes to Matrix first and the task opens from any tab (§6.4).
 - **Notification channels:** *Reminders* (default importance, sound) and *Reminders (silent)*; the in-app **Sound** toggle selects the channel (channel sound is user-owned on Android — the two-channel split is the honest mapping).
 - **Runtime permission:** `POST_NOTIFICATIONS` requested **contextually** (first reminder enablement / first due date with reminder), never at cold launch. Track `permissionAsked`; reflect OS state in Settings with a path to system settings when denied.
 - **Reboot / update:** alarms die on reboot — a `BOOT_COMPLETED` (+ `MY_PACKAGE_REPLACED`) receiver reschedules everything from the store.
