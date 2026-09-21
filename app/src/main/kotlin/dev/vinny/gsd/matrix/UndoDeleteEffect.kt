@@ -25,16 +25,19 @@ fun UndoDeleteEffect(actions: TaskActionsViewModel, snackbarHost: SnackbarHostSt
         (view.context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager)?.isEnabled == true
     }
     LaunchedEffect(lastDeleted) {
-        if (lastDeleted == null || deletedLabel == null) return@LaunchedEffect
-        // ~6 s to undo, extended to ~12 s under TalkBack (spec §8.20)
-        val result = withTimeoutOrNull(if (accessibilityOn) 12_000L else 6_000L) {
-            snackbarHost.showSnackbar(message = deletedLabel, actionLabel = undoLabel)
-        }
-        if (result == SnackbarResult.ActionPerformed) {
-            actions.undoDelete()
-        } else {
-            snackbarHost.currentSnackbarData?.dismiss()
-            actions.clearUndo()
+        val shown = lastDeleted ?: return@LaunchedEffect
+        if (deletedLabel == null) return@LaunchedEffect
+        var undone = false
+        try {
+            // ~6 s to undo, extended to ~12 s under TalkBack (spec §8.20)
+            val result = withTimeoutOrNull(if (accessibilityOn) 12_000L else 6_000L) {
+                snackbarHost.showSnackbar(message = deletedLabel, actionLabel = undoLabel)
+            }
+            undone = result == SnackbarResult.ActionPerformed
+        } finally {
+            // This also runs when the effect is cancelled. A screen that leaves mid-offer ends the offer.
+            // A newer delete cancels this effect too, so clear only the record this effect showed.
+            if (undone) actions.undoDelete() else actions.clearUndo(shown)
         }
     }
 }
