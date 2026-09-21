@@ -27,7 +27,15 @@ import kotlin.test.assertNull
  */
 @RunWith(AndroidJUnit4::class)
 class TaskStoreEditTest {
-    private val now = Instant.parse("2026-07-19T12:00:00.000Z")
+    private val seededAt = Instant.parse("2026-07-19T12:00:00.000Z")
+    private var now = seededAt
+
+    /** A clock the test can move, so the stamp an edit writes can be told apart from the seed's. */
+    private val clock = object : Clock() {
+        override fun instant(): Instant = now
+        override fun getZone() = ZoneOffset.UTC
+        override fun withZone(zone: java.time.ZoneId) = this
+    }
     private lateinit var db: GsdDatabase
     private lateinit var store: TaskStore
 
@@ -37,7 +45,7 @@ class TaskStoreEditTest {
             ApplicationProvider.getApplicationContext(),
             GsdDatabase::class.java,
         ).build()
-        store = TaskStore(db, Clock.fixed(now, ZoneOffset.UTC))
+        store = TaskStore(db, clock)
     }
 
     @After
@@ -45,6 +53,28 @@ class TaskStoreEditTest {
 
     private suspend fun seed(): Task =
         store.add(Task(title = "edit me", urgent = true, important = true, createdAt = now, updatedAt = now))
+
+    /** Found by the reviewer of #22: nothing pinned the queue row, so an edit that never synced stayed green. */
+    @Test
+    fun anEditQueuesOnePush(): Unit = runBlocking {
+        val task = seed()
+        val queuedBefore = db.syncQueueDao().countForTask(task.id)
+
+        store.edit(task.id) { it.copy(title = "edited") }
+
+        assertEquals(queuedBefore + 1, db.syncQueueDao().countForTask(task.id))
+    }
+
+    /** The stamp is the last-write-wins key, so a save that kept the old one would lose to every other device. */
+    @Test
+    fun anEditStampsTheTaskWithTheTimeOfTheWrite(): Unit = runBlocking {
+        val task = seed()
+        now = seededAt.plusSeconds(60)
+
+        store.edit(task.id) { it.copy(title = "edited") }
+
+        assertEquals(seededAt.plusSeconds(60), store.get(task.id)?.updatedAt)
+    }
 
     /** Eight at once, so a read outside the transaction cannot pass by luck (the S5 lesson). */
     @Test

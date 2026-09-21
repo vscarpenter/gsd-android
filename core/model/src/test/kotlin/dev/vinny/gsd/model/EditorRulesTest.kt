@@ -89,4 +89,43 @@ class EditorRulesTest {
         assertEquals(listOf(entry), merged.timeEntries)
         assertEquals(30, merged.estimatedMinutes)
     }
+
+    /**
+     * Every field the editor owns: a value the user typed, and how to read it back. Found by the
+     * reviewer of #22. Four of the twelve were pinned, so dropping any of the other eight from merge
+     * stayed green, and that field would have been lost on every save.
+     */
+    private val ownedFields: List<Triple<String, (Task) -> Task, (Task) -> Any?>> = listOf(
+        Triple("title", { it.copy(title = "typed") }, { it.title }),
+        Triple("description", { it.copy(description = "typed notes") }, { it.description }),
+        Triple("urgent", { it.copy(urgent = false) }, { it.urgent }),
+        Triple("important", { it.copy(important = false) }, { it.important }),
+        Triple("tags", { it.copy(tags = listOf("typed")) }, { it.tags }),
+        Triple("dueDate", { it.copy(dueDate = t0.plusSeconds(86_400)) }, { it.dueDate }),
+        Triple("recurrence", { it.copy(recurrence = Recurrence.WEEKLY) }, { it.recurrence }),
+        Triple("subtasks", { it.copy(subtasks = listOf(Subtask(id = "sub00001", title = "typed"))) }, { it.subtasks }),
+        Triple("dependencies", { it.copy(dependencies = listOf("dep-task-0000000000001")) }, { it.dependencies }),
+        Triple("notifyBefore", { it.copy(notifyBefore = 45) }, { it.notifyBefore }),
+        Triple("estimatedMinutes", { it.copy(estimatedMinutes = 90) }, { it.estimatedMinutes }),
+        Triple("snoozedUntil", { it.copy(snoozedUntil = t0.plusSeconds(7_200)) }, { it.snoozedUntil }),
+    )
+
+    @Test
+    fun `every field the editor owns keeps the value the user typed`() {
+        assertEquals(12, ownedFields.size)
+        ownedFields.forEach { (field, type, read) ->
+            val edited = type(opened)
+            val merged = EditorRules.merge(current = opened, original = opened, edited = edited)
+            assertEquals(read(edited), read(merged), "merge dropped the user's $field")
+        }
+    }
+
+    @Test
+    fun `every field the editor owns keeps a newer stored value the user never touched`() {
+        ownedFields.forEach { (field, change, read) ->
+            val current = change(opened) // changed in the store while the sheet was open
+            val merged = EditorRules.merge(current, original = opened, edited = opened)
+            assertEquals(read(current), read(merged), "merge reverted a stored $field the user never touched")
+        }
+    }
 }

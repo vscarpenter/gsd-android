@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.map
  * injected clock and enqueues the sync operation before the row becomes
  * visible — in one transaction (spec §9.4's enqueue-before-write invariant).
  *
- * Two kinds of write (spec §7.11). [add], [update], and [replaceAll] carry what the user typed, so
+ * Two kinds of write (spec §7.11). [add], [update], [edit], and [replaceAll] carry what the user typed, so
  * they validate and can throw. Everything else is a state change to a task that is already stored,
  * so it only normalizes and never rejects. A synced task can break a limit here, because iOS counts
  * characters and Android counts UTF-16 units, and it must still complete, move, and snooze.

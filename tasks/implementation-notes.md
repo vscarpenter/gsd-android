@@ -160,3 +160,10 @@
 - **The vanished-task red lives in the view model.** At the store level a stub that returns null already passes. Only the old `save`, an upsert, brought the task back.
 - **A JUnit 4 trap:** a test written as `= runBlocking { ... }` returns its last expression. Mine ended in `assertNotNull(...)`, so the method was not void and the runner failed with `initializationError`. Declare `: Unit`.
 - **Dead code left the building:** `applyReminderReset` lost its only caller. I removed it and moved its tests onto `merge`, which added the reminder-offset case my merge tests lacked.
+
+## Review of #22 (2026-09-20)
+
+- **Two test gaps, both real.** I had red tests for the behavior I was fixing and none for the plumbing beside it. With the queue insert deleted from `edit`, all its tests passed. With 8 of the 12 `pick` lines deleted from `merge`, all its tests passed.
+- **A fixed clock hides a stamp.** `TaskStoreEditTest` seeded and edited at the same fixed instant, so `updatedAt` could not show whether `edit` stamped it. The test clock moves now.
+- **A table beats a sample.** The merge has one rule applied to twelve fields. A test per interesting field left eight unguarded. The table runs the rule over all twelve, in both directions, and names the field in its failure message.
+- **I misquoted a string I never opened.** The toast says "That task no longer exists". I wrote "Task not found" from the resource name `task_not_found`.
