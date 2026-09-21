@@ -20,8 +20,8 @@ android {
         applicationId = "dev.vinny.gsd"
         minSdk = 31
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.9.0"
+        versionCode = 10
+        versionName = "0.9.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures {
