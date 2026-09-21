@@ -5,8 +5,9 @@
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
 44 numbered findings are open. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2,
-and 3 are fixed and merged (#13 to #16). Finding 48 is fixed on branch `fix/task-menu-everywhere`, not merged.
-The work since #13 added findings 46 to 50.
+and 3 are fixed and merged (#13 to #16). Finding 48 is fixed and merged (#18). Three follow-up commits from the
+review of #18 are on `fix/task-menu-everywhere` again, waiting for their own PR to merge. The work since #13
+added findings 46 to 50.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -32,8 +33,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
       merged in #15. A row at rest no longer paints a swipe background.
 - [x] **3.** Swipe-to-delete never shows the Undo snackbar. Done 2026-09-20, merged in #16. One swipe ran its
       action 8 or 9 times. The actions now run once, in `onDismiss`.
-- [x] **48.** The task menu is mostly dead outside Matrix. Done 2026-09-20 on branch
-      `fix/task-menu-everywhere`. The owner chose to wire all eight actions. One `TaskActionsViewModel` owns the
+- [x] **48.** The task menu is mostly dead outside Matrix. Done 2026-09-20, merged in #18. The owner chose to
+      wire all eight actions. One `TaskActionsViewModel` owns the
       row operations for Matrix, Browse, and the smart view list. Select mode has no menu, and Trash and
       Archive cards draw no disc.
 - [ ] **49.** Browse search results and smart view lists have no swipe gestures. Spec 8.13 calls their rows
@@ -388,6 +389,10 @@ stat-card digit morph; the web's pre-parse smart-view structural walker, its rea
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
 
 ## Resuming From Here (2026-09-20, finding 48 the task menu works on every list)
+- **Merge state:** the owner merged #17 and #18 to `main` on 2026-09-21 at 01:56 and 01:57 UTC, while the review
+  of #18 was still being worked. GitHub deleted the branch. My next push made it again, with the three review
+  follow-ups on top of the merged tip. They are not on `main` until their own PR merges. `main` at `b4c5218` has
+  the same tree as the base those follow-ups were tested on.
 - **Done:** review finding 48 is fixed on branch `fix/task-menu-everywhere`, stacked on the docs branch of #17.
   Tier was Non-trivial. The owner picked option A, "wire all eight", and approved the design in chat. The spec is
   `tasks/spec.md`.
