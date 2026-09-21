@@ -13,8 +13,12 @@ Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
 
-- [ ] **Closed-test gate.** The Console showed 12 testers opted in, on day 13 of 14, on 2026-09-20. Apply for
-      production when day 14 completes, and answer the questionnaire (`docs/play/submission-checklist.md`).
+- [x] **Closed-test gate.** Done. 12 testers stayed opted in for 14 days, and the owner applied for production
+      access on 2026-09-20 at 8:08 PM. The Console says "We have your application for production access" and
+      that a review usually takes 7 days or less. Production is still Inactive.
+- [ ] **Wait for Google's answer.** It comes by email to the account owner. Keep the closed test running and
+      the testers opted in until it arrives. Use the wait to finish the fixes and cut the new build, so the
+      build that goes to Production is not 0.9.0.
 - [ ] **18. Pick the production version:** 0.9.x or 1.0.0.
 - [ ] **Cut a new build.** Nothing merged on 2026-09-20 is in a Play build. Testers still have 0.9.0
       (versionCode 9). Bump the version, run every gate, and build the signed `.aab`.
@@ -428,7 +432,18 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
   launcher activity fix noted for after launch. The release smoke gained a two-way check of the sign-in tab.
 - **Housekeeping:** the owner asked for the merged local branches to go. All five went, the last one after
   #23 merged.
-- **Next:** findings 46, 49, and 50. Then sections C to H of "Left to do".
+- **Next, in this order:** finding 49 first (swipes on Browse search results and smart view lists). The spec
+  already asks for them and `SwipeTaskRow` is ready, so it needs no design gate. Then finding 50 (the haptic and
+  confetti outside Matrix), which means lifting both out of `MatrixScreen`. Then finding 46, which gets a design
+  gate: a lifecycle gate on the router, or an activity-scoped controller. After those, section C (findings 6 to
+  8, reminders and the listing) and section D (15 to 17, Play policy).
+- **Where the session stopped:** 2026-09-20, end of day, at the owner's word. The tree is clean, and every gate
+  below ran on the last code commit.
+- **A stranded commit, caught the same night:** #24 merged at `526a1ac`, moments before the push of `3f4c8b8`,
+  the commit that set this order and added the lesson about checking a PR's state. The check had said OPEN,
+  and the merge and the push crossed. That commit and the production note ride on
+  `docs/record-production-application`.
+- **Production:** the owner applied for production access on 2026-09-20 at 8:08 PM. See section A.
 - **Blockers:** none.
 - **Gates:** `:core:model:test` 145, `testDebugUnitTest` 139 (`:core:sync` 95, `:app` 44), `connectedAndroidTest` 187
   on `gsd-test` (`:app` 127, `:core:store` 60, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
