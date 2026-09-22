@@ -234,8 +234,10 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [x] Origin no longer has `add-claude-github-actions-1788703830197`. `git branch -r` on 2026-09-20 showed only
       `main` and `fix/task-menu-everywhere`.
 - [x] Origin no longer has `fix/task-menu-everywhere`. It was gone at a fetch late on 2026-09-20.
-- [ ] One merged branch remains, here and on origin: `docs/record-production-application` (#25). The owner
-      had the earlier ones deleted on 2026-09-20. Deleting this one waits for the owner's word.
+- [x] Local branch cleanup. Done 2026-09-21 on the owner's word: six merged local branches deleted after
+      `git branch --merged main` listed each one.
+- [ ] `origin/docs/record-production-application` (#25) is still on origin. Deleting it waits for the owner's
+      word; the ask was for local branches.
 - [ ] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
       seconds with a green check and no review.
 - [ ] Add a note to the workspace `CLAUDE.md` "Field limits" row. The numbers match, but iOS counts characters
@@ -446,7 +448,9 @@ trimming. Android's "None" reminder still leaves `notificationEnabled` alone (ou
 - **A test-side trap:** between the old copy's death and the fresh copy's first frame there is no compose
   hierarchy, and a finder throws `IllegalStateException`. The test waits on live activities first and catches
   that exception in its finder.
-- **Not pushed:** both branches are local. Merge order: the docs branch first, then retarget this one to `main`.
+- **Merged:** both branches went into `main` directly with merge commits on the owner's word, at `b46e341`
+  and `45192b4`, and `main` is pushed. The merge tree equals the tested tip. Six merged local branches are
+  deleted. `origin/docs/record-production-application` (#25) is the one branch left on origin.
 - **Next, in this order:** section C (findings 6 to 8: a date and time picker, the notification permission
   prompt, exact alarms on Android 14 and later), then section D (15 to 17: privacy policy link, Auto Backup
   versus the Settings copy, the data-safety form). Finding 16 is an owner decision.
