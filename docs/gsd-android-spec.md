@@ -382,7 +382,9 @@ There is one `MainActivity`. Its launch mode is `singleTask`, so a link, a widge
 
 ### 6.5 App shortcuts (launcher long-press)
 
-Two static shortcuts: **"New Task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`.
+> Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 46
+
+Two static shortcuts: **"New Task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`. The system gives a static shortcut `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`, and the app cannot change that. A shortcut fired while GSD is on screen therefore destroys the running `MainActivity` and starts a fresh one, which discards an open draft. For a moment both copies exist, and the old one is paused before the new one is created. That ordering is what the §6.7 RESUMED gates rely on: the fresh copy takes the route, and the paused copy takes nothing.
 
 ### 6.6 Hardware keyboard shortcuts
 
@@ -391,8 +393,9 @@ For tablets/DeX/Chromebooks: **Ctrl+K** command palette · **Ctrl+N** new task �
 ### 6.7 State & system behavior
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4 and 45
+> Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 46
 
-- **Requests are one-shot.** A "new task" or "open palette" request (deep links, app shortcuts, the §6.6 keys) is an event, delivered exactly once. Only a Matrix screen that is at least STARTED may take it. Returning to the Matrix tab never replays one, and an activity under another never claims one. A request sent before the Matrix screen composes waits for it. A new-task request that arrives while the editor is open is dropped, because the open draft wins. Two requests with equal payloads are still two requests: each send is its own object, so one that arrives while a handler is still running is delivered when it returns.
+- **Requests are one-shot.** A "new task" or "open palette" request (deep links, app shortcuts, the §6.6 keys) is an event, delivered exactly once. Only a Matrix screen that is RESUMED may take it (`ConsumeWhileResumed`), and only a RESUMED `MainActivity` takes a pending deep-link route. STARTED is not enough: a paused activity is still STARTED, and a shortcut's `CLEAR_TASK` (§6.5) leaves the old copy paused while the fresh one is created. Returning to the Matrix tab never replays one, and an activity under another never claims one. A link that arrives while a dialog covers GSD waits until GSD resumes. A request sent before the Matrix screen composes waits for it. A new-task request that arrives while the editor is open is dropped, because the open draft wins. Two requests with equal payloads are still two requests: each send is its own object, so one that arrives while a handler is still running is delivered when it returns.
 - Persist (DataStore, mirroring iOS `@AppStorage`): `showCompleted`, theme preference, `hasOnboarded`, `fetchShareTitles`, plus the pending deep link. Tab/drawer selection and scroll positions are **not** persisted across process death (parity with shipped iOS; standard Compose saved-instance-state within a session is fine).
 - **Predictive back** enabled; **edge-to-edge** rendering with proper inset handling.
 - First run shows the onboarding flow (§8.19), skippable, gated on `hasOnboarded`.
