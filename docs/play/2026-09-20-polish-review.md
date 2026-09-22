@@ -168,9 +168,10 @@ Status, 2026-09-21: finding 51 is fixed on the same branch, in its own commit.
 I found it while amending spec 5.8 for finding 50. The spec gives the haptic to a completion and to a reopen. The code has given it to a completion only since Phase 1, and my new class carried that over. iOS fires its success haptic on every toggle and its confetti on a completion only (`App/Matrix/TaskActions.swift:22-30`). The spec and the sibling agreed, so the code was the outlier.
 A reopen now gets the haptic and no confetti, on Matrix too. One test failed first with `expected 1 but was 0`.
 
-Finding 52 is new and open: Bulk Done celebrates nothing. I have not checked what iOS does there.
+Status, 2026-09-21: finding 52 is closed by a spec correction, with no code change.
+iOS's bulk bar calls `store.bulkComplete(ids:)` with no haptic and no confetti (`App/Bulk/BulkActionBar.swift:138`). The web has no bulk bar; #521 retired its multi-select, and its `PRODUCT.md` declares the absence. Android already matched the one sibling that has the surface, so the spec line was the outlier, as in S6. Spec 8.4 now lists the bulk bar among the paths that do not celebrate, and says why.
 
-Findings 6 to 14, 37 to 42, 46, and 52 remain open.
+Findings 6 to 14, 37 to 42, and 46 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
