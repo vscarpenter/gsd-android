@@ -33,6 +33,7 @@ Everything already done is in the "Resuming From Here" blocks further down.
       the accepted cost. If Recents loses it too, move the launcher activity fix up (see "Decided").
 - [x] **Upload the new build to Closed testing.** Done 2026-09-21 at 8:35 PM CDT, driven through Chrome:
       release 10 (0.9.1) on the Alpha track, sent for review on Save because managed publishing is off.
+      Google published it at 9:08 PM the same night, so testers have it.
 - [ ] **Promote 0.9.1 to Production** once Google grants access and the closed-test release publishes.
 
 ### B. Broken behavior (fix before production)
@@ -432,6 +433,18 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-22, 0.9.1 published to testers)
+- **Done:** recorded the 0.9.1 publish in `docs/play/submission-checklist.md`, read from the Console through
+  Chrome. Google published release 10 (0.9.1) on the Alpha track at 9:08 PM on 2026-09-21. The same read
+  found a second tester group, the US-only target, an unrecorded 0.8.0 on Internal testing, and the source
+  of the edge-to-edge warnings. Tier was Trivial, docs only.
+- **Not in 0.9.1:** only finding 46 (`2f06185`). I suggested it ride along with section C instead of a 0.9.2
+  of its own. The owner has not decided.
+- **Open question for the owner:** section A says "Promote 0.9.1 to Production", but the checklist keeps
+  1.0.0 for the build that goes to Production. Settle it before Google answers the application.
+- **Next:** the real-device smoke in section A is unblocked. Then section C, as the block below says.
+- **Blockers:** none. **Gates:** none run for this docs-only change.
 
 ## Resuming From Here (2026-09-21, finding 46 the resumed copy takes the route)
 - **Done:** finding 46 is fixed on branch `fix/shortcut-while-running`, stacked on
