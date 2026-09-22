@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -145,31 +146,36 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 val backStack by navController.currentBackStackEntryAsState()
                 val currentRoute = backStack?.destination?.route
-                androidx.compose.runtime.LaunchedEffect(Unit) {
-                    container.palette.pendingRoute.collect { route ->
-                        if (route == null) return@collect
-                        when (route) {
-                            is dev.vinny.gsd.nav.GsdRoute.Capture -> {
-                                navController.navigateToTab(Destination.MATRIX)
-                                container.palette.requestNewTask()
+                // A shortcut's CLEAR_TASK pauses this activity and then creates a fresh one, and the two
+                // share pendingRoute. Only the resumed copy may take a route (review finding 46).
+                val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                androidx.compose.runtime.LaunchedEffect(lifecycleOwner) {
+                    lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+                        container.palette.pendingRoute.collect { route ->
+                            if (route == null) return@collect
+                            when (route) {
+                                is dev.vinny.gsd.nav.GsdRoute.Capture -> {
+                                    navController.navigateToTab(Destination.MATRIX)
+                                    container.palette.requestNewTask()
+                                }
+                                is dev.vinny.gsd.nav.GsdRoute.Focus,
+                                is dev.vinny.gsd.nav.GsdRoute.QuadrantLink,
+                                -> navController.navigateToTab(Destination.MATRIX)
+                                is dev.vinny.gsd.nav.GsdRoute.TaskLink -> {
+                                    navController.navigateToTab(Destination.MATRIX)
+                                    container.palette.requestOpenTask(route.id)
+                                }
+                                is dev.vinny.gsd.nav.GsdRoute.SmartViewLink ->
+                                    navController.navigate("browse/view/${route.id}")
+                                is dev.vinny.gsd.nav.GsdRoute.Dashboard ->
+                                    navController.navigateToTab(Destination.DASHBOARD)
+                                is dev.vinny.gsd.nav.GsdRoute.Settings ->
+                                    navController.navigateToTab(Destination.SETTINGS)
+                                is dev.vinny.gsd.nav.GsdRoute.Archive -> navController.navigate("archive")
+                                is dev.vinny.gsd.nav.GsdRoute.Trash -> navController.navigate("trash")
                             }
-                            is dev.vinny.gsd.nav.GsdRoute.Focus,
-                            is dev.vinny.gsd.nav.GsdRoute.QuadrantLink,
-                            -> navController.navigateToTab(Destination.MATRIX)
-                            is dev.vinny.gsd.nav.GsdRoute.TaskLink -> {
-                                navController.navigateToTab(Destination.MATRIX)
-                                container.palette.requestOpenTask(route.id)
-                            }
-                            is dev.vinny.gsd.nav.GsdRoute.SmartViewLink ->
-                                navController.navigate("browse/view/${route.id}")
-                            is dev.vinny.gsd.nav.GsdRoute.Dashboard ->
-                                navController.navigateToTab(Destination.DASHBOARD)
-                            is dev.vinny.gsd.nav.GsdRoute.Settings ->
-                                navController.navigateToTab(Destination.SETTINGS)
-                            is dev.vinny.gsd.nav.GsdRoute.Archive -> navController.navigate("archive")
-                            is dev.vinny.gsd.nav.GsdRoute.Trash -> navController.navigate("trash")
+                            container.palette.pendingRoute.value = null
                         }
-                        container.palette.pendingRoute.value = null
                     }
                 }
                 // Window size classes per spec §6: <600 compact, <840 medium, else expanded

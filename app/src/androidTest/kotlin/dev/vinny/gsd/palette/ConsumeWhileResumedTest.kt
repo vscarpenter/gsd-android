@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
  * Review finding S4: a deep link can stack a second MainActivity on the first. Both host a Matrix
  * screen, and only the one the user can see may take the request.
  */
-class ConsumeWhileStartedTest {
+class ConsumeWhileResumedTest {
     @get:Rule
     val rule = createComposeRule()
 
@@ -31,7 +31,7 @@ class ConsumeWhileStartedTest {
         rule.runOnUiThread { screen.registry.currentState = Lifecycle.State.CREATED } // stopped, not destroyed
         rule.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides screen) {
-                ConsumeWhileStarted(requests) { handled += it }
+                ConsumeWhileResumed(requests) { handled += it }
             }
         }
 
@@ -39,7 +39,32 @@ class ConsumeWhileStartedTest {
         rule.waitForIdle()
         assertEquals(emptyList(), handled)
 
-        rule.runOnUiThread { screen.registry.currentState = Lifecycle.State.STARTED }
+        rule.runOnUiThread { screen.registry.currentState = Lifecycle.State.RESUMED }
+        rule.waitUntil(5_000) { handled.isNotEmpty() }
+        assertEquals(listOf("new-task"), handled)
+    }
+
+    /**
+     * Review finding 46: a shortcut's CLEAR_TASK pauses the running activity, then creates the fresh
+     * one. The paused copy is still STARTED, so a STARTED gate let it take the fresh copy's request.
+     */
+    @Test
+    fun aPausedScreenLeavesTheRequestForTheOneOnTop() {
+        val requests = OneShotRequest<String>()
+        val handled = mutableListOf<String>()
+        val screen = Screen()
+        rule.runOnUiThread { screen.registry.currentState = Lifecycle.State.STARTED } // paused, still visible
+        rule.setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides screen) {
+                ConsumeWhileResumed(requests) { handled += it }
+            }
+        }
+
+        requests.send("new-task")
+        rule.waitForIdle()
+        assertEquals(emptyList(), handled)
+
+        rule.runOnUiThread { screen.registry.currentState = Lifecycle.State.RESUMED }
         rule.waitUntil(5_000) { handled.isNotEmpty() }
         assertEquals(listOf("new-task"), handled)
     }

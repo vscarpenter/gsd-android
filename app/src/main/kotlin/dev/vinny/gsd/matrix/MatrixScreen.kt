@@ -46,7 +46,7 @@ import dev.vinny.gsd.capture.CaptureViewModel
 import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
 import dev.vinny.gsd.model.Quadrant
-import dev.vinny.gsd.palette.ConsumeWhileStarted
+import dev.vinny.gsd.palette.ConsumeWhileResumed
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 
@@ -71,8 +71,8 @@ fun MatrixScreen(
     val showCompleted by container.prefs.showCompleted.collectAsStateWithLifecycle(initialValue = true)
     val scope = rememberCoroutineScope()
     var paletteVisible by remember { mutableStateOf(false) }
-    ConsumeWhileStarted(container.palette.openRequests) { paletteVisible = true }
-    ConsumeWhileStarted(container.palette.newTaskRequests) { editorViewModel.openNew(null) }
+    ConsumeWhileResumed(container.palette.openRequests) { paletteVisible = true }
+    ConsumeWhileResumed(container.palette.newTaskRequests) { editorViewModel.openNew(null) }
     val appContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
         container.palette.openTaskRequests.collect { taskId ->

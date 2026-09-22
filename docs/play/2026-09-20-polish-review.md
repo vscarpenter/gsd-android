@@ -171,7 +171,13 @@ A reopen now gets the haptic and no confetti, on Matrix too. One test failed fir
 Status, 2026-09-21: finding 52 is closed by a spec correction, with no code change.
 iOS's bulk bar calls `store.bulkComplete(ids:)` with no haptic and no confetti (`App/Bulk/BulkActionBar.swift:138`). The web has no bulk bar; #521 retired its multi-select, and its `PRODUCT.md` declares the absence. Android already matched the one sibling that has the surface, so the spec line was the outlier, as in S6. Spec 8.4 now lists the bulk bar among the paths that do not celebrate, and says why.
 
-Findings 6 to 14, 37 to 42, and 46 remain open.
+Status, 2026-09-21: finding 46 is fixed on branch `fix/shortcut-while-running`, stacked on the finding 52 docs branch. The owner chose the RESUMED gate over an activity-scoped controller.
+The cause the notes called probable is now proved. Two activity tests send a shortcut's exact flags (`NEW_TASK`, `CLEAR_TASK`, `TASK_ON_HOME`) while Matrix is on screen. Each waits until the fresh copy is alone and the route has been consumed, then for the view. On the old code the view never came, 4 of 4 and 3 of 3 runs: the dying copy consumed the route.
+Android pauses the old activity before it creates the new one, so a RESUMED gate on the route collector is off in the old copy when the route lands. The request consumer moved to RESUMED too, and it is `ConsumeWhileResumed` now.
+The route gate is proved by the shortcut tests, which fail again with it back on STARTED. The consumer gate is not: in three runs with it back on STARTED the fresh copy still won the dispatch race for the new-task request. Its proof is the unit test of a paused screen, which failed first. The gate makes a guarantee out of what was luck.
+The accepted cost: a link that arrives while a dialog covers GSD waits until GSD resumes. A shortcut still discards an open draft, because the app cannot change the shortcut's flags.
+
+Findings 6 to 14 and 37 to 42 remain open.
 
 | # | Finding | Evidence |
 |---|---|---|
