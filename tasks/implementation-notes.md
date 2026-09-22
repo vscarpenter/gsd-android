@@ -201,3 +201,12 @@
 - **How I found it:** I was amending spec 5.8 and read "on complete/uncomplete". My new test pinned the opposite. iOS settled it: the haptic fires on every toggle, and the confetti on a completion only.
 - **Its own commit:** it changes Matrix for every user, and nobody asked for it today. The spec did. A separate commit can be reverted alone.
 - **I split the test I had just written.** One test asserted no haptic and no confetti on a reopen. Half of it was wrong. Two tests now, and the confetti half went through a fresh mutation because its line changed.
+
+## Finding 46 the resumed copy takes the route (2026-09-21)
+
+- **Tier:** Standard. Two gates in two files, one rename, and two new activity tests. The reproduction came before the design question, and the owner picked the RESUMED gate.
+- **Two wrong-reason failures, fixed in the test:** the first run died on "No compose hierarchies found", the gap between the old copy's death and the fresh copy's first frame. The test now waits until only the fresh copy is live (by identity, against the instance the scenario launched) and then until `pendingRoute` is null, before it looks for the view. The finder catches the `IllegalStateException` for the gap.
+- **The order that makes the gate correct:** Android calls the old activity's `onPause` before the new one's `onCreate`, and `onStop` after the new one's `onResume`. So when the fresh copy writes the route, the old copy is paused (its RESUMED collectors are off) and still STARTED (a STARTED gate would still collect). That is why STARTED was not enough, and why the S4 lesson said RESUMED.
+- **One gate proved by luck, one by test:** the route gate mutation failed both shortcut tests twice. The consumer gate mutation failed nothing in three runs. I kept the consumer gate, because the design says the paused copy must take nothing, and a dispatch order is not a promise. The unit test pins it.
+- **I undid my own fix once:** `git checkout -- <file>` to restore after a mutation put back the committed STARTED version, because the fix was still uncommitted. The hash check caught it. Restore a mutation by reversing the edit, or commit before mutating.
+- **Not changed:** `openTaskRequests` in `MatrixScreen` is still an ungated `LaunchedEffect`. A task link comes from a reminder tap with `SINGLE_TOP`, which reaches the one instance through `onNewIntent`, so no second copy exists on that path.

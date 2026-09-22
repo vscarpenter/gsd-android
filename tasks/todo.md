@@ -4,7 +4,7 @@
 
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
-37 numbered findings are open, counted from the unticked numbered items below. An earlier count of 44 was
+36 numbered findings are open, counted from the unticked numbered items below. An earlier count of 44 was
 stale. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2, and 3 are fixed and merged
 (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19). Findings 5, 47, and 44
 are fixed and merged (#20, #21, and #22), and so are the test commits from the review of #22 (#23). Finding 45
@@ -67,13 +67,15 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [x] **45.** `OneShotRequest` can wedge if a handler ever suspends. Done 2026-09-20, merged in #24. Each send
       is its own object now, so two equal values stay two requests. I fixed the cause and did not take the
       note's fix. A handler may suspend safely.
-- [ ] **46.** A launcher shortcut that fires while GSD is on screen loses its link and lands on Matrix. It works
-      from the home screen. Split-screen and a tablet taskbar can reach it. Older than the finding 4 fix.
+- [x] **46.** A launcher shortcut that fires while GSD is on screen loses its link and lands on Matrix. Done
+      2026-09-21 on branch `fix/shortcut-while-running`. The route collector and the request consumer run
+      only while RESUMED, so the paused copy takes nothing.
 - [x] **47.** A reminder tap opens nothing unless Matrix is on screen. Done 2026-09-20, merged in #21. The tap
       is now the `gsd://task/<id>` link, as spec 11.2 says.
 
-### Notes for finding 46 (read before designing it)
+### Notes for finding 46 (kept as the record of how it was found)
 
+- **Proved on 2026-09-21 by `ShortcutWhileRunningTest`,** as the first note below guessed.
 - **The cause, probable and not proved.** A static shortcut carries `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`
   (`dumpsys shortcut`, `flg=0x1000c000`). The system destroys the old `MainActivity` and starts a new one. A
   resumed activity must pause before it dies, so for a moment both copies exist. `PaletteController` lives in the
@@ -428,6 +430,31 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-21, finding 46 the resumed copy takes the route)
+- **Done:** finding 46 is fixed on branch `fix/shortcut-while-running`, stacked on
+  `docs/bulk-done-does-not-celebrate` (finding 52). Tier was Standard. The reproduction came first, and the
+  owner approved the RESUMED gate in chat.
+  - The route collector in `MainActivity` runs under `repeatOnLifecycle(RESUMED)`. `ConsumeWhileStarted` is
+    `ConsumeWhileResumed`, with the same gate.
+  - Spec 6.5 and 6.7 are amended.
+- **Proof:** `ShortcutWhileRunningTest` sends both static shortcuts with their real flags while Matrix is on
+  screen. On the old code the view never opened, 4 of 4 and 3 of 3 runs. The paused-screen case in
+  `ConsumeWhileResumedTest` failed first with `expected [] but was [new-task]`.
+- **A mutation that did not bite:** the consumer gate back on STARTED failed no shortcut test in three runs.
+  The fresh copy wins that dispatch race by luck. The unit test is that gate's proof, and the record says so.
+- **A test-side trap:** between the old copy's death and the fresh copy's first frame there is no compose
+  hierarchy, and a finder throws `IllegalStateException`. The test waits on live activities first and catches
+  that exception in its finder.
+- **Not pushed:** both branches are local. Merge order: the docs branch first, then retarget this one to `main`.
+- **Next, in this order:** section C (findings 6 to 8: a date and time picker, the notification permission
+  prompt, exact alarms on Android 14 and later), then section D (15 to 17: privacy policy link, Auto Backup
+  versus the Settings copy, the data-safety form). Finding 16 is an owner decision.
+- **Blockers:** none.
+- **Gates:** `:core:model:test` 145, `testDebugUnitTest` 139 (`:core:sync` 95, `:app` 44), `connectedAndroidTest` 203
+  on `gsd-test` (`:app` 143, `:core:store` 60, none skipped), `:app:assembleDebug`, and `:app:assembleRelease`
+  (R8 clean). All green in 3m 14s on `6a8a0ab`, the fix commit before the rebase. The rebased commit
+  `2f06185` has the same code, and differs only by the finding 52 docs beneath it.
 
 ## Resuming From Here (2026-09-21, 0.9.1 submitted, finding 52 closed)
 - **Merge state:** #26, #27, and #28 are merged. `main` at `fa10578` carries every fix from the review and
