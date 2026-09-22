@@ -31,8 +31,9 @@ Everything already done is in the "Resuming From Here" blocks further down.
       and land on the screen that started it (finding 4). During that sign-in, leave the tab and come back
       two ways. Through Recents the tab should still be there. Through the GSD icon it will be gone, which is
       the accepted cost. If Recents loses it too, move the launcher activity fix up (see "Decided").
-- [ ] **Upload the new build to Closed testing.** Owner, in the Console. The `.aab` and the notes are ready.
-      Promote it to Production once Google grants access.
+- [x] **Upload the new build to Closed testing.** Done 2026-09-21 at 8:35 PM CDT, driven through Chrome:
+      release 10 (0.9.1) on the Alpha track, sent for review on Save because managed publishing is off.
+- [ ] **Promote 0.9.1 to Production** once Google grants access and the closed-test release publishes.
 
 ### B. Broken behavior (fix before production)
 

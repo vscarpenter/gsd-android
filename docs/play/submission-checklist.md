@@ -60,7 +60,7 @@ The September parity round shipped as release **9 (0.9.0)** on the same Alpha tr
   vscarpenter@gmail.com's Console session; the other account on the chooser ("Vinny
   Carpenter") is a 2021-closed shell — pick the second one.
 
-## 0.9.1 closed-test release, built 2026-09-21 (upload pending)
+## 0.9.1 closed-test release, submitted 2026-09-21
 Every fix from the polish review (#3 to #24) and the two parity fills (#26 swipes on every list, #27
 celebration on every list) are on `main` but testers still had 0.9.0. Bump commit `3c62197` on
 `release/0.9.1`. The owner picked 0.9.1 over 1.0.0: a fixes-only build, with 1.0.0 kept for the
@@ -86,10 +86,16 @@ build that goes to Production.
   > works on every list. A snoozed reminder fires again, and tapping a reminder opens its task from
   > any tab. The editor no longer undoes a change made while it was open. Links and shortcuts open in
   > the running app instead of a second copy. Sync signs you out once a session has expired.
-- Console steps, same as 0.9.0: the Alpha closed-testing track → Create new release → upload the `.aab` →
-  release 10 (0.9.1) → paste the notes → Save → Publishing overview → Send for review. Expect the
-  same native-symbols advisory. This is also the "changes made during testing" answer if Google asks
-  during the production review.
+- Console, driven through Chrome from this session at 8:35 PM CDT (submission #4): Test and release →
+  Closed testing → Alpha → Create new release → the `.aab` went into the file input (6,315 KB) → the
+  Console read it as **10 (0.9.1)**, API 31+, target SDK 36, 4 ABIs → release name left at the suggested
+  "10 (0.9.1)" → notes pasted inside `<en-US>` tags ("Release notes provided for 1 language") → Next →
+  one warning, the native-symbols advisory again → device coverage unchanged (5,493 phones, 3,871
+  tablets, 0 lost, 0 gained) → Save. **Managed publishing is off on this account, so Save submitted the
+  change by itself**: Publishing overview showed "1 change sent for review" with the quick checks running
+  (up to 14 minutes) and "Remove changes" available during that window. There was no separate "Send for
+  review" click. The 0.9.0 note above describes the same outcome in different words.
+- This release is the "changes made during testing" answer if Google asks during the production review.
 - Still unwalked on a signed build: sync, a reminder firing, the widget, a deep link, and one real
   sign-in. Do them from the Play-installed build on the Pixel once 0.9.1 publishes.
 
