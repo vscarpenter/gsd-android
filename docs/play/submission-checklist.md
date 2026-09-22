@@ -60,6 +60,45 @@ The September parity round shipped as release **9 (0.9.0)** on the same Alpha tr
   vscarpenter@gmail.com's Console session; the other account on the chooser ("Vinny
   Carpenter") is a 2021-closed shell — pick the second one.
 
+## 0.9.1 closed-test release, submitted 2026-09-21
+Every fix from the polish review (#3 to #24) and the two parity fills (#26 swipes on every list, #27
+celebration on every list) are on `main` but testers still had 0.9.0. Bump commit `3c62197` on
+`release/0.9.1`. The owner picked 0.9.1 over 1.0.0: a fixes-only build, with 1.0.0 kept for the
+build that goes to Production.
+- Gates on the bump commit: `:core:model:test` 145, `testDebugUnitTest` 139, `connectedAndroidTest` 200
+  on `gsd-test` (`:app` 140, `:core:store` 60, none skipped), `:app:assembleDebug`,
+  `:app:assembleRelease`, `:app:bundleRelease`. All green in 2m 49s.
+- Artifacts, with versioned copies beside them: `app/build/outputs/bundle/release/gsd-0.9.1-versionCode10.aab`
+  (6,466,192 bytes, SHA-256 starts `61298e2dc29ad4f4`) and `.../apk/release/gsd-0.9.1-versionCode10.apk`
+  (4,896,130 bytes). aapt2 on the APK: `versionCode='10' versionName='0.9.1'`, targetSdk 36. The bundle
+  manifest holds `0.9.1`. jarsigner verified the bundle. apksigner verified the APK with V2 only, which
+  is why jarsigner calls the APK "unsigned". Both signers carry the upload key's DN (`CN=Vinny
+  Carpenter, O=GSD Task Manager`); the APK cert's SHA-256 starts `7d88b21d7c2b6af2`.
+- Release smoke on the **minified build**, `gsd-test` (API 36), driven through the accessibility tree:
+  onboarding Skip → capture `!! Smoke test 0.9.1 #release` → Do First with the tag and the "..." button
+  → Browse → Today's Focus lists it → **leading swipe on the list completes it, confetti plays there**
+  (both new in this build) → Dashboard 0 active, 1 completed, rings at 100%. No `AndroidRuntime`
+  fatals in logcat. Sync and reminders were not exercised (no credentials on the emulator). The release
+  build was uninstalled from `gsd-test` afterward, so the next connected run installs cleanly.
+- Release notes for the Console's `<en-US>` box (472 of 500 characters):
+  > Fixes from a full review before production. Swipe right to complete and left to delete on every
+  > task list, not only the Matrix. Completing a task celebrates on every list, and the task menu
+  > works on every list. A snoozed reminder fires again, and tapping a reminder opens its task from
+  > any tab. The editor no longer undoes a change made while it was open. Links and shortcuts open in
+  > the running app instead of a second copy. Sync signs you out once a session has expired.
+- Console, driven through Chrome from this session at 8:35 PM CDT (submission #4): Test and release →
+  Closed testing → Alpha → Create new release → the `.aab` went into the file input (6,315 KB) → the
+  Console read it as **10 (0.9.1)**, API 31+, target SDK 36, 4 ABIs → release name left at the suggested
+  "10 (0.9.1)" → notes pasted inside `<en-US>` tags ("Release notes provided for 1 language") → Next →
+  one warning, the native-symbols advisory again → device coverage unchanged (5,493 phones, 3,871
+  tablets, 0 lost, 0 gained) → Save. **Managed publishing is off on this account, so Save submitted the
+  change by itself**: Publishing overview showed "1 change sent for review" with the quick checks running
+  (up to 14 minutes) and "Remove changes" available during that window. There was no separate "Send for
+  review" click. The 0.9.0 note above describes the same outcome in different words.
+- This release is the "changes made during testing" answer if Google asks during the production review.
+- Still unwalked on a signed build: sync, a reminder firing, the widget, a deep link, and one real
+  sign-in. Do them from the Play-installed build on the Pixel once 0.9.1 publishes.
+
 ## Owner steps
 Play Console account: **vinnycarpenterdev@gmail.com**.
 
