@@ -60,7 +60,7 @@ The September parity round shipped as release **9 (0.9.0)** on the same Alpha tr
   vscarpenter@gmail.com's Console session; the other account on the chooser ("Vinny
   Carpenter") is a 2021-closed shell — pick the second one.
 
-## 0.9.1 closed-test release, submitted 2026-09-21
+## 0.9.1 closed-test release, submitted and published 2026-09-21
 Every fix from the polish review (#3 to #24) and the two parity fills (#26 swipes on every list, #27
 celebration on every list) are on `main` but testers still had 0.9.0. Bump commit `3c62197` on
 `release/0.9.1`. The owner picked 0.9.1 over 1.0.0: a fixes-only build, with 1.0.0 kept for the
@@ -95,9 +95,25 @@ build that goes to Production.
   change by itself**: Publishing overview showed "1 change sent for review" with the quick checks running
   (up to 14 minutes) and "Remove changes" available during that window. There was no separate "Send for
   review" click. The 0.9.0 note above describes the same outcome in different words.
+- **Published 2026-09-21 at 9:08 PM CDT**, read from the Console on 2026-09-22. The Alpha track lists
+  10 (0.9.1) as "Available to selected testers", one version code. Submission activity shows #4 as
+  Published and stamps it 8:34 PM, a minute before the time above, so review took 34 minutes. Publishing
+  overview reads "You have no unpublished changes".
+- Who can install it: the track's tester list is two Google Groups, `gsd-android-testers@googlegroups.com`
+  and `gsd-android-testers-needed@googlegroups.com`. The closed-test gate section names only the first.
+  Feedback goes to `gsdapp@vinny.dev`. The track targets the United States only, so a tester in another
+  country cannot install the build.
+- The Internal testing card shows 8 (0.8.0), dated Aug 29 at 10:05 PM. The 2026-08-29 note says the bundle
+  skipped internal testing, and nothing in this repo records that release.
+- The Console's "For your next release" card flags two items on 10 (0.9.1). Android 15 draws apps that
+  target SDK 35 or later edge to edge, so the insets need a check. The app also reaches the deprecated
+  `Window.setStatusBarColor`, `Window.setNavigationBarColor`, and `LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES`
+  through `rf0.a` and `qf0.b`. The R8 mapping on disk, from a release build at 8:53 PM that night, names
+  those classes `androidx.activity.EdgeToEdgeApi29` and `EdgeToEdgeApi28`. The app's own code calls only
+  `enableEdgeToEdge()` in `MainActivity`. Finding 11 is in the same area.
 - This release is the "changes made during testing" answer if Google asks during the production review.
 - Still unwalked on a signed build: sync, a reminder firing, the widget, a deep link, and one real
-  sign-in. Do them from the Play-installed build on the Pixel once 0.9.1 publishes.
+  sign-in. 0.9.1 has published, so do them now from the Play-installed build on the Pixel.
 
 ## Owner steps
 Play Console account: **vinnycarpenterdev@gmail.com**.
