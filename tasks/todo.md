@@ -4,13 +4,13 @@
 
 One list, in the order I would work it. A number in front of an item is its finding number in
 `docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
-39 numbered findings are open, counted from the unticked numbered items below. An earlier count of 44 was
+37 numbered findings are open, counted from the unticked numbered items below. An earlier count of 44 was
 stale. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2, and 3 are fixed and merged
 (#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19). Findings 5, 47, and 44
 are fixed and merged (#20, #21, and #22), and so are the test commits from the review of #22 (#23). Finding 45
 is merged (#24). Finding 49 is fixed on `fix/swipes-on-every-list`, and findings 50 and 51 on
-`fix/celebrate-every-completion` stacked above it. Neither is merged. The work since #13 added findings 46
-to 52.
+`fix/celebrate-every-completion` stacked above it, both merged (#26, #27). Release 0.9.1 is merged (#28)
+and submitted. Finding 52 is closed by a spec correction. The work since #13 added findings 46 to 52.
 Everything already done is in the "Resuming From Here" blocks further down.
 
 ### A. The path to production
@@ -58,7 +58,8 @@ Everything already done is in the "Resuming From Here" blocks further down.
       the confetti.
 - [x] **51.** Reopening a task gives no haptic. Spec 5.8 says complete and uncomplete. Done 2026-09-21 on the
       same branch, in its own commit. iOS fires the haptic on every toggle.
-- [ ] **52.** Bulk Done gives no haptic and no confetti. Spec 8.4 lists the bulk bar. Check iOS first.
+- [x] **52.** Bulk Done gives no haptic and no confetti. Closed 2026-09-21 by a spec correction: iOS's bulk
+      bar celebrates nothing and the web has no bulk bar, so the spec line was the outlier. No code change.
 - [x] **5.** "Snooze 1 hour" on a reminder never fires again. Done 2026-09-20, merged in #20. A future snooze
       now overrides the sent flag in `ReminderPlanner`.
 - [x] **44.** The editor saves a whole-row snapshot taken when it opened. Done 2026-09-20, merged in #22. Save
@@ -427,6 +428,28 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-21, 0.9.1 submitted, finding 52 closed)
+- **Merge state:** #26, #27, and #28 are merged. `main` at `fa10578` carries every fix from the review and
+  the 0.9.1 bump. GitHub deleted those three branches; `origin/docs/record-production-application` (#25)
+  is still on origin, and four merged branches are still local. Deleting them waits for the owner's word.
+- **Release:** 10 (0.9.1) is on the Alpha closed-testing track, sent for review at 8:35 PM CDT. The record,
+  including that Save submits by itself with managed publishing off, is in
+  `docs/play/submission-checklist.md`.
+- **Done:** finding 52 closed on branch `docs/bulk-done-does-not-celebrate`, a spec correction with no code
+  change. Tier was Trivial. iOS decided it: its bulk bar calls `bulkComplete` with no haptic and no confetti,
+  and the web has no bulk bar. Spec 8.4 now says so and why.
+- **Assumption, stated:** following the one sibling that has the surface. If the owner wants one burst on
+  Bulk Done, it is a small change in `MatrixScreen` around `runBulk`, and the spec line flips back.
+- **Not pushed:** the branch is local.
+- **Next, in this order:** finding 46 (a launcher shortcut fired while GSD is on screen lands on Matrix),
+  which gets a design gate with the two candidates in its notes. Then section C (findings 6 to 8, reminders
+  and the listing) and section D (15 to 17, Play policy). Also worth the owner's eye: the Console's "For
+  your next release" card flags edge-to-edge for SDK 35+ and the deprecated `enableEdgeToEdge` parameters;
+  finding 11 (insets outside the phone layout) is the same area.
+- **Blockers:** none.
+- **Gates:** none run for this docs-only change. The last full run was on `bea2693` and then on the 0.9.1 bump
+  `3c62197`: `:core:model:test` 145, `testDebugUnitTest` 139, `connectedAndroidTest` 200, all green.
 
 ## Resuming From Here (2026-09-21, findings 50 and 51 every list celebrates)
 - **Done:** findings 50 and 51 are fixed on branch `fix/celebrate-every-completion`, stacked on the finding 49

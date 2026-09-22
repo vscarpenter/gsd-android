@@ -601,13 +601,13 @@ If the task was deleted while the sheet was open, Save writes nothing. The sheet
 
 ### 8.4 Completion (+ celebration)
 
-> Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, findings 50 and 51
+> Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, findings 50, 51, and 52
 
 **Behavior.** Complete sets `completed = true`, `completedAt = now`; un-complete clears `completedAt`. Completing a **recurring** task also spawns the next instance (§8.5).
 
-**Android reimagining.** Complete via leading swipe, disc tap, context menu, notification action (§11.4), or bulk bar — always with the success haptic and **confetti** (§5.8, suppressed under reduced motion). The card animates to its dimmed/sorted position.
+**Android reimagining.** Complete via leading swipe, disc tap, context menu, notification action (§11.4), or bulk bar. A swipe, a disc tap, or a menu item always gets the success haptic and **confetti** (§5.8, suppressed under reduced motion). The card animates to its dimmed/sorted position.
 
-One `CompletionCelebration` owns the haptic and the confetti trigger. Matrix, a smart view list (§8.13), and Browse search results (§8.14) each remember one and draw the overlay. `taskRowActions` requires it, so a screen cannot build a task menu that forgets the celebration. It lives in the composition and not in a view model, because a view model outlives a tab switch and would replay the confetti on the way back. A reopen gets the haptic and no confetti (§5.8). Two paths in the list above do not celebrate yet: the bulk bar (review finding 52) and the notification action, which has no screen to draw on.
+One `CompletionCelebration` owns the haptic and the confetti trigger. Matrix, a smart view list (§8.13), and Browse search results (§8.14) each remember one and draw the overlay. `taskRowActions` requires it, so a screen cannot build a task menu that forgets the celebration. It lives in the composition and not in a view model, because a view model outlives a tab switch and would replay the confetti on the way back. A reopen gets the haptic and no confetti (§5.8). Two paths in the list above do not celebrate. The notification action has no screen to draw on. The bulk bar does not celebrate on purpose: iOS's bulk bar calls `bulkComplete` with no haptic and no confetti, and the web has no bulk bar at all, so a burst here would be Android-only (review finding 52). Bulk Done is a batch edit, and its feedback is the result snackbar (§8.11).
 
 ### 8.5 Recurrence engine
 
