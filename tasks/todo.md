@@ -21,15 +21,18 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] **Wait for Google's answer.** It comes by email to the account owner. Keep the closed test running and
       the testers opted in until it arrives. Use the wait to finish the fixes and cut the new build, so the
       build that goes to Production is not 0.9.0.
-- [ ] **18. Pick the production version:** 0.9.x or 1.0.0.
-- [ ] **Cut a new build.** Nothing merged on 2026-09-20 is in a Play build. Testers still have 0.9.0
-      (versionCode 9). Bump the version, run every gate, and build the signed `.aab`.
+- [x] **18. Pick the production version.** Decided 2026-09-21: this build is 0.9.1, and 1.0.0 waits for the
+      build that goes to Production.
+- [x] **Cut a new build.** Done 2026-09-21: 0.9.1 (versionCode 10), bump `3c62197` on `release/0.9.1`. Every
+      gate green, signed `.aab` and `.apk` verified, smoked on the minified build. Details and the release
+      notes in `docs/play/submission-checklist.md`.
 - [ ] **Release smoke on a real device, from a signed build.** Walk sync, a reminder, the widget, and a deep
       link. This has been open since 2026-08-29. Add one real sign-in: the callback should close the Custom Tab
       and land on the screen that started it (finding 4). During that sign-in, leave the tab and come back
       two ways. Through Recents the tab should still be there. Through the GSD icon it will be gone, which is
       the accepted cost. If Recents loses it too, move the launcher activity fix up (see "Decided").
-- [ ] **Upload the new build to Closed testing.** Promote it to Production once Google grants access.
+- [ ] **Upload the new build to Closed testing.** Owner, in the Console. The `.aab` and the notes are ready.
+      Promote it to Production once Google grants access.
 
 ### B. Broken behavior (fix before production)
 
