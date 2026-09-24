@@ -351,7 +351,11 @@ Tapping a destination keeps one copy of it on the back stack, and the tab being 
 
 ### 6.2 Medium & expanded width (tablets, unfolded foldables, freeform windows)
 
-- **Medium:** a **navigation rail** (Matrix, Browse, Dashboard, Settings) with phone-style content.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 11, 36, and 37
+
+**Which layout.** Width under 600dp gets the bottom bar (§6.1); under 840dp the rail; 840dp and wider the drawer, but only with at least 480dp of height (`navLayoutFor`). A phone in landscape is wide but short, so it takes the rail, as Material's window classes advise. Every layout sits on `paper` in the in-app theme, and the rail and drawer layouts apply the safe-drawing insets (system bars, display cutout, and keyboard) that the phone's `Scaffold` applies, so nothing draws under the status bar. Rail and drawer labels stay on one line.
+
+- **Medium:** a **navigation rail** (Matrix, Browse, Dashboard, Settings) with phone-style content, centered and at most 640dp wide.
 - **Expanded:** a **permanent navigation drawer** mirroring the iPad sidebar — Matrix; Dashboard; a **Smart Views** section (pinned first, then built-ins, then custom, then "New Smart View"); a **Library** section (Archive, Settings) — beside a detail pane. **Matrix at expanded width is a true 2×2 grid** (Q1 top-left, Q2 top-right, Q3 bottom-left, Q4 bottom-right), each cell a header + scrollable list, with **drag-and-drop of task cards across quadrant boundaries** to reclassify (updates `urgent`/`important`). Smart-view rows show live counts; row context menu offers Pin/Unpin (+ Edit/Delete for custom).
 
 ### 6.3 Editor presentation
@@ -399,7 +403,7 @@ For tablets/DeX/Chromebooks: **Ctrl+K** command palette · **Ctrl+N** new task �
 
 - **Requests are one-shot.** A "new task" or "open palette" request (deep links, app shortcuts, the §6.6 keys) is an event, delivered exactly once. Only a Matrix screen that is RESUMED may take it (`ConsumeWhileResumed`), and only a RESUMED `MainActivity` takes a pending deep-link route. STARTED is not enough: a paused activity is still STARTED, and a shortcut's `CLEAR_TASK` (§6.5) leaves the old copy paused while the fresh one is created. Returning to the Matrix tab never replays one, and an activity under another never claims one. A link that arrives while a dialog covers GSD waits until GSD resumes. A request sent before the Matrix screen composes waits for it. A new-task request that arrives while the editor is open is dropped, because the open draft wins. Two requests with equal payloads are still two requests: each send is its own object, so one that arrives while a handler is still running is delivered when it returns.
 - Persist (DataStore, mirroring iOS `@AppStorage`): `showCompleted`, theme preference, `hasOnboarded`, `fetchShareTitles`, plus the pending deep link. Tab/drawer selection and scroll positions are **not** persisted across process death (parity with shipped iOS; standard Compose saved-instance-state within a session is fine).
-- **Predictive back** enabled; **edge-to-edge** rendering with proper inset handling.
+- **Predictive back** enabled; **edge-to-edge** rendering with proper inset handling. The status and navigation bar icons follow the **in-app** theme, re-applied whenever it changes, so a dark in-app theme on a light system draws light icons (review finding 38).
 - First run shows the onboarding flow (§8.19), skippable, gated on `hasOnboarded`.
 
 ---
