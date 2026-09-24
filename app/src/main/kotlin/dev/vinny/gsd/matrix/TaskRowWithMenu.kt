@@ -79,6 +79,7 @@ fun TaskRowWithMenu(
     actions: TaskRowActions,
     modifier: Modifier = Modifier,
     menuEnabled: Boolean = true,
+    longPressOpensMenu: Boolean = true,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var snoozeOpen by remember { mutableStateOf(false) }
@@ -91,6 +92,7 @@ fun TaskRowWithMenu(
             badges = badges,
             // Select mode turns the menu off, and a card with no menu draws no button.
             onOpenMenu = if (menuEnabled) { { menuOpen = true } } else null,
+            longPressOpensMenu = longPressOpensMenu,
         )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             MenuItem(R.string.menu_edit) { menuOpen = false; actions.onEdit() }

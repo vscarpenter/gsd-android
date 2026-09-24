@@ -2,7 +2,9 @@ package dev.vinny.gsd.matrix
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdTheme
 import java.time.Instant
@@ -34,5 +36,23 @@ class MatrixGridTest {
         rule.onNodeWithText("Eliminate").assertIsDisplayed()
         rule.onNodeWithText("urgent thing").assertIsDisplayed()
         rule.onNodeWithText("someday").assertIsDisplayed()
+    }
+
+    /** Review finding 14: the grid drew bare cards, so Snooze, Duplicate, Share, and Move to were unreachable. */
+    @Test
+    fun aGridCardOpensTheTaskMenuFromItsOptionsButton() {
+        val sections = buildSections(
+            listOf(Task(title = "urgent thing", urgent = true, important = true, createdAt = t0, updatedAt = t0)),
+        )
+        rule.setContent {
+            GsdTheme {
+                MatrixGrid(sections, onToggleComplete = {}, onOpen = {}, onDropToQuadrant = { _, _ -> })
+            }
+        }
+
+        rule.onNodeWithContentDescription("Task options").performClick()
+
+        rule.onNodeWithText("Snooze").assertIsDisplayed()
+        rule.onNodeWithText("Move to").assertIsDisplayed()
     }
 }

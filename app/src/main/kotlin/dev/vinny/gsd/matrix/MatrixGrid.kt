@@ -20,12 +20,14 @@ import androidx.compose.ui.draganddrop.DragAndDropTransferData
 import androidx.compose.ui.draganddrop.mimeTypes
 import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.unit.dp
+import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.Task
 
 /**
  * Expanded-width matrix (spec §6.2): a true 2×2 grid — Q1 TL, Q2 TR, Q3 BL,
- * Q4 BR — with cross-quadrant drag-and-drop reclassification.
+ * Q4 BR — with cross-quadrant drag-and-drop reclassification. Cards carry the same §8.1 menu as
+ * the phone list (review finding 14).
  */
 @Composable
 fun MatrixGrid(
@@ -35,8 +37,11 @@ fun MatrixGrid(
     onDropToQuadrant: (String, Quadrant) -> Unit,
     modifier: Modifier = Modifier,
     onDelete: (Task) -> Unit = {},
+    rowActions: ((Task) -> TaskRowActions)? = null,
+    menuEnabled: Boolean = true,
 ) {
     val byQuadrant = sections.associateBy { it.quadrant }
+    val allVisible = sections.flatMap { it.tasks }
     Column(
         modifier = modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -52,10 +57,13 @@ fun MatrixGrid(
                 rowQuadrants.forEach { quadrant ->
                     QuadrantCell(
                         section = byQuadrant.getValue(quadrant),
+                        allVisible = allVisible,
                         onToggleComplete = onToggleComplete,
                         onOpen = onOpen,
                         onDropToQuadrant = onDropToQuadrant,
                         onDelete = onDelete,
+                        rowActions = rowActions,
+                        menuEnabled = menuEnabled,
                         modifier = Modifier.weight(1f).fillMaxSize(),
                     )
                 }
@@ -67,10 +75,13 @@ fun MatrixGrid(
 @Composable
 private fun QuadrantCell(
     section: QuadrantSectionState,
+    allVisible: List<Task>,
     onToggleComplete: (Task) -> Unit,
     onOpen: (String) -> Unit,
     onDropToQuadrant: (String, Quadrant) -> Unit,
     onDelete: (Task) -> Unit,
+    rowActions: ((Task) -> TaskRowActions)?,
+    menuEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val dropTarget = remember(section.quadrant) {
@@ -96,15 +107,27 @@ private fun QuadrantCell(
         QuadrantHeader(section)
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(section.tasks, key = { it.id }) { task ->
+                val badges = TaskBadges(
+                    blocked = DependencyGraph.uncompletedBlockers(allVisible, task).size,
+                    blocking = DependencyGraph.blocking(allVisible, task).size,
+                )
                 SwipeTaskRow(
                     task = task,
                     onComplete = { onToggleComplete(task) },
                     onDelete = { onDelete(task) },
                 ) {
-                    TaskCard(
-                        task = task,
+                    val actions = rowActions?.invoke(task) ?: TaskRowActions(
+                        onEdit = { onOpen(task.id) },
                         onToggleComplete = { onToggleComplete(task) },
-                        onClick = { onOpen(task.id) },
+                        onDelete = { onDelete(task) },
+                    )
+                    TaskRowWithMenu(
+                        task = task,
+                        badges = badges,
+                        actions = actions,
+                        menuEnabled = menuEnabled,
+                        // Here a long press starts the drag to another quadrant, so the "..." button opens the menu
+                        longPressOpensMenu = false,
                         modifier = Modifier.dragAndDropSource { _ ->
                             DragAndDropTransferData(ClipData.newPlainText("taskId", task.id))
                         },

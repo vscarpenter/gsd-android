@@ -63,7 +63,10 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-/** Task card per spec §5.6: accent spine, content column, overflow + completion disc. */
+/**
+ * Task card per spec §5.6: accent spine, content column, overflow + completion disc. A long press
+ * opens the menu unless [longPressOpensMenu] is false, as on the tablet grid, where it starts a drag.
+ */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TaskCard(
@@ -73,6 +76,7 @@ fun TaskCard(
     modifier: Modifier = Modifier,
     badges: TaskBadges = TaskBadges(0, 0),
     onOpenMenu: (() -> Unit)? = null,
+    longPressOpensMenu: Boolean = true,
 ) {
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(task.quadrant)
@@ -82,7 +86,7 @@ fun TaskCard(
         modifier = modifier
             .fillMaxWidth()
             .border(1.dp, gsd.hairline, GsdShapes.card)
-            .combinedClickable(onClick = onClick, onLongClick = onOpenMenu),
+            .combinedClickable(onClick = onClick, onLongClick = onOpenMenu.takeIf { longPressOpensMenu }),
     ) {
         // Intrinsic height lets the spine run the card's full height, not a fixed 40 dp (finding 34)
         Row(

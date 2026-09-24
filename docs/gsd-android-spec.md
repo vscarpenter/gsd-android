@@ -540,6 +540,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1, 2, 3, and 48
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 14
 
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
@@ -552,7 +553,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
   - A full swipe runs its action once, when the swipe settles. The row then slides back.
   - The swipe background (green check or red bin) is drawn only while a swipe is in progress. A row at rest paints nothing behind its content, so a dimmed row or a bare line of text never sits on it.
   - **Tap** → open editor. **Tap the completion disc** → toggle complete (never opens the editor).
-  - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete.
+  - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete. On the expanded 2×2 grid a long press starts the cross-quadrant drag instead, so there the overflow button is the way to the menu. Grid cards carry the same menu and the same blocked/blocking badges as the phone list.
   - One view model, `TaskActionsViewModel`, owns these row operations. Every screen that draws a task row builds its menu from it. The menu is the same on Matrix, on a smart view list (§8.13), and in Browse search results (§8.14). Delete offers Undo (§8.20) on all three.
 - **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11). A card in select mode has no context menu: no overflow button, and a long press opens nothing.
 - **Empty quadrants** show the dashed in-context prompt with tailored copy (§5.10) and an "add to this quadrant" affordance. A fully empty matrix shows "Capture your first task" with an example.

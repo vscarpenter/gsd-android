@@ -166,6 +166,8 @@ fun MatrixScreen(
                         onOpen = editorViewModel::openExisting,
                         onDropToQuadrant = actions::moveToQuadrant,
                         onDelete = { actions.delete(it.id) },
+                        rowActions = rowActions,
+                        menuEnabled = !selectionMode,
                         modifier = Modifier.weight(1f),
                     )
                 }
