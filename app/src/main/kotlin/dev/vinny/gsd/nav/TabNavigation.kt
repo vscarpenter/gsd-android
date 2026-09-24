@@ -10,15 +10,20 @@ import androidx.navigation.NavController
  * is a pop. It must not go through navigate(): Matrix is also the popUpTo target, so a restore
  * brings back the screen that same call just popped, and launchSingleTop swaps the visible entry
  * for a copy that never reaches STARTED.
+ *
+ * Only a tab's stack is saved. A screen a deep link or the palette pushed straight over Matrix
+ * belongs to no tab, and nothing ever restores it, so saving it kept its view model until the
+ * activity ended (the follow-up to finding 43).
  */
 fun NavController.navigateToTab(destination: Destination) {
+    val keepStack = owningTab() != Destination.MATRIX
     if (destination == Destination.MATRIX) {
-        popBackStack(Destination.MATRIX.route, inclusive = false, saveState = true)
+        popBackStack(Destination.MATRIX.route, inclusive = false, saveState = keepStack)
         return
     }
     navigate(destination.route) {
         launchSingleTop = true
-        popUpTo(Destination.MATRIX.route) { saveState = true }
+        popUpTo(Destination.MATRIX.route) { saveState = keepStack }
         restoreState = true
     }
 }

@@ -348,7 +348,7 @@ The app adapts by **window size class**, the Android analog of the iPhone/iPad s
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 43
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 21
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 21 and the follow-up to finding 43
 
 A **bottom navigation bar** with four destinations:
 
@@ -359,7 +359,7 @@ A **bottom navigation bar** with four destinations:
 
 Archive is deliberately *inside* Browse, not a fifth destination.
 
-Tapping a destination keeps one copy of it on the back stack, and the tab being left keeps its own stack. Tapping Matrix always lands on the Matrix root. A deep link (§6.4) or a palette row (§8.14) that names one of the four destinations behaves exactly like a tap on it. Any other route pushes over the current screen, and the Matrix tab still returns to Matrix from there. The selected tab is the one whose stack is showing, not the one whose route matches: Browse stays selected on a smart view, Archive, or Trash opened from it, and a screen a deep link pushes straight over Matrix counts as Matrix's.
+Tapping a destination keeps one copy of it on the back stack, and the tab being left keeps its own stack. Tapping Matrix always lands on the Matrix root. A deep link (§6.4) or a palette row (§8.14) that names one of the four destinations behaves exactly like a tap on it. Any other route pushes over the current screen, and the Matrix tab still returns to Matrix from there. The selected tab is the one whose stack is showing, not the one whose route matches: Browse stays selected on a smart view, Archive, or Trash opened from it, and a screen a deep link pushes straight over Matrix counts as Matrix's. Only a tab's own stack is saved on a tab switch. A screen pushed straight over Matrix belongs to no tab and nothing would restore it, so a tab switch pops it without saving, and Navigation releases its view model.
 
 ### 6.2 Medium & expanded width (tablets, unfolded foldables, freeform windows)
 
