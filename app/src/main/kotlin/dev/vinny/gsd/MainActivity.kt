@@ -132,8 +132,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val container = (application as GsdApp).container
-        // A rotation recreates the activity with the same launch intent. It already ran once (§6.4).
-        if (savedInstanceState == null) handleIncomingIntent(intent)
+        // A rotation recreates the activity with the same launch intent, and Recents relaunches it with
+        // the task's last link. Either way the link already ran once (§6.4).
+        if (dev.vinny.gsd.nav.runsLaunchLink(savedInstanceState != null, intent.flags)) handleIncomingIntent(intent)
         setContent {
             val themePref by container.prefs.theme.collectAsStateWithLifecycle(initialValue = ThemePref.SYSTEM)
             val darkTheme = when (themePref) {

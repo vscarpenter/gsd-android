@@ -379,7 +379,7 @@ Tapping a destination keeps one copy of it on the back stack, and the tab being 
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4, 43, and 4
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, S4 follow-up; `tasks/todo.md` K, quadrant scroll
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, S4 follow-up; `tasks/todo.md` K, quadrant scroll, and J, Recents replay
 
 Register the **`gsd://` scheme** (intent filters on the main activity). Routes — identical to iOS so widgets, shortcuts, and notifications share one router:
 
@@ -397,7 +397,7 @@ Register the **`gsd://` scheme** (intent filters on the main activity). Routes �
 
 A deep link arriving before the UI is ready is persisted and consumed on first composition (cold-start). A `task/<id>` link to a task that no longer exists shows a friendly "not found" state, never a blank screen.
 
-A deep link runs once. The activity handles its launch intent only on a fresh start, when `savedInstanceState` is null. A rotation or any other recreation does not run the link again. A link that reaches a running activity arrives through `onNewIntent`.
+A deep link runs once. The activity handles its launch intent only on a fresh start, when `savedInstanceState` is null. A rotation or any other recreation does not run the link again. Neither does a launch from Recents, which carries `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`: `singleTask` keeps the last link as the task's base intent, and after a reboot Recents starts the activity fresh with that link, a sign-in callback included. A link that reaches a running activity arrives through `onNewIntent`.
 
 There is one `MainActivity`. Its launch mode is `singleTask`, so a link, a widget tap, or a reminder tap that reaches a running app goes to that activity. It never stacks a second copy. Any page above the activity in its task closes first, and that includes the sign-in Custom Tab (§10.2). A tap on the launcher icon closes such a page too. A user who leaves the sign-in tab and comes back through the icon starts sign-in again. The two static shortcuts (§6.5) are the exception. The system launches them with `NEW_TASK` and `CLEAR_TASK`, so each one restarts the task and arrives as a fresh launch.
 

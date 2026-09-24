@@ -48,6 +48,25 @@ class LaunchIntentTest {
         }
     }
 
+    /**
+     * `singleTask` keeps the last link as the task's base intent. After a reboot, Recents starts the
+     * activity fresh with that link and FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY. It already ran once.
+     */
+    @Test
+    fun aLaunchFromRecentsDoesNotRunTheOldLinkAgain() {
+        val app = ApplicationProvider.getApplicationContext<GsdApp>()
+        runBlocking { app.container.prefs.setHasOnboarded(true) }
+        val fromRecents = Intent(Intent.ACTION_VIEW, Uri.parse("gsd://dashboard"), app, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+
+        ActivityScenario.launch<MainActivity>(fromRecents).use {
+            rule.waitUntil(5_000) { rule.onAllNodes(navItem("Matrix")).fetchSemanticsNodes().isNotEmpty() }
+            rule.waitForIdle()
+
+            rule.onNode(navItem("Matrix")).assertIsSelected()
+        }
+    }
+
     /** The top bar repeats the screen name, so match the navigation item itself. */
     private fun navItem(label: String) = hasText(label) and isSelectable()
 }
