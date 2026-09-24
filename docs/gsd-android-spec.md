@@ -1145,9 +1145,10 @@ Cold start to interactive quickly (baseline profiles); the matrix smooth with hu
 ### 13.3 Accessibility (baseline — required)
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 12
 
 - **TalkBack:** every interactive element labeled; cards expose a coherent reading order (title, quadrant, due, status) and **custom accessibility actions** for complete/snooze/edit/delete (swipe gestures are not the only path). Composite decorations collapse to a single node rather than reading their parts: a loading skeleton is one node labelled "Loading" (§5.10); the completion rings are one node ("Completion rings, {P}% of all tasks complete"); each rings legend cell is its own node reading "{Quadrant title}: {P}% complete" or "{Quadrant title}: no tasks" (§8.15).
-- **Font scale:** `sp` everywhere; layouts reflow at 2× / non-linear scaling; no clipped fixed-height text.
+- **Font scale:** `sp` everywhere; layouts reflow at 2× / non-linear scaling; no clipped fixed-height text. Every row of chips or tags wraps onto more lines (a `FlowRow`) instead of squeezing its last chips into narrow columns: the editor's due, repeat, and tag chips, card and capture tags, the share sheet, feedback, the smart view editor, Dashboard's range chips, and the bulk tag dialog.
 - **Reduced motion:** confetti and non-essential animation suppressed when animations are disabled (§5.8) — one gate, `ValueAnimator.areAnimatorsEnabled()`, for all of it. It also suppresses the **rings grow-in** (`growth` is 1 from the first frame, §8.15) and the **skeleton shimmer** (the sweeping band is not drawn at all; the silhouette stays static, §5.10). Suppression means *no animation*, not a faster one.
 - **Contrast:** the quadrant accents meet WCAG **AA** against their card backgrounds in both modes (the §5.1 values are pre-verified — don't "brighten" them).
 - **Touch targets ≥ 48dp**; full keyboard operability on hardware keyboards.

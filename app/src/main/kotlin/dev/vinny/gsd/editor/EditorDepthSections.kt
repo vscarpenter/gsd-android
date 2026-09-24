@@ -235,9 +235,11 @@ internal fun ReminderSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun RepeatSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    // Wraps: at font scale 2.0 "Monthly" was squeezed into a one-letter column (finding 12)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(
             Recurrence.NONE to R.string.repeat_never,
             Recurrence.DAILY to R.string.repeat_daily,

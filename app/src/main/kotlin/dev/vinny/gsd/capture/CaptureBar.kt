@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -66,6 +68,7 @@ private val quadrantIcons = mapOf(
 )
 
 /** The pinned capture pill (spec §5.10) with live parse preview. Stateless. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CaptureBarContent(
     state: CaptureState,
@@ -106,7 +109,7 @@ fun CaptureBarContent(
         }
         val tags = state.parsed.tags
         if (tags.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 tags.forEach { tag ->
                     Text(
                         "#$tag",

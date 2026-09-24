@@ -6,6 +6,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -74,7 +76,7 @@ import java.time.temporal.ChronoUnit
  * [selected] is null outside select mode. In select mode the card is one checkbox: a check mark
  * leads, the menu button and the disc go, and a tap runs [onClick] to toggle it (§8.11).
  */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun TaskCard(
     task: Task,
@@ -142,7 +144,10 @@ fun TaskCard(
                     )
                 }
                 if (task.tags.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         task.tags.take(4).forEach { tag ->
                             Text(
                                 "#$tag",

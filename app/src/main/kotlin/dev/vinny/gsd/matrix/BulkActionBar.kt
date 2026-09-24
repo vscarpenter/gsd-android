@@ -3,6 +3,8 @@ package dev.vinny.gsd.matrix
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -35,6 +37,7 @@ import java.time.ZoneId
  * Bottom bulk bar (spec §8.11): complete, move, tags, due date, delete (confirmed). It shows as soon
  * as select mode starts, and until something is selected it says how to select.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BulkActionBar(
     selectedCount: Int,
@@ -126,7 +129,7 @@ fun BulkActionBar(
                     )
                     if (selectionTags.isNotEmpty()) {
                         Text(stringResource(R.string.bulk_remove_tag_hint), style = GsdType.metadata, color = gsd.ink3)
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             selectionTags.take(5).forEach { existing ->
                                 TextButton(onClick = {
                                     addTagOpen = false

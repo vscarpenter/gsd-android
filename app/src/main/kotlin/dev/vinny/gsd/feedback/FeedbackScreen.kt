@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,6 +55,7 @@ private val categoryOptions = listOf(
 )
 
 /** Anonymous opt-in feedback (parity spec P§6.1–§6.2): sentiment, category, message, roadmap votes. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val viewModel: FeedbackViewModel = viewModel {
@@ -73,7 +76,7 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
     ) {
         Text(stringResource(R.string.feedback_title), style = GsdType.title, color = gsd.ink)
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = draft.sentiment == Sentiment.UP,
                 onClick = { viewModel.setSentiment(if (draft.sentiment == Sentiment.UP) null else Sentiment.UP) },
@@ -86,7 +89,7 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             categoryOptions.forEach { (category, labelRes) ->
                 FilterChip(
                     selected = draft.category == category,
