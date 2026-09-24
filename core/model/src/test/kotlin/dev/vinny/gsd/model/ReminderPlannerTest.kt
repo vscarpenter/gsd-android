@@ -194,4 +194,14 @@ class ReminderPermissionTest {
     @Test
     fun `never asks when an edit removes the due date`() =
         assertEquals(false, ReminderPermission.shouldAsk(fresh, false, dated, noDate))
+
+    /** Review, "Also worth a look": stored quiet hours went through LocalTime.parse unchecked. */
+    @Test
+    fun `quiet hours keep both times only when both parse`() {
+        assertEquals(LocalTime.of(22, 0) to LocalTime.of(7, 0), QuietHours.parse("22:00", "07:00"))
+        assertEquals(null to null, QuietHours.parse("25:00", "07:00"))
+        assertEquals(null to null, QuietHours.parse("22:00", "7am"))
+        assertEquals(null to null, QuietHours.parse("22:00", null))
+        assertEquals(null to null, QuietHours.parse(null, null))
+    }
 }

@@ -43,9 +43,13 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import dev.vinny.gsd.MainActivity
 import dev.vinny.gsd.R
+import dev.vinny.gsd.prefs.resetOnCorruption
 import kotlinx.coroutines.flow.first
 
-private val Context.widgetDataStore: DataStore<Preferences> by preferencesDataStore(name = "gsd_widget")
+private val Context.widgetDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "gsd_widget",
+    corruptionHandler = resetOnCorruption,
+)
 private val snapshotKey = stringPreferencesKey("today_focus_snapshot")
 
 suspend fun writeWidgetSnapshot(context: Context, snapshot: WidgetSnapshot) {

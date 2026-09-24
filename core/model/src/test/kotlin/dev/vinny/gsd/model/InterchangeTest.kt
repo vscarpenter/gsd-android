@@ -211,6 +211,19 @@ class InterchangeTest {
         assertNull(withoutQuietHours.quietHoursEnd)
     }
 
+    /** Review, "Also worth a look": an unparseable quiet-hours time came in as is and threw on every read. */
+    @Test
+    fun `an unparseable quiet-hours time turns quiet hours off and keeps the rest`() {
+        val notif = Interchange.parse("""{"tasks": [],
+            "notificationSettings": {"id": "settings", "enabled": true, "defaultReminder": 30,
+                "soundEnabled": true, "quietHoursStart": "25:00", "quietHoursEnd": "07:00",
+                "permissionAsked": false, "updatedAt": "2026-08-18T12:00:00.000Z"},
+            "version": "2.1.0", "exportedAt": "2026-01-01T00:00:00.000Z"}""").envelope.notificationSettings!!
+        assertNull(notif.quietHoursStart)
+        assertNull(notif.quietHoursEnd)
+        assertEquals(30, notif.defaultReminder)
+    }
+
     @Test
     fun `a malformed singleton decodes to null, treated as absent`() {
         val parsed = Interchange.parse("""{"tasks": [],

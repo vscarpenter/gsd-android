@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.preferences.preferencesDataStore
 import dev.vinny.gsd.prefs.GsdPrefs
+import dev.vinny.gsd.prefs.resetOnCorruption
 import dev.vinny.gsd.store.ArchiveStore
 import dev.vinny.gsd.store.BackupAssembler
 import dev.vinny.gsd.store.GsdDatabase
@@ -18,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 
-private val Context.dataStore by preferencesDataStore(name = "gsd_prefs")
+private val Context.dataStore by preferencesDataStore(name = "gsd_prefs", corruptionHandler = resetOnCorruption)
 
 /**
  * Manual composition root (spec §3 — no DI framework). One database, one

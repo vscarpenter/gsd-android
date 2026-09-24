@@ -3,9 +3,9 @@ package dev.vinny.gsd.store
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import dev.vinny.gsd.model.QuietHours
 import dev.vinny.gsd.model.ReminderSettings
 import java.time.Clock
-import java.time.LocalTime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -38,14 +38,18 @@ class NotificationSettingsStore(private val db: GsdDatabase, private val clock: 
     suspend fun markPermissionAsked() = update { it.copy(permissionAsked = true) }
 }
 
-private fun NotificationSettingsEntity.toSettings(): ReminderSettings = ReminderSettings(
-    enabled = enabled,
-    defaultReminderMinutes = defaultReminder,
-    soundEnabled = soundEnabled,
-    quietHoursStart = quietHoursStart?.let(LocalTime::parse),
-    quietHoursEnd = quietHoursEnd?.let(LocalTime::parse),
-    permissionAsked = permissionAsked,
-)
+private fun NotificationSettingsEntity.toSettings(): ReminderSettings {
+    // Checked: a bad stored time turns quiet hours off instead of throwing on every read
+    val (start, end) = QuietHours.parse(quietHoursStart, quietHoursEnd)
+    return ReminderSettings(
+        enabled = enabled,
+        defaultReminderMinutes = defaultReminder,
+        soundEnabled = soundEnabled,
+        quietHoursStart = start,
+        quietHoursEnd = end,
+        permissionAsked = permissionAsked,
+    )
+}
 
 private fun ReminderSettings.toEntity(updatedAt: Long): NotificationSettingsEntity =
     NotificationSettingsEntity(

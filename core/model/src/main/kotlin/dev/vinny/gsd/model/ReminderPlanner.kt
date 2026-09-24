@@ -3,6 +3,7 @@ package dev.vinny.gsd.model
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.format.DateTimeParseException
 
 /** Domain form of the §7.4 notification settings singleton. */
 data class ReminderSettings(
@@ -13,6 +14,25 @@ data class ReminderSettings(
     val quietHoursEnd: LocalTime? = null,
     val permissionAsked: Boolean = false,
 )
+
+/**
+ * Stored or imported quiet hours, "HH:mm" each. Both times parse, or quiet hours are off: one bad
+ * value used to throw on every settings read (review, "Also worth a look").
+ */
+object QuietHours {
+    fun parse(start: String?, end: String?): Pair<LocalTime?, LocalTime?> {
+        val from = start?.let(::timeOrNull)
+        val until = end?.let(::timeOrNull)
+        return if (from != null && until != null) from to until else null to null
+    }
+
+    private fun timeOrNull(raw: String): LocalTime? =
+        try {
+            LocalTime.parse(raw)
+        } catch (_: DateTimeParseException) {
+            null
+        }
+}
 
 /**
  * The §11.1 scheduling decision, kept pure so every rule is JVM-testable.

@@ -509,7 +509,11 @@ All entities must be representable in the Room store, in the JSON import/export 
 
 ### 7.4 NotificationSettings (singleton)
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look"
+
 `enabled` (default true) · `defaultReminder` minutes (default **15**; presets 15/30/60/120/1440) · `soundEnabled` (default true) · `quietHoursStart`/`quietHoursEnd` (`"HH:mm"` local; UI default 22:00–07:00 when enabled) · `permissionAsked` (default false) · `updatedAt`.
+
+Quiet hours hold both times or neither. A time that does not parse, whether imported or already stored, turns quiet hours off (`QuietHours.parse`); it used to throw on every read of the settings.
 
 ### 7.5 ArchiveSettings (singleton)
 
@@ -1222,7 +1226,11 @@ Local-only by default; **no analytics/tracking**. Tokens Keystore-encrypted, nev
 
 ### 13.5 Error handling
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look"
+
 Typed errors (not-found / validation / network / auth); human, actionable user copy; technical detail only in logs; sync errors always recoverable (queue persists; manual retry).
+
+Every DataStore (`gsd_prefs`, `gsd_auth`, `gsd_widget`) replaces a file it cannot read with an empty one (`resetOnCorruption`). Without a handler, one corrupted file failed every read of its store. Starting over costs a preference, the widget's snapshot until the next write, or a sign-in.
 
 ### 13.6 Testing & verification
 
