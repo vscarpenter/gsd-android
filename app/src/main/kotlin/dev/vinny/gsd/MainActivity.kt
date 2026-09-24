@@ -230,7 +230,14 @@ class MainActivity : ComponentActivity() {
                                             selected = currentRoute == destination.route,
                                             onClick = { navigate(destination) },
                                             icon = { Icon(destination.icon, contentDescription = null) },
-                                            label = { Text(stringResource(destination.label)) },
+                                            // One line: at font scale 2.0 "Dashboard" split mid-word (finding 35)
+                                            label = {
+                                                Text(
+                                                    stringResource(destination.label),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            },
                                         )
                                     }
                                 }

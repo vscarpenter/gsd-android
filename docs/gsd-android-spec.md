@@ -205,6 +205,8 @@ Theme preference: **System / Light / Dark** (user-selectable in Settings; follow
 
 ### 5.4 Typography
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 35
+
 Exactly **two typefaces**:
 
 - **Newsreader** (serif; bundled — it's the web app's display face, free on Google Fonts, SIL OFL; its own fallback chain is "New York"/Georgia, which is what iOS uses). Display roles only. Use the variable font; weights regular–semibold.
@@ -222,7 +224,7 @@ Exactly **two typefaces**:
 | Metadata | Sans | 13sp / regular | card meta row, tag chips |
 | Caption | Sans | 12sp / regular, caps | section labels |
 
-Dashboard stat numerals are Newsreader. Use `sp` everywhere (respect user font scale; test at 2× / non-linear scaling). Tabular (monospaced) digits for counts, timers, and subtask progress. Card title wraps to 2 lines (unlimited at accessibility scales); description 2 lines; metadata row 1 line.
+Dashboard stat numerals are Newsreader. Use `sp` everywhere (respect user font scale; test at 2× / non-linear scaling). Tabular (monospaced) digits for counts, timers, and subtask progress. Card title wraps to 2 lines (unlimited at accessibility scales, meaning font scale 1.5 and up: the steps Android 14 added above the old 1.3 maximum); description 2 lines; metadata row 1 line. Bottom-bar labels stay on one line and end in an ellipsis rather than break mid-word.
 
 Brand lockup in the top app bar: 24dp app mark + "GSD" (sans, bold, ink) + "·" (ink3) + screen name (sans, semibold, ink2).
 
@@ -243,10 +245,11 @@ Spacing is a strict **4dp grid**: 4 hairline gaps · 8 chip padding · 12 in-car
 ### 5.6 Task card anatomy
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1 and 48
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 34
 
 Row layout (top-aligned, 12dp gap), left → right:
 
-1. **Accent spine** — 3dp-wide rounded bar in the quadrant accent. This is how a task wears its quadrant.
+1. **Accent spine** — 3dp-wide rounded bar in the quadrant accent, running the full height of the card's content. This is how a task wears its quadrant.
 2. **Content column** (6dp vertical rhythm):
    - **Title** — card-title style, `ink`; completed = `ink3` + strikethrough.
    - **Description preview** — subhead, `ink2` (2 lines, `ink3` when completed or a bare URL).

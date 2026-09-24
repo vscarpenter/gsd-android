@@ -6,6 +6,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +44,8 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -81,13 +84,18 @@ fun TaskCard(
             .border(1.dp, gsd.hairline, GsdShapes.card)
             .combinedClickable(onClick = onClick, onLongClick = onOpenMenu),
     ) {
-        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Intrinsic height lets the spine run the card's full height, not a fixed 40 dp (finding 34)
+        Row(
+            modifier = Modifier.height(IntrinsicSize.Min).padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             Box(
                 modifier = Modifier
                     .width(3.dp)
-                    .height(40.dp)
+                    .fillMaxHeight()
                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(1.5.dp))
-                    .background(accent),
+                    .background(accent)
+                    .testTag("card_spine"),
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -95,7 +103,7 @@ fun TaskCard(
                     style = GsdType.cardTitle,
                     color = if (task.completed) gsd.ink3 else gsd.ink,
                     textDecoration = if (task.completed) TextDecoration.LineThrough else null,
-                    maxLines = 2,
+                    maxLines = cardTitleMaxLines(LocalDensity.current.fontScale),
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (task.description.isNotEmpty()) {
