@@ -3,10 +3,13 @@ package dev.vinny.gsd.matrix
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Visibility
@@ -23,7 +26,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
 import dev.vinny.gsd.theme.GsdType
@@ -48,14 +55,7 @@ fun GsdTopBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         BrandMark()
-        Text("GSD", style = GsdType.cardTitle.copy(fontWeight = FontWeight.Bold), color = gsd.ink)
-        Text("·", style = GsdType.cardTitle, color = gsd.ink3)
-        Text(
-            screenName,
-            style = GsdType.cardTitle.copy(fontWeight = FontWeight.SemiBold),
-            color = gsd.ink2,
-            modifier = Modifier.weight(1f),
-        )
+        BrandLockup(screenName, modifier = Modifier.weight(1f))
         syncChip?.invoke()
         IconButton(onClick = onSearch) {
             Icon(
@@ -87,6 +87,64 @@ fun GsdTopBar(
                 )
             }
         }
+    }
+}
+
+/**
+ * The top bar of every screen but Matrix (spec §5.4, review finding 21): the brand lockup with the
+ * screen's name, and the screen's own [actions]. A pushed screen passes [onUp] and gets an Up arrow
+ * in place of the mark, so it no longer starts cold under the status bar with no way back but Back.
+ */
+@Composable
+fun ScreenTopBar(
+    screenName: String,
+    modifier: Modifier = Modifier,
+    onUp: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    val gsd = LocalGsdColors.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .padding(start = if (onUp != null) 8.dp else 20.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (onUp != null) {
+            IconButton(onClick = onUp) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = stringResource(R.string.cd_navigate_up),
+                    tint = gsd.ink2,
+                )
+            }
+        } else {
+            BrandMark()
+        }
+        BrandLockup(screenName, modifier = Modifier.weight(1f))
+        actions()
+    }
+}
+
+/** "GSD · screen" (spec §5.4). TalkBack reads it as one heading and skips the dot. */
+@Composable
+private fun BrandLockup(screenName: String, modifier: Modifier = Modifier) {
+    val gsd = LocalGsdColors.current
+    Row(
+        modifier = modifier.semantics(mergeDescendants = true) { heading() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("GSD", style = GsdType.cardTitle.copy(fontWeight = FontWeight.Bold), color = gsd.ink)
+        Text("·", style = GsdType.cardTitle, color = gsd.ink3, modifier = Modifier.clearAndSetSemantics {})
+        Text(
+            screenName,
+            style = GsdType.cardTitle.copy(fontWeight = FontWeight.SemiBold),
+            color = gsd.ink2,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

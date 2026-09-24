@@ -26,7 +26,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
@@ -35,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.matrix.ScreenTopBar
 import dev.vinny.gsd.matrix.TaskCard
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdType
@@ -46,7 +46,7 @@ import kotlinx.coroutines.launch
 
 /** Archive surface (spec §8.12): dimmed read-only cards, restore, permanent delete. */
 @Composable
-fun ArchiveScreen(container: AppContainer, modifier: Modifier = Modifier) {
+fun ArchiveScreen(container: AppContainer, modifier: Modifier = Modifier, onUp: (() -> Unit)? = null) {
     val archived by container.archiveStore.observeArchived()
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val settings by container.db.archiveSettingsDao().observe()
@@ -67,6 +67,7 @@ fun ArchiveScreen(container: AppContainer, modifier: Modifier = Modifier) {
         },
         onArchiveNow = { scope.launch { container.archiveStore.sweep(settings?.archiveAfterDays ?: 30) } },
         modifier = modifier,
+        onUp = onUp,
     )
 }
 
@@ -80,6 +81,7 @@ fun ArchiveContent(
     onSetAutoArchive: (Boolean, Int) -> Unit,
     onArchiveNow: () -> Unit,
     modifier: Modifier = Modifier,
+    onUp: (() -> Unit)? = null,
 ) {
     val gsd = LocalGsdColors.current
     var query by remember { mutableStateOf("") }
@@ -87,14 +89,9 @@ fun ArchiveContent(
     var menuOpen by remember { mutableStateOf(false) }
     val visible = archived.filter { query.isEmpty() || query.lowercase() in it.title.lowercase() }
 
-    Column(modifier = modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 12.dp)) {
-            Text(
-                stringResource(R.string.browse_archive),
-                style = GsdType.quadrantTitle,
-                color = gsd.ink,
-                modifier = Modifier.weight(1f),
-            )
+    Column(modifier = modifier.fillMaxSize()) {
+        // The title row became the shared bar; its menu rides in the bar's actions (finding 21)
+        ScreenTopBar(stringResource(R.string.browse_archive), onUp = onUp) {
             Box {
                 IconButton(onClick = { menuOpen = true }) {
                     Icon(Icons.Outlined.MoreHoriz,
@@ -131,40 +128,42 @@ fun ArchiveContent(
                 }
             }
         }
-        Box(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-            if (query.isEmpty()) {
-                Text(stringResource(R.string.archive_search_hint), style = GsdType.subhead, color = gsd.ink3)
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                if (query.isEmpty()) {
+                    Text(stringResource(R.string.archive_search_hint), style = GsdType.subhead, color = gsd.ink3)
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    textStyle = GsdType.subhead.copy(color = gsd.ink),
+                    cursorBrush = gsd.cursor,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("archive_search"),
+                )
             }
-            BasicTextField(
-                value = query,
-                onValueChange = { query = it },
-                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                cursorBrush = gsd.cursor,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().testTag("archive_search"),
-            )
-        }
-        // §5.10 empty states (finding 32). A search that matches nothing says so, not "Nothing archived".
-        if (archived.isEmpty()) {
-            EmptyState(
-                icon = Icons.Outlined.Inventory2,
-                title = stringResource(R.string.archive_empty),
-                body = stringResource(R.string.archive_empty_body),
-                modifier = Modifier.padding(top = 40.dp),
-            )
-        } else if (visible.isEmpty()) {
-            SearchMissEmptyState(query.trim())
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(visible, key = { it.id }) { task ->
-                    Column(modifier = reorderMotion().alpha(0.72f)) {
-                        TaskCard(task = task, onToggleComplete = null, onClick = {})
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            TextButton(onClick = { onRestore(task.id) }) {
-                                Text(stringResource(R.string.archive_restore), style = GsdType.metadata, color = gsd.tint)
-                            }
-                            TextButton(onClick = { confirmDelete = task }) {
-                                Text(stringResource(R.string.archive_delete), style = GsdType.metadata, color = gsd.alert)
+            // §5.10 empty states (finding 32). A search that matches nothing says so, not "Nothing archived".
+            if (archived.isEmpty()) {
+                EmptyState(
+                    icon = Icons.Outlined.Inventory2,
+                    title = stringResource(R.string.archive_empty),
+                    body = stringResource(R.string.archive_empty_body),
+                    modifier = Modifier.padding(top = 40.dp),
+                )
+            } else if (visible.isEmpty()) {
+                SearchMissEmptyState(query.trim())
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(visible, key = { it.id }) { task ->
+                        Column(modifier = reorderMotion().alpha(0.72f)) {
+                            TaskCard(task = task, onToggleComplete = null, onClick = {})
+                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                TextButton(onClick = { onRestore(task.id) }) {
+                                    Text(stringResource(R.string.archive_restore), style = GsdType.metadata, color = gsd.tint)
+                                }
+                                TextButton(onClick = { confirmDelete = task }) {
+                                    Text(stringResource(R.string.archive_delete), style = GsdType.metadata, color = gsd.alert)
+                                }
                             }
                         }
                     }

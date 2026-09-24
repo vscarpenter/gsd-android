@@ -35,7 +35,6 @@ fun SyncHistoryScreen(container: AppContainer, modifier: Modifier = Modifier) {
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val format = DateTimeFormatter.ofPattern("MMM d, HH:mm:ss")
     Column(modifier = modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(stringResource(R.string.history_title), style = GsdType.quadrantTitle, color = gsd.ink)
         if (entries.isEmpty()) {
             // The §5.10 empty state (finding 32)
             EmptyState(

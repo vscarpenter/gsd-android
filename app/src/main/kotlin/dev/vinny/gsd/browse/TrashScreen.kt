@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.matrix.ScreenTopBar
 import dev.vinny.gsd.matrix.SwipeTaskRow
 import dev.vinny.gsd.matrix.TaskCard
 import dev.vinny.gsd.model.Task
@@ -54,7 +55,7 @@ import kotlinx.coroutines.launch
  * its original timestamps (a faithful undo) — see [dev.vinny.gsd.store.TrashStore].
  */
 @Composable
-fun TrashScreen(container: AppContainer, modifier: Modifier = Modifier) {
+fun TrashScreen(container: AppContainer, modifier: Modifier = Modifier, onUp: (() -> Unit)? = null) {
     val trashed by container.trashStore.observeTrash()
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
@@ -65,6 +66,7 @@ fun TrashScreen(container: AppContainer, modifier: Modifier = Modifier) {
         onDeleteForever = { id -> scope.launch { container.trashStore.deleteForever(id) } },
         onEmptyTrash = { scope.launch { container.trashStore.empty() } },
         modifier = modifier,
+        onUp = onUp,
     )
 }
 
@@ -76,6 +78,7 @@ fun TrashContent(
     onDeleteForever: (String) -> Unit,
     onEmptyTrash: () -> Unit,
     modifier: Modifier = Modifier,
+    onUp: (() -> Unit)? = null,
 ) {
     val gsd = LocalGsdColors.current
     var menuOpen by remember { mutableStateOf(false) }
@@ -90,14 +93,9 @@ fun TrashContent(
         selection = emptySet()
     }
 
-    Column(modifier = modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 12.dp)) {
-            Text(
-                stringResource(R.string.trash_title),
-                style = GsdType.quadrantTitle,
-                color = gsd.ink,
-                modifier = Modifier.weight(1f),
-            )
+    Column(modifier = modifier.fillMaxSize()) {
+        // The title row became the shared bar; its buttons ride in the bar's actions (finding 21)
+        ScreenTopBar(stringResource(R.string.trash_title), onUp = onUp) {
             if (trashed.isNotEmpty()) {
                 IconButton(onClick = { if (selectionMode) exitSelection() else selectionMode = true }) {
                     Icon(
@@ -123,57 +121,58 @@ fun TrashContent(
                 }
             }
         }
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+            if (selectionMode && selection.isNotEmpty()) {
+                TrashBulkBar(
+                    selectedCount = selection.size,
+                    onRestore = { selection.forEach(onRestore); exitSelection() },
+                    onDeleteForever = { confirmBulkDelete = true },
+                )
+            }
 
-        if (selectionMode && selection.isNotEmpty()) {
-            TrashBulkBar(
-                selectedCount = selection.size,
-                onRestore = { selection.forEach(onRestore); exitSelection() },
-                onDeleteForever = { confirmBulkDelete = true },
-            )
-        }
-
-        if (trashed.isEmpty()) {
-            // The §5.10 empty state (finding 32)
-            EmptyState(
-                icon = Icons.Outlined.DeleteOutline,
-                title = stringResource(R.string.trash_empty_state),
-                body = stringResource(R.string.trash_empty_body),
-                modifier = Modifier.padding(top = 40.dp),
-            )
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(trashed, key = { it.first.id }) { (task, deletedAt) ->
-                    val isSelected = task.id in selection
-                    fun toggleSelected() {
-                        selection = if (isSelected) selection - task.id else selection + task.id
-                    }
-                    val row: @Composable () -> Unit = {
-                        TrashRow(
-                            task = task,
-                            deletedAt = deletedAt,
-                            now = now,
-                            selectionMode = selectionMode,
-                            onClick = { if (selectionMode) toggleSelected() },
-                            onRestore = { onRestore(task.id) },
-                            onDeleteForever = { confirmDeleteForever = task },
-                        )
-                    }
-                    if (selectionMode) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = reorderMotion().fillMaxWidth(),
-                        ) {
-                            Checkbox(checked = isSelected, onCheckedChange = { toggleSelected() })
-                            Box(modifier = Modifier.weight(1f)) { row() }
+            if (trashed.isEmpty()) {
+                // The §5.10 empty state (finding 32)
+                EmptyState(
+                    icon = Icons.Outlined.DeleteOutline,
+                    title = stringResource(R.string.trash_empty_state),
+                    body = stringResource(R.string.trash_empty_body),
+                    modifier = Modifier.padding(top = 40.dp),
+                )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(trashed, key = { it.first.id }) { (task, deletedAt) ->
+                        val isSelected = task.id in selection
+                        fun toggleSelected() {
+                            selection = if (isSelected) selection - task.id else selection + task.id
                         }
-                    } else {
-                        SwipeTaskRow(
-                            task = task,
-                            onComplete = { onRestore(task.id) },
-                            onDelete = { confirmDeleteForever = task },
-                            modifier = reorderMotion(),
-                            content = row,
-                        )
+                        val row: @Composable () -> Unit = {
+                            TrashRow(
+                                task = task,
+                                deletedAt = deletedAt,
+                                now = now,
+                                selectionMode = selectionMode,
+                                onClick = { if (selectionMode) toggleSelected() },
+                                onRestore = { onRestore(task.id) },
+                                onDeleteForever = { confirmDeleteForever = task },
+                            )
+                        }
+                        if (selectionMode) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = reorderMotion().fillMaxWidth(),
+                            ) {
+                                Checkbox(checked = isSelected, onCheckedChange = { toggleSelected() })
+                                Box(modifier = Modifier.weight(1f)) { row() }
+                            }
+                        } else {
+                            SwipeTaskRow(
+                                task = task,
+                                onComplete = { onRestore(task.id) },
+                                onDelete = { confirmDeleteForever = task },
+                                modifier = reorderMotion(),
+                                content = row,
+                            )
+                        }
                     }
                 }
             }

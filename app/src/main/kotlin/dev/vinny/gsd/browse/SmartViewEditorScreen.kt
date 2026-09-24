@@ -71,8 +71,6 @@ fun SmartViewEditorScreen(
         modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(stringResource(R.string.view_editor_title), style = GsdType.title, color = gsd.ink)
-
         Box {
             if (name.isEmpty()) {
                 Text(stringResource(R.string.view_editor_name_hint), style = GsdType.body, color = gsd.ink3)

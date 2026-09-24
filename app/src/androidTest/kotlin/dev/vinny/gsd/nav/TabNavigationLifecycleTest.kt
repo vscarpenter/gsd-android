@@ -45,6 +45,28 @@ class TabNavigationLifecycleTest {
         assertTopIsResumed(Destination.MATRIX.route)
     }
 
+    /** Review finding 21: the bar compared routes, so a child screen had no tab selected. */
+    @Test
+    fun aChildScreenBelongsToTheTabBelowIt() {
+        host()
+        rule.runOnUiThread {
+            nav.navigateToTab(Destination.BROWSE)
+            nav.navigate("archive")
+        }
+        rule.waitForIdle()
+
+        rule.runOnUiThread { assertEquals(Destination.BROWSE, nav.owningTab()) }
+    }
+
+    @Test
+    fun aScreenPushedStraightOverMatrixBelongsToMatrix() {
+        host()
+        rule.runOnUiThread { nav.navigate("archive") } // what a deep link or a palette row does
+        rule.waitForIdle()
+
+        rule.runOnUiThread { assertEquals(Destination.MATRIX, nav.owningTab()) }
+    }
+
     private fun host() = rule.setContent {
         nav = rememberNavController()
         NavHost(nav, startDestination = Destination.MATRIX.route) {

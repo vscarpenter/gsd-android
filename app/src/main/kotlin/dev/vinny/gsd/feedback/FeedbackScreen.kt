@@ -74,8 +74,6 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(stringResource(R.string.feedback_title), style = GsdType.title, color = gsd.ink)
-
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = draft.sentiment == Sentiment.UP,

@@ -18,6 +18,7 @@
     <string name="cd_mark_complete">Mark complete</string>
     <string name="cd_mark_incomplete">Mark incomplete</string>
     <string name="cd_task_options">Task options</string>
+    <string name="cd_navigate_up">Navigate up</string>
     <string name="capture_placeholder">Capture a task…  (!!  *  #tag)</string>
     <string name="capture_auto">Auto</string>
     <string name="capture_details">Details</string>

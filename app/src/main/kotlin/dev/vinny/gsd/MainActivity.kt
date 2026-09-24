@@ -53,6 +53,7 @@ import dev.vinny.gsd.nav.GsdNavHost
 import dev.vinny.gsd.nav.NavLayout
 import dev.vinny.gsd.nav.navLayoutFor
 import dev.vinny.gsd.nav.navigateToTab
+import dev.vinny.gsd.nav.owningTab
 import dev.vinny.gsd.prefs.ThemePref
 import dev.vinny.gsd.theme.GsdTheme
 
@@ -183,7 +184,8 @@ class MainActivity : ComponentActivity() {
                     }
                     val navController = rememberNavController()
                     val backStack by navController.currentBackStackEntryAsState()
-                    val currentRoute = backStack?.destination?.route
+                    // The tab that owns the stack stays selected on its child screens (finding 21)
+                    val selectedTab = androidx.compose.runtime.remember(backStack) { navController.owningTab() }
                     // A shortcut's CLEAR_TASK pauses this activity and then creates a fresh one, and the two
                     // share pendingRoute. Only the resumed copy may take a route (review finding 46).
                     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -227,7 +229,7 @@ class MainActivity : ComponentActivity() {
                                 NavigationBar {
                                     Destination.entries.forEach { destination ->
                                         NavigationBarItem(
-                                            selected = currentRoute == destination.route,
+                                            selected = selectedTab == destination,
                                             onClick = { navigate(destination) },
                                             icon = { Icon(destination.icon, contentDescription = null) },
                                             // One line: at font scale 2.0 "Dashboard" split mid-word (finding 35)
@@ -250,7 +252,7 @@ class MainActivity : ComponentActivity() {
                             NavigationRail(windowInsets = navInsets) {
                                 Destination.entries.forEach { destination ->
                                     NavigationRailItem(
-                                        selected = currentRoute == destination.route,
+                                        selected = selectedTab == destination,
                                         onClick = { navigate(destination) },
                                         icon = { Icon(destination.icon, contentDescription = null) },
                                         label = { Text(stringResource(destination.label), maxLines = 1) },
@@ -271,7 +273,7 @@ class MainActivity : ComponentActivity() {
                                 PermanentDrawerSheet(modifier = Modifier.width(220.dp), windowInsets = navInsets) {
                                     Destination.entries.forEach { destination ->
                                         NavigationDrawerItem(
-                                            selected = currentRoute == destination.route,
+                                            selected = selectedTab == destination,
                                             onClick = { navigate(destination) },
                                             icon = { Icon(destination.icon, contentDescription = null) },
                                             // One line: beside a cutout, "Browse" broke into "Brows" and "e" (finding 36)

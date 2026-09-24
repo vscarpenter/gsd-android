@@ -205,7 +205,7 @@ Theme preference: **System / Light / Dark** (user-selectable in Settings; follow
 
 ### 5.4 Typography
 
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 35
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 21 and 35
 
 Exactly **two typefaces**:
 
@@ -226,7 +226,7 @@ Exactly **two typefaces**:
 
 Dashboard stat numerals are Newsreader. Use `sp` everywhere (respect user font scale; test at 2× / non-linear scaling). Tabular (monospaced) digits for counts, timers, and subtask progress. Card title wraps to 2 lines (unlimited at accessibility scales, meaning font scale 1.5 and up: the steps Android 14 added above the old 1.3 maximum); description 2 lines; metadata row 1 line. Bottom-bar labels stay on one line and end in an ellipsis rather than break mid-word.
 
-Brand lockup in the top app bar: 24dp app mark + "GSD" (sans, bold, ink) + "·" (ink3) + screen name (sans, semibold, ink2).
+Brand lockup in the top app bar: 24dp app mark + "GSD" (sans, bold, ink) + "·" (ink3) + screen name (sans, semibold, ink2, one line). Every screen has this bar, at least 56dp tall. Matrix adds its actions (§6.1). A pushed screen (a smart view, Archive, Trash, the smart view editor, Sync History, Feedback, the Field Guide) shows an Up arrow ("Navigate up") in place of the mark, Archive and Trash carry their buttons in the bar, and a smart view's bar shows the view's name. TalkBack reads the lockup as one heading and skips the dot.
 
 ### 5.5 Shape & spacing
 
@@ -348,6 +348,7 @@ The app adapts by **window size class**, the Android analog of the iPhone/iPad s
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 43
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 21
 
 A **bottom navigation bar** with four destinations:
 
@@ -358,7 +359,7 @@ A **bottom navigation bar** with four destinations:
 
 Archive is deliberately *inside* Browse, not a fifth destination.
 
-Tapping a destination keeps one copy of it on the back stack, and the tab being left keeps its own stack. Tapping Matrix always lands on the Matrix root. A deep link (§6.4) or a palette row (§8.14) that names one of the four destinations behaves exactly like a tap on it. Any other route pushes over the current screen, and the Matrix tab still returns to Matrix from there.
+Tapping a destination keeps one copy of it on the back stack, and the tab being left keeps its own stack. Tapping Matrix always lands on the Matrix root. A deep link (§6.4) or a palette row (§8.14) that names one of the four destinations behaves exactly like a tap on it. Any other route pushes over the current screen, and the Matrix tab still returns to Matrix from there. The selected tab is the one whose stack is showing, not the one whose route matches: Browse stays selected on a smart view, Archive, or Trash opened from it, and a screen a deep link pushes straight over Matrix counts as Matrix's.
 
 ### 6.2 Medium & expanded width (tablets, unfolded foldables, freeform windows)
 
