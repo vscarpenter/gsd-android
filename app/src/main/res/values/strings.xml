@@ -430,4 +430,13 @@
     <string name="history_title">Sync history</string>
     <string name="history_empty">No syncs yet</string>
     <string name="history_empty_body">Each sync from this device shows here, with what it sent and received.</string>
+    <string name="history_status_success">Synced</string>
+    <string name="history_status_partial">Partly synced</string>
+    <string name="history_status_error">Failed</string>
+    <string name="history_counts_a11y">%1$d sent, %2$d received</string>
+    <plurals name="history_conflicts_a11y">
+        <item quantity="one">%1$d conflict resolved</item>
+        <item quantity="other">%1$d conflicts resolved</item>
+    </plurals>
+    <string name="history_duration">%1$d ms</string>
 </resources>

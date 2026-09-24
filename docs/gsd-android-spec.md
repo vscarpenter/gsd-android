@@ -1052,7 +1052,10 @@ Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (c
 
 ### 9.7 Sync history & health
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy and Accessibility sections
+
 - Record every attempt: `{ id, timestamp, status: success|error|conflict|partial, pushedCount, pulledCount, conflictsResolved, failedCount?, errorMessage?, duration?, deviceId, triggeredBy: user|auto }`. Precedence: error > partial (some pushes failed) > success; remote-won LWW counts as informational conflict, not failure. `triggeredBy = user` only for manual syncs. **Prune to the 500 most recent** after each insert; the history screen shows ~50.
+- **History rows** show the time in the device's clock and locale, the status as a word ("Synced", "Partly synced", "Failed"; it printed the engine's `partial`), the counts, which TalkBack reads as words ("3 sent, 2 received, 1 conflict resolved"), and the duration.
 - **Health evaluation** (priority order): offline → session expired (token expiry ≤ now) → failed items exist → stale queue (oldest pending > 1 hour) → OK. Surface as the quiet status chip (§5.10) + a human message in Settings; never alarming.
 
 ### 9.8 Device identity & remote erase
