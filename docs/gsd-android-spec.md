@@ -1024,12 +1024,14 @@ iOS pre-schedules every reminder with the system notification center; Android's 
 ### 11.1 Scheduling model (behavior shared with iOS)
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 5
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (alarm cap)
 
 - A task with a `dueDate`, `notificationEnabled == true`, and a reminder offset (`notifyBefore`, else the global default) gets a reminder at `dueDate − offset` — unless `snoozedUntil` is in the future, in which case the fire time **is** `snoozedUntil`. That holds after the first reminder posted too: a snooze asks for another reminder, so `notificationSent` does not block it. A posted reminder with no future snooze does not fire again.
 - **Reschedule** whenever `dueDate`, `notifyBefore`, `notificationEnabled`, snooze, or completion changes; **cancel** on complete, delete, or disable. Editing `dueDate`/`notifyBefore` resets reminder state (§8.3). Recurring spawns schedule their own reminder at spawn time.
 - **Quiet hours:** a fire time inside the quiet window defers to the window's end.
 - One stable identity per task (`task-<id>`) so reschedules replace, never stack.
-- **Resync on any data change:** remote pulls and SSE writes bypass local mutation hooks, so a debounced (~1 s) full reminder resync runs off the store's change stream — reminders stay correct no matter which device edited the task.
+- **Resync on any data change:** remote pulls and SSE writes bypass local mutation hooks, so a debounced (~1 s) full reminder resync runs off the store's change stream — reminders stay correct no matter which device edited the task. A resync that throws is logged and the stream keeps running, so the next change still reschedules.
+- **At most 400 alarms at once.** Android refuses more than 500 concurrent alarms per app and throws when an app passes the limit. A resync schedules the soonest 400 fire times (equal times break by task id) and cancels the rest. A later resync schedules the next ones, and every posted reminder triggers one. iOS keeps the soonest 64 pending notifications on its own, so it has no rule here.
 
 ### 11.2 Android mechanics
 

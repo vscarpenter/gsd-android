@@ -122,4 +122,36 @@ class ReminderPlannerTest {
             ReminderPlanner.fireTime(task(dueDate = duringDue), quiet, now, zone),
         )
     }
+
+    private fun dueIn(hours: Long, id: String) = task(dueDate = now.plusSeconds(hours * 3600)).copy(id = id)
+
+    /** Android refuses more than 500 concurrent alarms per app, so a large import must not ask for one per task. */
+    @Test
+    fun `soonest keeps the nearest fire times up to the limit`() {
+        val tasks = listOf(dueIn(5, "e"), dueIn(1, "a"), dueIn(4, "d"), dueIn(2, "b"), dueIn(3, "c"))
+
+        val planned = ReminderPlanner.soonest(tasks, settings, now, zone, limit = 3)
+
+        assertEquals(setOf("a", "b", "c"), planned.keys)
+    }
+
+    @Test
+    fun `a task with no fire time never takes a slot`() {
+        val done = listOf(dueIn(1, "x").copy(completed = true), dueIn(1, "y").copy(completed = true))
+        val open = listOf(dueIn(8, "a"), dueIn(9, "b"))
+
+        val planned = ReminderPlanner.soonest(done + open, settings, now, zone, limit = 2)
+
+        assertEquals(setOf("a", "b"), planned.keys)
+    }
+
+    /** Equal fire times break by id, so every resync picks the same tasks and no alarm flaps. */
+    @Test
+    fun `equal fire times break by id`() {
+        val tasks = listOf(dueIn(2, "c"), dueIn(2, "a"), dueIn(2, "b"))
+
+        val planned = ReminderPlanner.soonest(tasks, settings, now, zone, limit = 2)
+
+        assertEquals(setOf("a", "b"), planned.keys)
+    }
 }

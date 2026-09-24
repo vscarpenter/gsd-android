@@ -33,6 +33,24 @@ object ReminderPlanner {
         return deferPastQuietHours(base, settings, zone)
     }
 
+    /**
+     * The reminders that get an alarm now: task id to fire time, the soonest [limit] of them. Android
+     * refuses more than 500 concurrent alarms per app, so a large import must not ask for one per task.
+     * The rest get theirs on a later resync, and every store change runs one, a posted reminder included.
+     * Equal fire times break by id, so each resync picks the same tasks.
+     */
+    fun soonest(
+        tasks: List<Task>,
+        settings: ReminderSettings,
+        now: Instant,
+        zone: ZoneId,
+        limit: Int,
+    ): Map<String, Instant> =
+        tasks.mapNotNull { task -> fireTime(task, settings, now, zone)?.let { task.id to it } }
+            .sortedWith(compareBy({ it.second }, { it.first }))
+            .take(limit)
+            .toMap()
+
     private fun deferPastQuietHours(fire: Instant, settings: ReminderSettings, zone: ZoneId): Instant {
         val start = settings.quietHoursStart ?: return fire
         val end = settings.quietHoursEnd ?: return fire
