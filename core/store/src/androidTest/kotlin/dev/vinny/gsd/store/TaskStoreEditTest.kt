@@ -60,7 +60,7 @@ class TaskStoreEditTest {
         val task = seed()
         val queuedBefore = db.syncQueueDao().countForTask(task.id)
 
-        store.edit(task.id) { it.copy(title = "edited") }
+        store.edit(task.id, typed = task.copy(title = "edited")) { it.copy(title = "edited") }
 
         assertEquals(queuedBefore + 1, db.syncQueueDao().countForTask(task.id))
     }
@@ -71,7 +71,7 @@ class TaskStoreEditTest {
         val task = seed()
         now = seededAt.plusSeconds(60)
 
-        store.edit(task.id) { it.copy(title = "edited") }
+        store.edit(task.id, typed = task.copy(title = "edited")) { it.copy(title = "edited") }
 
         assertEquals(seededAt.plusSeconds(60), store.get(task.id)?.updatedAt)
     }
@@ -82,7 +82,7 @@ class TaskStoreEditTest {
         val task = seed()
 
         (1..8).map { n ->
-            async(Dispatchers.IO) { store.edit(task.id) { it.copy(tags = it.tags + "tag$n") } }
+            async(Dispatchers.IO) { store.edit(task.id, typed = task.copy(tags = listOf("tag$n"))) { it.copy(tags = it.tags + "tag$n") } }
         }.awaitAll()
 
         assertEquals((1..8).map { "tag$it" }.toSet(), store.get(task.id)?.tags?.toSet())
@@ -92,9 +92,30 @@ class TaskStoreEditTest {
     fun anEditStillValidatesWhatTheUserTyped(): Unit = runBlocking {
         val task = seed()
 
-        assertFailsWith<TaskValidationError> { store.edit(task.id) { it.copy(title = "x".repeat(81)) } }
+        assertFailsWith<TaskValidationError> {
+            store.edit(task.id, typed = task.copy(title = "x".repeat(81))) { it.copy(title = "x".repeat(81)) }
+        }
 
         assertEquals("edit me", store.get(task.id)?.title) // the rejected edit wrote nothing
+    }
+
+    /**
+     * Found by the reviewer of #22: a title that arrives by sync while the sheet is open can break the
+     * limit, because iOS counts characters and Android counts UTF-16 units. The user never touched it
+     * and the sheet shows the old, legal one, so it must not fail the save.
+     */
+    @Test
+    fun aSyncedFieldTheUserNeverTouchedDoesNotFailTheSave(): Unit = runBlocking {
+        val opened = seed()
+        val synced = "\uD83D\uDE00".repeat(41) // 41 emoji: 82 UTF-16 units
+        store.change(opened.id) { it.copy(title = synced) } // what sync may write; it only normalizes
+
+        val typed = opened.copy(description = "notes")
+        store.edit(opened.id, typed) { current -> dev.vinny.gsd.model.EditorRules.merge(current, opened, typed) }
+
+        val saved = store.get(opened.id)
+        assertEquals("notes", saved?.description)
+        assertEquals(synced, saved?.title)
     }
 
     @Test
@@ -103,7 +124,7 @@ class TaskStoreEditTest {
         store.delete(task.id)
         val queuedBefore = db.syncQueueDao().countForTask(task.id)
 
-        assertNull(store.edit(task.id) { it.copy(title = "too late") })
+        assertNull(store.edit(task.id, typed = task.copy(title = "too late")) { it.copy(title = "too late") })
 
         assertNull(store.get(task.id))
         assertEquals(queuedBefore, db.syncQueueDao().countForTask(task.id))

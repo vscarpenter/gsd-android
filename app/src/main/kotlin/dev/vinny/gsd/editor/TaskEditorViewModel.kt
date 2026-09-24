@@ -79,7 +79,7 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
                 val saved = if (isNew || loaded == null) {
                     store.add(edited)
                 } else {
-                    store.edit(edited.id) { current -> EditorRules.merge(current, loaded, edited) }
+                    store.edit(edited.id, typed = edited) { current -> EditorRules.merge(current, loaded, edited) }
                 }
                 _draft.value = null
                 if (saved == null) onMissing() else onDone()
