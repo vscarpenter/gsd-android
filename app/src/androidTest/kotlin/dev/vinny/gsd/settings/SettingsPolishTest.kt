@@ -6,14 +6,18 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import dev.vinny.gsd.GsdApp
 import dev.vinny.gsd.theme.GsdTheme
+import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -84,5 +88,16 @@ class SettingsPolishTest {
         val days = runBlocking { container.db.archiveSettingsDao().observe().first()?.archiveAfterDays ?: 30 }
 
         rule.onNodeWithText("$days days").performScrollTo().assertIsSelected()
+    }
+
+    /** Spec 8.17 lists Feedback as its own section; its row sat at the end of Data & storage. */
+    @Test
+    fun feedbackHasItsOwnGroup() {
+        var opened = false
+        rule.setContent { GsdTheme { SettingsScreen(container, onOpenHelp = {}, onOpenFeedback = { opened = true }) } }
+
+        rule.onNode(hasText("Feedback") and isHeading()).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Send feedback").performScrollTo().performClick()
+        assertTrue(opened)
     }
 }

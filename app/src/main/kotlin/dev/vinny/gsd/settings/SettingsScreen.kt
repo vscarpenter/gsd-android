@@ -173,7 +173,10 @@ fun SettingsScreen(
             ActionRow(R.string.settings_export) { exportLauncher.launch("gsd-export.json") }
             ActionRow(R.string.settings_import) { importLauncher.launch(arrayOf("application/json", "text/*")) }
             ActionRow(R.string.settings_erase, tint = gsd.alert) { eraseOpen = true }
-            ActionRow(R.string.settings_feedback, onClick = onOpenFeedback)
+
+            // Its own group, as spec §8.17 lists it; it sat at the end of Data & storage
+            GroupLabel(R.string.settings_feedback)
+            ActionRow(R.string.settings_send_feedback, onClick = onOpenFeedback)
 
             AboutGroup(container, onOpenHelp)
         }
