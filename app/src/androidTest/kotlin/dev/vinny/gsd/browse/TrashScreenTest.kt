@@ -101,6 +101,7 @@ class TrashScreenTest {
         }
         rule.onNodeWithText("Delete forever").performClick()
         assertNull(deleted) // confirmation dialog gates it
+        rule.onNodeWithText("Delete \"old thing\" forever?").assertIsDisplayed() // finding 31: it names the task
         rule.onNodeWithText("This can't be undone.").assertIsDisplayed()
         rule.onAllNodesWithText("Delete forever")[1].performClick()
         assertEquals(task.id, deleted)

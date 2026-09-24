@@ -167,7 +167,7 @@ fun ArchiveContent(
     confirmDelete?.let { task ->
         AlertDialog(
             onDismissRequest = { confirmDelete = null },
-            title = { Text(stringResource(R.string.archive_delete_title), style = GsdType.cardTitle) },
+            title = { Text(stringResource(R.string.archive_delete_title, task.title), style = GsdType.cardTitle) },
             text = { Text(stringResource(R.string.archive_delete_body), style = GsdType.body) },
             confirmButton = {
                 TextButton(onClick = {

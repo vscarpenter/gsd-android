@@ -141,7 +141,7 @@
     <string name="archive_empty">Nothing archived yet</string>
     <string name="archive_restore">Restore</string>
     <string name="archive_delete">Delete permanently</string>
-    <string name="archive_delete_title">Delete permanently?</string>
+    <string name="archive_delete_title">Delete \"%1$s\" permanently?</string>
     <string name="archive_delete_body">This can\'t be undone.</string>
     <string name="trash_title">Trash</string>
     <string name="trash_options">Trash options</string>
@@ -153,6 +153,7 @@
     <string name="trash_empty_confirm">Empty trash?</string>
     <string name="trash_restore">Restore</string>
     <string name="trash_delete_forever">Delete forever</string>
+    <string name="trash_delete_title">Delete \"%1$s\" forever?</string>
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_done">Done</string>
     <string name="palette_hint">Search tasks and commands…</string>

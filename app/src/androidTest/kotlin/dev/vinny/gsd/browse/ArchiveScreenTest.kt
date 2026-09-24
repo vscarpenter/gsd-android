@@ -69,6 +69,7 @@ class ArchiveScreenTest {
 
         rule.onNodeWithText("Delete permanently").performClick()
         assertNull(deleted) // confirmation dialog gates it
+        rule.onNodeWithText("Delete \"old thing\" permanently?").assertIsDisplayed() // it names the task
         rule.onNodeWithText("This can't be undone.").assertIsDisplayed()
         rule.onAllNodesWithText("Delete permanently")[1].performClick()
         assertEquals(task.id, deleted)

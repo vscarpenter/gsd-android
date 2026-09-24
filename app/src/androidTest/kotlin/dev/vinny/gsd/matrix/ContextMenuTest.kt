@@ -1,8 +1,10 @@
 package dev.vinny.gsd.matrix
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -87,5 +89,17 @@ class ContextMenuTest {
         }
         rule.onNodeWithContentDescription("Blocked by 1").assertIsDisplayed()
         rule.onNodeWithContentDescription("Blocking 2").assertIsDisplayed()
+    }
+
+    /** Review finding 31: Snooze and Move to open submenus, and nothing in the menu said so. */
+    @Test
+    fun theTwoSubmenuItemsCarryACue() {
+        rule.setContent {
+            GsdTheme { TaskRowWithMenu(task = task(), badges = TaskBadges(0, 0), actions = TaskRowActions()) }
+        }
+
+        rule.onNodeWithContentDescription("Task options").performClick()
+
+        rule.onAllNodesWithTag("submenu_cue", useUnmergedTree = true).assertCountEquals(2)
     }
 }

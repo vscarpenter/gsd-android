@@ -540,7 +540,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1, 2, 3, and 48
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 13 and 14
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 13, 14, and 31
 
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
@@ -553,7 +553,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
   - A full swipe runs its action once, when the swipe settles. The row then slides back.
   - The swipe background (green check or red bin) is drawn only while a swipe is in progress. A row at rest paints nothing behind its content, so a dimmed row or a bare line of text never sits on it.
   - **Tap** → open editor. **Tap the completion disc** → toggle complete (never opens the editor).
-  - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete. On the expanded 2×2 grid a long press starts the cross-quadrant drag instead, so there the overflow button is the way to the menu. Grid cards carry the same menu and the same blocked/blocking badges as the phone list.
+  - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete. Delete reads in `alert`. Snooze and Move to open submenus, so each carries a trailing chevron (auto-mirrored for right-to-left). On the expanded 2×2 grid a long press starts the cross-quadrant drag instead, so there the overflow button is the way to the menu. Grid cards carry the same menu and the same blocked/blocking badges as the phone list.
   - One view model, `TaskActionsViewModel`, owns these row operations. Every screen that draws a task row builds its menu from it. The menu is the same on Matrix, on a smart view list (§8.13), and in Browse search results (§8.14). Delete offers Undo (§8.20) on all three.
 - **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11). A card in select mode has no context menu: no overflow button, and a long press opens nothing. The card is one checkbox: it leads with a check mark (a Tide check circle and a 2dp Tide border when selected, an `ink3` ring when not), shows no completion disc, and does not swipe or drag. The toolbar toggle reads as on (Tide on `tideWash`) while the mode lasts, and the bulk bar shows as soon as the mode starts, reading "Tap tasks to select them" until the first pick.
 - **Empty quadrants** show the dashed in-context prompt with tailored copy (§5.10) and an "add to this quadrant" affordance. A fully empty matrix shows "Capture your first task" with an example.
@@ -852,6 +852,7 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48 (review of #18)
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 31
 
 **Behavior.** Deleting an active task moves the full record to the trash store with `deletedAt = now`, rather than hard-deleting it. The remote `delete` is enqueued *before* the local move, in the same transaction — the enqueue-before-write invariant, extended; if the enqueue fails, the delete aborts. The store invariant is now three-state: a task id lives in exactly one of `tasks`, `archivedTasks`, `deletedTasks`.
 
@@ -862,7 +863,7 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 - Archiving is unaffected — a separate store; archive is for completed history, trash for deletions. Restoring from trash returns to active, never to archive.
 - Erase All Data clears the trash too (§8.16).
 
-**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete forever (trailing, confirmed "This can't be undone."), a multi-select bulk bar (Restore / Delete forever), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
+**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete forever (trailing, confirmed by a dialog titled `Delete "<title>" forever?` over "This can't be undone."), a multi-select bulk bar (Restore / Delete forever), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
 
 ### 8.21 Account switching, account deletion, recovery
 

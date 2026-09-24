@@ -175,6 +175,8 @@ fun TrashContent(
     confirmDeleteForever?.let { task ->
         AlertDialog(
             onDismissRequest = { confirmDeleteForever = null },
+            // It names the task, so the dialog says what goes (finding 31)
+            title = { Text(stringResource(R.string.trash_delete_title, task.title), style = GsdType.cardTitle) },
             text = { Text(stringResource(R.string.archive_delete_body), style = GsdType.body) },
             confirmButton = {
                 TextButton(onClick = { onDeleteForever(task.id); confirmDeleteForever = null }) {

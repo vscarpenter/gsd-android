@@ -3,8 +3,11 @@ package dev.vinny.gsd.matrix
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,6 +15,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Quadrant
@@ -19,6 +24,7 @@ import dev.vinny.gsd.model.ShareText
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdType
+import dev.vinny.gsd.theme.LocalGsdColors
 import java.time.Duration
 import java.time.ZoneId
 
@@ -105,11 +111,13 @@ fun TaskRowWithMenu(
                 if (TimeTracking.runningEntry(task) != null) R.string.menu_stop_timer
                 else R.string.menu_start_timer,
             ) { menuOpen = false; actions.onToggleTimer() }
-            MenuItem(R.string.menu_snooze) { snoozeOpen = true }
+            MenuItem(R.string.menu_snooze, submenu = true) { snoozeOpen = true }
             MenuItem(R.string.menu_duplicate) { menuOpen = false; actions.onDuplicate() }
             MenuItem(R.string.menu_share) { menuOpen = false; actions.onShare() }
-            MenuItem(R.string.menu_move_to) { moveOpen = true }
-            MenuItem(R.string.menu_delete) { menuOpen = false; actions.onDelete() }
+            MenuItem(R.string.menu_move_to, submenu = true) { moveOpen = true }
+            MenuItem(R.string.menu_delete, color = LocalGsdColors.current.alert) {
+                menuOpen = false; actions.onDelete()
+            }
         }
         DropdownMenu(expanded = snoozeOpen, onDismissRequest = { snoozeOpen = false }) {
             menuSnoozePresets.forEach { (duration, labelRes) ->
@@ -133,10 +141,23 @@ fun TaskRowWithMenu(
     }
 }
 
+/** One menu row. Delete reads in the alert color, and a chevron marks a row that opens a submenu (finding 31). */
 @Composable
-private fun MenuItem(labelRes: Int, onClick: () -> Unit) {
+private fun MenuItem(labelRes: Int, color: Color = Color.Unspecified, submenu: Boolean = false, onClick: () -> Unit) {
     DropdownMenuItem(
-        text = { Text(stringResource(labelRes), style = GsdType.body) },
+        text = { Text(stringResource(labelRes), style = GsdType.body, color = color) },
         onClick = onClick,
+        trailingIcon = if (submenu) {
+            {
+                Icon(
+                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = LocalGsdColors.current.ink3,
+                    modifier = Modifier.testTag("submenu_cue"),
+                )
+            }
+        } else {
+            null
+        },
     )
 }
