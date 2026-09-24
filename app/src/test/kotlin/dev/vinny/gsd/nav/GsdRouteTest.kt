@@ -22,6 +22,12 @@ class GsdRouteTest {
         assertEquals(GsdRoute.Trash, GsdRoute.parse("gsd://trash"))
     }
 
+    /** The palette route serves Ctrl+K and Ctrl+F only (spec 6.6). No link may open it. */
+    @Test
+    fun `no link reaches the keyboard-only palette route`() {
+        assertNull(GsdRoute.parse("gsd://palette"))
+    }
+
     @Test
     fun `oauth-callback is reserved for auth and ignored by the router`() {
         assertNull(GsdRoute.parse("gsd://oauth-callback?code=x&state=y"))

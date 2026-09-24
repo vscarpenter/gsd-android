@@ -54,23 +54,33 @@ import dev.vinny.gsd.nav.NavLayout
 import dev.vinny.gsd.nav.navLayoutFor
 import dev.vinny.gsd.nav.navigateToTab
 import dev.vinny.gsd.nav.owningTab
+import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.prefs.ThemePref
 import dev.vinny.gsd.theme.GsdTheme
 
 class MainActivity : ComponentActivity() {
+    /**
+     * The §6.6 keys. Each one goes through the deep-link router, so pressed on any tab it switches to
+     * Matrix and acts at once (review item S4). Ctrl+N is `gsd://capture`, and Ctrl+1 to Ctrl+4 are
+     * `gsd://quadrant/<id>`. Before, a key pressed off Matrix waited for the next visit there.
+     */
     override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean {
-        val container = (application as GsdApp).container
-        if (event.isCtrlPressed) {
+        val route = if (event.isCtrlPressed) {
             when (keyCode) {
-                android.view.KeyEvent.KEYCODE_K, android.view.KeyEvent.KEYCODE_F -> {
-                    container.palette.requestOpen(); return true
-                }
-                android.view.KeyEvent.KEYCODE_N -> {
-                    container.palette.requestNewTask(); return true
-                }
+                android.view.KeyEvent.KEYCODE_K, android.view.KeyEvent.KEYCODE_F -> dev.vinny.gsd.nav.GsdRoute.Palette
+                android.view.KeyEvent.KEYCODE_N -> dev.vinny.gsd.nav.GsdRoute.Capture
+                android.view.KeyEvent.KEYCODE_1 -> dev.vinny.gsd.nav.GsdRoute.QuadrantLink(Quadrant.DO_FIRST)
+                android.view.KeyEvent.KEYCODE_2 -> dev.vinny.gsd.nav.GsdRoute.QuadrantLink(Quadrant.SCHEDULE)
+                android.view.KeyEvent.KEYCODE_3 -> dev.vinny.gsd.nav.GsdRoute.QuadrantLink(Quadrant.DELEGATE)
+                android.view.KeyEvent.KEYCODE_4 -> dev.vinny.gsd.nav.GsdRoute.QuadrantLink(Quadrant.ELIMINATE)
+                else -> null
             }
+        } else {
+            null
         }
-        return super.onKeyDown(keyCode, event)
+        if (route == null) return super.onKeyDown(keyCode, event)
+        (application as GsdApp).container.palette.pendingRoute.value = route
+        return true
     }
 
     private fun handleIncomingIntent(intent: android.content.Intent) {
@@ -198,9 +208,15 @@ class MainActivity : ComponentActivity() {
                                         navController.navigateToTab(Destination.MATRIX)
                                         container.palette.requestNewTask()
                                     }
-                                    is dev.vinny.gsd.nav.GsdRoute.Focus,
-                                    is dev.vinny.gsd.nav.GsdRoute.QuadrantLink,
-                                    -> navController.navigateToTab(Destination.MATRIX)
+                                    is dev.vinny.gsd.nav.GsdRoute.Palette -> {
+                                        navController.navigateToTab(Destination.MATRIX)
+                                        container.palette.requestOpen()
+                                    }
+                                    is dev.vinny.gsd.nav.GsdRoute.Focus -> navController.navigateToTab(Destination.MATRIX)
+                                    is dev.vinny.gsd.nav.GsdRoute.QuadrantLink -> {
+                                        navController.navigateToTab(Destination.MATRIX)
+                                        container.palette.requestQuadrant(route.quadrant)
+                                    }
                                     is dev.vinny.gsd.nav.GsdRoute.TaskLink -> {
                                         navController.navigateToTab(Destination.MATRIX)
                                         container.palette.requestOpenTask(route.id)

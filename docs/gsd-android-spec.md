@@ -379,6 +379,7 @@ Tapping a destination keeps one copy of it on the back stack, and the tab being 
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4, 43, and 4
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, S4 follow-up; `tasks/todo.md` K, quadrant scroll
 
 Register the **`gsd://` scheme** (intent filters on the main activity). Routes — identical to iOS so widgets, shortcuts, and notifications share one router:
 
@@ -391,6 +392,8 @@ Register the **`gsd://` scheme** (intent filters on the main activity). Routes �
 | `gsd://smart-view/<id>` | that smart view's filtered list |
 | `gsd://dashboard` · `gsd://settings` · `gsd://archive` · `gsd://trash` | those surfaces (`trash` — §8.20) |
 | `gsd://oauth-callback?...` | reserved for the OAuth flow (§10); the router ignores it |
+
+`gsd://quadrant/<id>` goes to Matrix and scrolls the phone's list so that quadrant's header is at the top, animated, or in one jump under reduced motion. A cold start's request waits for the first snapshot and the list's first layout. The expanded grid already shows all four quadrants, so there it only goes to Matrix.
 
 A deep link arriving before the UI is ready is persisted and consumed on first composition (cold-start). A `task/<id>` link to a task that no longer exists shows a friendly "not found" state, never a blank screen.
 
@@ -406,7 +409,11 @@ Two static shortcuts: **"New Task"** → `gsd://capture` and **"Today's Focus"**
 
 ### 6.6 Hardware keyboard shortcuts
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, S4 follow-up; `tasks/todo.md` K, Ctrl+1–4
+
 For tablets/DeX/Chromebooks: **Ctrl+K** command palette · **Ctrl+N** new task · **Ctrl+F** search (palette) · **Ctrl+1–4** jump to quadrant. Escape dismisses sheets.
+
+Every key goes through the §6.4 router, so pressed on any tab it switches to Matrix and acts at once. Before, a key pressed off Matrix waited for the next visit there. Ctrl+N behaves as `gsd://capture`, Ctrl+1–4 as `gsd://quadrant/<id>` for Q1–Q4, and Ctrl+K and Ctrl+F open the palette on Matrix. That palette route is keyboard only: no `gsd://` link opens it.
 
 ### 6.7 State & system behavior
 

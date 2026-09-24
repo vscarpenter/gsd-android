@@ -116,6 +116,8 @@ class PaletteController {
     val openRequests = dev.vinny.gsd.palette.OneShotRequest<Unit>()
     val newTaskRequests = dev.vinny.gsd.palette.OneShotRequest<Unit>()
     val openTaskRequests = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    /** `gsd://quadrant/<id>` and Ctrl+1 to Ctrl+4: the Matrix scrolls to that quadrant (§6.4, §6.6). */
+    val quadrantRequests = dev.vinny.gsd.palette.OneShotRequest<dev.vinny.gsd.model.Quadrant>()
     /** §6.4 deep link held until the nav host consumes it — cold-start safe. */
     val pendingRoute = kotlinx.coroutines.flow.MutableStateFlow<dev.vinny.gsd.nav.GsdRoute?>(null)
 
@@ -129,5 +131,9 @@ class PaletteController {
 
     fun requestOpenTask(taskId: String) {
         openTaskRequests.value = taskId
+    }
+
+    fun requestQuadrant(quadrant: dev.vinny.gsd.model.Quadrant) {
+        quadrantRequests.send(quadrant)
     }
 }

@@ -1,5 +1,6 @@
 package dev.vinny.gsd.matrix
 
+import android.animation.ValueAnimator
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
@@ -26,7 +29,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import dev.vinny.gsd.ui.reorderMotion
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +80,17 @@ fun MatrixScreen(
     var paletteVisible by remember { mutableStateOf(false) }
     ConsumeWhileResumed(container.palette.openRequests) { paletteVisible = true }
     ConsumeWhileResumed(container.palette.newTaskRequests) { editorViewModel.openNew(null) }
+    val listState = rememberLazyListState()
+    // gsd://quadrant/<id> and Ctrl+1 to Ctrl+4 (§6.4, §6.6). The grid shows all four quadrants at once.
+    ConsumeWhileResumed(container.palette.quadrantRequests) { quadrant ->
+        if (expanded) return@ConsumeWhileResumed
+        // A cold start's request waits for the first snapshot and the list's first layout
+        viewModel.sections.filterNotNull().first()
+        val laidOut = snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
+        val rows = viewModel.sections.value.orEmpty().map { it.quadrant to it.tasks.size }
+        val index = quadrantHeaderIndex(rows, quadrant).coerceAtMost(laidOut - 1)
+        if (ValueAnimator.areAnimatorsEnabled()) listState.animateScrollToItem(index) else listState.scrollToItem(index)
+    }
     val appContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
         container.palette.openTaskRequests.collect { taskId ->
@@ -182,6 +199,7 @@ fun MatrixScreen(
                     onDelete = { actions.delete(it.id) },
                     rowActions = rowActions,
                     selection = selection.takeIf { selectionMode },
+                    listState = listState,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -265,6 +283,7 @@ fun MatrixList(
     onDelete: (dev.vinny.gsd.model.Task) -> Unit = {},
     rowActions: ((dev.vinny.gsd.model.Task) -> TaskRowActions)? = null,
     selection: Set<String>? = null,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     if (sections == null) {
         MatrixSkeleton(modifier = modifier)
@@ -272,6 +291,7 @@ fun MatrixList(
     }
     val allVisible = sections.flatMap { it.tasks }
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
