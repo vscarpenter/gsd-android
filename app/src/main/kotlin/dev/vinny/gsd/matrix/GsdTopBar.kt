@@ -148,9 +148,12 @@ private fun BrandLockup(screenName: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** The 24dp four-tile mark with a check on the Rust tile (spec §5.9), drawn inline. */
+/**
+ * The four-tile mark with a check on the Rust tile (spec §5.9), drawn inline. It is 24dp in a bar;
+ * a larger size passed in [modifier] wins, as on the onboarding's first page.
+ */
 @Composable
-private fun BrandMark(modifier: Modifier = Modifier) {
+internal fun BrandMark(modifier: Modifier = Modifier) {
     val gsd = LocalGsdColors.current
     val tiles = listOf(gsd.rust, gsd.tide, gsd.ochre, gsd.slate)
     Canvas(modifier = modifier.size(24.dp)) {

@@ -43,7 +43,6 @@ import dev.vinny.gsd.store.ImportMode
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
-import dev.vinny.gsd.ui.openInBrowser
 import kotlinx.coroutines.launch
 
 /** The settings surface (spec §8.17). */
@@ -158,19 +157,7 @@ fun SettingsScreen(
             ActionRow(R.string.settings_erase, tint = gsd.alert) { eraseOpen = true }
             ActionRow(R.string.settings_feedback, onClick = onOpenFeedback)
 
-            GroupLabel(R.string.settings_about)
-            Text(
-                stringResource(R.string.settings_version, dev.vinny.gsd.BuildConfig.VERSION_NAME),
-                style = GsdType.metadata,
-                color = gsd.ink2,
-            )
-            Text(stringResource(R.string.settings_privacy_blurb), style = GsdType.metadata, color = gsd.ink3)
-            // Play's User Data policy wants the policy inside the app, since sync sends email and tasks (finding 15)
-            ActionRow(R.string.settings_privacy_policy) { openInBrowser(context, AppContainer.PRIVACY_POLICY_URL) }
-            ActionRow(R.string.settings_field_guide, onClick = onOpenHelp)
-            ActionRow(R.string.settings_show_onboarding) {
-                scope.launch { container.prefs.setHasOnboarded(false) }
-            }
+            AboutGroup(container, onOpenHelp)
         }
         // Over the scroll, not at its end, so a message shows wherever the user has scrolled to
         SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))
@@ -234,7 +221,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun GroupLabel(labelRes: Int) {
+internal fun GroupLabel(labelRes: Int) {
     Text(
         stringResource(labelRes).uppercase(),
         style = GsdType.caption,
@@ -253,7 +240,7 @@ private fun ToggleRow(labelRes: Int, value: Boolean, onChange: (Boolean) -> Unit
 }
 
 @Composable
-private fun ActionRow(labelRes: Int, tint: androidx.compose.ui.graphics.Color? = null, onClick: () -> Unit) {
+internal fun ActionRow(labelRes: Int, tint: androidx.compose.ui.graphics.Color? = null, onClick: () -> Unit) {
     val gsd = LocalGsdColors.current
     Text(
         stringResource(labelRes),

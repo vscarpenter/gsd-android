@@ -2,6 +2,7 @@ package dev.vinny.gsd.settings
 
 import android.content.Context
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
@@ -24,5 +25,17 @@ class AboutTest {
         rule.setContent { GsdTheme { SettingsScreen(container, onOpenHelp = {}) } }
 
         rule.onNodeWithText("Privacy policy").performScrollTo().assertHasClickAction()
+    }
+
+    /** Review finding 20: About lacked the mark, tagline, site link, and credit. Spec 8.17 adds support. */
+    @Test
+    fun aboutCarriesTheTaglineBuildSupportSiteAndCredit() {
+        rule.setContent { GsdTheme { SettingsScreen(container, onOpenHelp = {}) } }
+
+        rule.onNodeWithText("Get the right things done.").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("(build ", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Contact support").performScrollTo().assertHasClickAction()
+        rule.onNodeWithText("gsdtaskmanager.com").performScrollTo().assertHasClickAction()
+        rule.onNodeWithText("Crafted by Vinny Carpenter").performScrollTo().assertIsDisplayed()
     }
 }

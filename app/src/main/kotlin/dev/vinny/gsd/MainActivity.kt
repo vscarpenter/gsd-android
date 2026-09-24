@@ -196,8 +196,24 @@ class MainActivity : ComponentActivity() {
                         null -> return@Surface // paper, for the moment the pref takes to load
                         false -> {
                             val scope = rememberCoroutineScope()
+                            val context = androidx.compose.ui.platform.LocalContext.current
                             dev.vinny.gsd.onboarding.OnboardingFlow(
                                 onFinished = { scope.launch { container.prefs.setHasOnboarded(true) } },
+                                // Sign-in from the last page also ends onboarding, so the user comes back to
+                                // Matrix whether or not they finish in the browser (spec §8.19). The flag is
+                                // set last: it removes this screen, and with it this scope.
+                                onSignIn = { provider ->
+                                    scope.launch {
+                                        if (!dev.vinny.gsd.settings.openSignIn(container, context, provider)) {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                context.getString(R.string.sign_in_error),
+                                                android.widget.Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
+                                        container.prefs.setHasOnboarded(true)
+                                    }
+                                },
                             )
                             return@Surface
                         }

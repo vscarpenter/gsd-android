@@ -107,6 +107,8 @@ class AppContainer(context: Context) {
         const val BACKEND_URL = "https://api.vinny.io"
         const val SITE_URL = "https://gsdtaskmanager.com"
         const val PRIVACY_POLICY_URL = "$SITE_URL/privacy/"
+        const val SUPPORT_EMAIL = "gsdapp@vinny.dev"
+        const val MAKER_URL = "https://vinny.dev/"
     }
 }
 

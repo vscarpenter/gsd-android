@@ -1,15 +1,11 @@
 package dev.vinny.gsd.nav
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -17,8 +13,6 @@ import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.matrix.MatrixScreen
 import dev.vinny.gsd.matrix.ScreenTopBar
-import dev.vinny.gsd.theme.GsdType
-import dev.vinny.gsd.theme.LocalGsdColors
 
 @Composable
 fun GsdNavHost(
@@ -102,10 +96,7 @@ fun GsdNavHost(
         }
         composable("help") {
             WithTopBar(stringResource(R.string.help_title), onUp = up) { content ->
-                val gsd = LocalGsdColors.current
-                Column(modifier = content.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.help_body), style = GsdType.body, color = gsd.ink2)
-                }
+                dev.vinny.gsd.help.FieldGuideScreen(modifier = content)
             }
         }
     }

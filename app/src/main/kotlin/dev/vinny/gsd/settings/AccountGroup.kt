@@ -28,6 +28,22 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import kotlinx.coroutines.launch
 
+/**
+ * Opens [provider]'s sign-in page in a Custom Tab (spec §10.2), from Settings or the onboarding's
+ * last page. False when it could not start; the log names only the exception's class (§13.4).
+ */
+internal suspend fun openSignIn(container: AppContainer, context: android.content.Context, provider: String): Boolean =
+    try {
+        val pendingAuth = container.authManager.beginOAuth(provider)
+        CustomTabsIntent.Builder().build().launchUrl(context, pendingAuth.url.toUri())
+        true
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        android.util.Log.w("GsdAuth", "sign-in with $provider failed: ${failure.javaClass.simpleName}")
+        false
+    }
+
 /** Settings Account section (spec §8.17.3): signing in IS enabling sync — no toggle. */
 @Composable
 internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
@@ -64,13 +80,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
         scope.launch {
             signInError = null
             container.accountDeletionMessage.value = null
-            try {
-                val pendingAuth = container.authManager.beginOAuth(provider)
-                CustomTabsIntent.Builder().build().launchUrl(context, pendingAuth.url.toUri())
-            } catch (failure: Exception) {
-                android.util.Log.w("GsdAuth", "sign-in with $provider failed: ${failure.javaClass.simpleName}")
-                signInError = context.getString(R.string.sign_in_error)
-            }
+            if (!openSignIn(container, context, provider)) signInError = context.getString(R.string.sign_in_error)
         }
     }
 
