@@ -1,17 +1,18 @@
 # GSD Android — progress
 
-## Left to do (as of 2026-09-21)
+## Left to do (as of 2026-09-24)
 
-One list, in the order I would work it. A number in front of an item is its finding number in
-`docs/play/2026-09-20-polish-review.md`, which holds the evidence and the file and line for each one.
-36 numbered findings are open, counted from the unticked numbered items below. An earlier count of 44 was
-stale. S1 to S6 and finding 43 are fixed and merged (#3 to #10). Findings 4, 1, 2, and 3 are fixed and merged
-(#13 to #16). Finding 48 and the follow-ups from its review are merged (#18 and #19). Findings 5, 47, and 44
-are fixed and merged (#20, #21, and #22), and so are the test commits from the review of #22 (#23). Finding 45
-is merged (#24). Finding 49 is fixed on `fix/swipes-on-every-list`, and findings 50 and 51 on
-`fix/celebrate-every-completion` stacked above it, both merged (#26, #27). Release 0.9.1 is merged (#28)
-and submitted. Finding 52 is closed by a spec correction. The work since #13 added findings 46 to 52.
-Everything already done is in the "Resuming From Here" blocks further down.
+Every numbered finding in `docs/play/2026-09-20-polish-review.md` that code can fix is now fixed, along with
+the copy and accessibility sections, the follow-ups, "Worth a look", and the backlog. The work is on
+`claude/festive-pascal-b4c4mb`, draft PR #29. **None of it has been compiled yet.** The session
+container could not reach Google's Maven repository (`dl.google.com` answered 403), so the Android modules
+never built there. The `:core:model` suite (181), the `:core:sync` suite (102), and a standalone JVM build of
+the plain-Kotlin `:app` files and their tests (55) did run, green. The first full build and the full gates
+belong to the owner, before PR #29 merges; see "Resuming From Here (2026-09-24)" below.
+
+What is still open: the path to production (section A), the TalkBack pass on a device (H), the owner and
+device items in K and L, the sibling repos' items (M), and the follow-ups this pass turned up (N). A number
+in front of an item is its finding number in the review, which holds the evidence for each one.
 
 ### A. The path to production
 
@@ -94,137 +95,211 @@ Everything already done is in the "Resuming From Here" blocks further down.
 
 ### C. Reminders must match the listing
 
-- [ ] **6.** The editor has no date or time picker. Every due date lands at midnight.
-- [ ] **7.** The app never asks for the notification permission in the normal flow.
-- [ ] **8.** Exact alarms are denied by default on Android 14 and later, with no in-app way to grant them. The
+- [x] **6.** The editor has no date or time picker. Every due date lands at midnight.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `e7e23cc`: a date picker, a time picker, and an All day switch.
+- [x] **7.** The app never asks for the notification permission in the normal flow.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `e7e23cc`: the first due date with a reminder asks, once.
+- [x] **8.** Exact alarms are denied by default on Android 14 and later, with no in-app way to grant them. The
       listing promises exact timing.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4102ab0`: an Allow exact alarms row that opens the system page.
 
 ### D. Play policy and listing accuracy
 
-- [ ] **15.** No privacy policy link inside the app.
-- [ ] **16.** Auto Backup is on while Settings says tasks never leave the device. Exclude cloud backup, or change
+- [x] **15.** No privacy policy link inside the app.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `669fc77`: About links the policy.
+- [x] **16.** Auto Backup is on while Settings says tasks never leave the device. Exclude cloud backup, or change
       the copy. Owner decision.
-- [ ] **17.** `docs/play/data-safety.md` predates the feedback form. The privacy page never mentions Android,
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `8e12b5e`: the owner chose to exclude cloud backup; device-to-device transfer keeps no token or device id.
+- [x] **17.** `docs/play/data-safety.md` predates the feedback form. The privacy page never mentions Android,
       feedback, or backups. Check the Console form against both.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `701503a`: the answers are current. The privacy page and the Console form are still the owner's; see section L.
 
 ### E. Layout, theming, and data handling
 
-- [ ] **9.** Share sheet: title under the status bar, a blank grey page over the sharing app, `EXTRA_SUBJECT`
+- [x] **9.** Share sheet: title under the status bar, a blank grey page over the sharing app, `EXTRA_SUBJECT`
       ignored, and no scroll container.
-- [ ] **10.** The text caret is invisible in dark mode in all 17 text fields.
-- [ ] **11.** Landscape and tablets draw content under the status bar. Only the phone layout applies insets.
-- [ ] **12.** Editor chip rows do not wrap at large font scales.
-- [ ] **13.** Select mode shows no selected state on any card.
-- [ ] **14.** The tablet 2x2 grid has no card menu at all. Since finding 1 its cards show no "..." button
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `2ac911e`: a scrolling bottom sheet over the sharing app that reads EXTRA_SUBJECT.
+- [x] **10.** The text caret is invisible in dark mode in all 17 text fields.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4d36835`: the caret is Tide in every field, and a source test holds it.
+- [x] **11.** Landscape and tablets draw content under the status bar. Only the phone layout applies insets.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `dbc030c`: every layout applies safe-drawing insets.
+- [x] **12.** Editor chip rows do not wrap at large font scales.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `024e391`: every chip row is a FlowRow.
+- [x] **13.** Select mode shows no selected state on any card.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `767d0fd`: a selected card has a check mark and a tint border, and reads as a checkbox.
+- [x] **14.** The tablet 2x2 grid has no card menu at all. Since finding 1 its cards show no "..." button
       either. Wrapping them in `TaskRowWithMenu` brings back both.
-- [ ] **37.** No paper background outside the phone layout, so text turns unreadable when the in-app theme
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `03fee2c`: the grid has the menu; its long press drags.
+- [x] **37.** No paper background outside the phone layout, so text turns unreadable when the in-app theme
       differs from the system theme.
-- [ ] **38.** Status bar icons follow the system theme, not the in-app theme.
-- [ ] **39.** Export has no error handling and may not truncate. Import parses on the main thread and can stop
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `dbc030c`: every layout sits on paper.
+- [x] **38.** Status bar icons follow the system theme, not the in-app theme.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `dbc030c`: they follow the in-app theme.
+- [x] **39.** Export has no error handling and may not truncate. Import parses on the main thread and can stop
       halfway.
-- [ ] **40.** Account deletion, erase, and import run in the composition scope, so a rotation cancels them
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `41032e0`: export opens with `wt` and reports a failure; import parses off the main thread.
+- [x] **40.** Account deletion, erase, and import run in the composition scope, so a rotation cancels them
       midway. The account-switch buttons and the OAuth callback have the same weakness (review of #5).
-- [ ] **41.** "Fetch titles for shared links" is a dead setting. Build the fetch, or remove the setting.
-- [ ] **42.** A restored or transferred install shares its `deviceId` with the old phone.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `41032e0`: they run in the app's scope and report back once.
+- [x] **41.** "Fetch titles for shared links" is a dead setting. Build the fetch, or remove the setting.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `2ac911e`: the owner chose to build the fetch, as iOS does.
+- [x] **42.** A restored or transferred install shares its `deviceId` with the old phone.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `8e12b5e`: a moved install renews its device id.
 
 ### F. High-impact polish
 
-- [ ] **19.** Onboarding is a stub against spec 8.19.
-- [ ] **20.** The Field Guide is one paragraph with no scroll, and it still says sync is coming. About lacks the
+- [x] **19.** Onboarding is a stub against spec 8.19.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `e46fbb4`: a four-page pager with the mark, the axes, the lock, a page indicator, and sign-in on the last page.
+- [x] **20.** The Field Guide is one paragraph with no scroll, and it still says sync is coming. About lacks the
       mark, tagline, site link, and credit.
-- [ ] **21.** Only Matrix has a top bar. Pushed screens have no title and no Up arrow, and the bottom bar loses
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `e46fbb4`: a sectioned Field Guide and a full About.
+- [x] **21.** Only Matrix has a top bar. Pushed screens have no title and no Up arrow, and the bottom bar loses
       its selected state on child routes.
-- [ ] **22.** The Browse search field has no container, icon, or clear button.
-- [ ] **23.** Material's baseline purple shows in the selected navigation label (`secondary` is unmapped).
-- [ ] **24.** `MaterialTheme` gets no `shapes` or `typography`, so chips, menus, dialogs, and snackbars fall back
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `bc2b686`: every screen has the lockup bar, pushed screens have Up, and the tab stays selected.
+- [x] **22.** The Browse search field has no container, icon, or clear button.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `8614139`: one shared search field, 48dp tall.
+- [x] **23.** Material's baseline purple shows in the selected navigation label (`secondary` is unmapped).
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `6b3b49b`: every Material role maps to a GSD token.
+- [x] **24.** `MaterialTheme` gets no `shapes` or `typography`, so chips, menus, dialogs, and snackbars fall back
       to Material defaults.
-- [ ] **25.** Save is a quiet text button at the end of a long scroll. Swiping the sheet down discards edits with
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `6b3b49b`: MaterialTheme takes the spec's shapes and type.
+- [x] **25.** Save is a quiet text button at the end of a long scroll. Swiping the sheet down discards edits with
       no prompt.
-- [ ] **26.** The command palette opens scrolled to the bottom of its list. Recheck the focus claim: on
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `f489b8d`: Save sits in a pinned header, and closing with edits asks first.
+- [x] **26.** The command palette opens scrolled to the bottom of its list. Recheck the focus claim: on
       2026-09-20 the soft keyboard did come up when the palette opened in tests.
-- [ ] **27.** Reminder notifications use a stock system icon, with no color and no category.
-- [ ] **28.** Both launcher shortcuts show blank circles. The widget picker shows a generic preview.
-- [ ] **29.** Settings: cramped radio rows, a check mark typed as text, fixed 24-hour quiet hours, and rows
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `b58d92c`: it opens at the top with the query focused.
+- [x] **27.** Reminder notifications use a stock system icon, with no color and no category.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `ccb1a79`: the brand icon, Tide, and the reminder category.
+- [x] **28.** Both launcher shortcuts show blank circles. The widget picker shows a generic preview.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `a5564bf`: shortcut icons, a real widget preview and label, and 36dp rows.
+- [x] **29.** Settings: cramped radio rows, a check mark typed as text, fixed 24-hour quiet hours, and rows
       under 48 dp.
-- [ ] **30.** Editor details: subtask toggles with no role or state, a bare "90" estimate with no unit, and due
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `b1701ae`: 48dp rows, real selected states, and adjustable quiet hours in the user's clock.
+- [x] **30.** Editor details: subtask toggles with no role or state, a bare "90" estimate with no unit, and due
       chips with no selected state.
-- [ ] **31.** The long-press menu gives Delete no destructive color. The delete-forever dialog has no title.
-- [ ] **32.** Five surfaces use a bare line of text as their empty state.
-- [ ] **33.** No list animates, so a completed task jumps to its new position.
-- [ ] **34.** The accent spine is a fixed 40 dp tall and covers only the top of a tall card.
-- [ ] **35.** Card titles clamp to two lines at every font scale, against spec 5.4.
-- [ ] **36.** A wide phone in landscape gets the tablet drawer, and its labels break mid-word beside a cutout.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `bf437c6`: input chips, checkbox subtasks, and an estimate with a unit and a number pad.
+- [x] **31.** The long-press menu gives Delete no destructive color. The delete-forever dialog has no title.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `78702ba`: Delete in alert, submenu cues, and delete dialogs that name the task.
+- [x] **32.** Five surfaces use a bare line of text as their empty state.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `1f85ac8`: the shared empty state everywhere.
+- [x] **33.** No list animates, so a completed task jumps to its new position.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `c5a67f0`: rows slide to their new place, gated by the animator setting.
+- [x] **34.** The accent spine is a fixed 40 dp tall and covers only the top of a tall card.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `6c08093`: the spine runs the card's full height.
+- [x] **35.** Card titles clamp to two lines at every font scale, against spec 5.4.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `6c08093`: the cap lifts from font scale 1.5.
+- [x] **36.** A wide phone in landscape gets the tablet drawer, and its labels break mid-word beside a cutout.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `dbc030c`: the drawer needs 480dp of height, and labels stay on one line.
 
 ### G. Copy
 
-- [ ] 13 em dashes in user-visible strings.
-- [ ] Title case and sentence case mixed on one screen ("Sync Now" beside "Export tasks").
-- [ ] Two names for one action: "Complete" and "Done", "Delete permanently" and "Delete forever".
-- [ ] Hardcoded English in Kotlin: due labels, palette labels, and option labels.
-- [ ] Two places show a raw exception message to the user.
-- [ ] Plurals: "1 days left" and "Delete 1 tasks?".
-- [ ] Four dead strings still describe shipped features as future work.
-- [ ] "Completion by Quadrant" beside "Time by quadrant". "Today's Focus" uses a mouse pointer icon.
-- [ ] Straight quotes in most strings and curly quotes in one.
+- [x] 13 em dashes in user-visible strings.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: none left; spec 5.11 sets the copy rules.
+- [x] Title case and sentence case mixed on one screen ("Sync Now" beside "Export tasks").
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: sentence case everywhere; names keep their capitals.
+- [x] Two names for one action: "Complete" and "Done", "Delete permanently" and "Delete forever".
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: Complete, and Delete permanently.
+- [x] Hardcoded English in Kotlin: due labels, palette labels, and option labels.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: all from resources, validation messages included.
+- [x] Two places show a raw exception message to the user.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: no surface shows one.
+- [x] Plurals: "1 days left" and "Delete 1 tasks?".
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: plurals resources.
+- [x] Four dead strings still describe shipped features as future work.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: deleted.
+- [x] "Completion by Quadrant" beside "Time by quadrant". "Today's Focus" uses a mouse pointer icon.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: sentence case, and the crosshair icon.
+- [x] Straight quotes in most strings and curly quotes in one.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4e37c4e`: straight everywhere.
 
 ### H. Accessibility
 
-- [ ] No text field has a TalkBack name, including the erase confirmation field.
-- [ ] Zero `heading()`, `liveRegion`, `Role`, and `customActions` calls. Spec 13.3 promises custom actions.
-- [ ] The quadrant picker and subtask toggles expose no state. Stat cards read the value before its label.
-- [ ] Contrast: `ink3` and ochre fall under 4.5:1 on several surfaces. The web already derives darker text inks.
-- [ ] Correct `docs/play/accessibility-audit.md`. Its custom-actions and title line-cap claims do not match
+- [x] No text field has a TalkBack name, including the erase confirmation field.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `5c23b6d`: each hint sits inside its field; a source test holds it.
+- [x] Zero `heading()`, `liveRegion`, `Role`, and `customActions` calls. Spec 13.3 promises custom actions.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `5c23b6d`: headings, live regions, roles, and card custom actions.
+- [x] The quadrant picker and subtask toggles expose no state. Stat cards read the value before its label.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `5c23b6d`: a radio group, checkboxes, and one-node stat cards.
+- [x] Contrast: `ink3` and ochre fall under 4.5:1 on several surfaces. The web already derives darker text inks.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `5c23b6d`: new light ink2, ink3, and success, quadrant text inks, and no row dim; `ContrastTest` holds 4.5:1. iOS still needs the text inks.
+- [x] Correct `docs/play/accessibility-audit.md`. Its custom-actions and title line-cap claims do not match
       the code.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `5c23b6d`: corrected, and the code now matches both claims.
 - [ ] Re-run the audit with TalkBack on a device once the semantics land.
 
 ### I. Follow-ups from the fixes merged on 2026-09-20
 
-- [ ] **S1.** A dead token more than 7 days from expiry fails every run with a 401, and the user stays signed
+- [x] **S1.** A dead token more than 7 days from expiry fails every run with a 401, and the user stays signed
       in. Sign them out on that 401.
-- [ ] **S3.** A prompt rebuilt after a restart knows no email, so Settings shows none until the next sign-in.
-- [ ] **S4.** Ctrl+N or Ctrl+K pressed off the Matrix tab waits for the next visit to Matrix. Decide whether the
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `aba60a2`: a 401 on that path signs the user out.
+- [x] **S3.** A prompt rebuilt after a restart knows no email, so Settings shows none until the next sign-in.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `b9585cd`: the prompt keeps its email.
+- [x] **S4.** Ctrl+N or Ctrl+K pressed off the Matrix tab waits for the next visit to Matrix. Decide whether the
       key should navigate there, or the request should expire.
-- [ ] **S6.** `NotificationActionReceiver` has no catch. A database error there would crash the process from a
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `8efb77a`: the owner chose to go to Matrix and open; every shortcut goes through the router.
+- [x] **S6.** `NotificationActionReceiver` has no catch. A database error there would crash the process from a
       notification button.
-- [ ] **After finding 43.** A screen pushed over Matrix is popped with `saveState` and never restored, so its
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `b6134ac`: a failed action is logged and reported.
+- [x] **After finding 43.** A screen pushed over Matrix is popped with `saveState` and never restored, so its
       view model lives until the activity ends. Small, and older than the fix.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `964af3c`: screens no tab restores are not saved.
 
 ### J. Worth a look (confirmed in code, not reproduced)
 
-- [ ] Alarm scheduling has no cap, and `appScope` has no exception handler.
-- [ ] Recurrence adds days in UTC, so a daily series can read a day early after a daylight-saving change.
-- [ ] No receiver listens for time zone changes, so quiet-hours deferrals go stale after travel.
-- [ ] The DataStore files have no corruption handler. Imported quiet hours go through `LocalTime.parse` unchecked.
-- [ ] Every sync lists the whole remote collection twice.
-- [ ] The share target drops `EXTRA_TEXT` when it arrives as a `CharSequence`.
-- [ ] A deep link on the very first launch can be lost behind onboarding. Seen live once.
-- [ ] The Undo snackbar may sit under the keyboard on Browse search and in-view search. The app is edge to
+- [x] Alarm scheduling has no cap, and `appScope` has no exception handler.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `96a86f2`: the soonest 400 reminders, and a handler on `appScope`.
+- [x] Recurrence adds days in UTC, so a daily series can read a day early after a daylight-saving change.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `71921a3`: recurrences advance in the device's zone.
+- [x] No receiver listens for time zone changes, so quiet-hours deferrals go stale after travel.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `4102ab0`: the reschedule receiver takes time zone and clock changes.
+- [x] The DataStore files have no corruption handler. Imported quiet hours go through `LocalTime.parse` unchecked.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `1edccbb`: every store resets a corrupted file, and quiet hours are checked on import and on read.
+- [x] Every sync lists the whole remote collection twice.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `8cd4c0e`: a run with nothing queued lists it once.
+- [x] The share target drops `EXTRA_TEXT` when it arrives as a `CharSequence`.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `2ac911e`: it reads a CharSequence.
+- [x] A deep link on the very first launch can be lost behind onboarding. Seen live once.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `9cf5221`: the link waits for onboarding to end.
+- [x] The Undo snackbar may sit under the keyboard on Browse search and in-view search. The app is edge to
       edge, and nothing uses `imePadding`. The reviewer of #18 raised it. `gsd-test` shows only the floating
       stylus toolbar, so it needs a device with a docked keyboard.
-- [ ] Older tests also write through the real store with no signed-out guard (`NotificationsTest` is one). On
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `b8992fb`: the snackbars use `imePadding`.
+- [x] Older tests also write through the real store with no signed-out guard (`NotificationsTest` is one). On
       a signed-in device they would sync test tasks. The three classes from 2026-09-20 have the guard.
-- [ ] `TaskStore.change` still reads the row outside its transaction. A snooze or a timer write can then
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `d8348c4`: four NotificationsTest cases skip when signed in.
+- [x] `TaskStore.change` still reads the row outside its transaction. A snooze or a timer write can then
       overwrite an editor save that committed a moment earlier. `edit` and `setCompleted` read inside. The
       reviewer of #22 raised it.
-- [ ] `TaskStore.edit` validates the merged row, so it now covers the stored fields too. A title over the limit
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `84f2d2b`: it reads inside.
+- [x] `TaskStore.edit` validates the merged row, so it now covers the stored fields too. A title over the limit
       that arrives by sync while the sheet is open would fail the save, and the sheet shows a legal title.
       Speculative, from the reviewer of #22.
-- [ ] Opening GSD from Recents after a reboot may run the last link again. `singleTask` makes the last link
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `2a160ac`: it validates the editor's draft and normalizes the merged row.
+- [x] Opening GSD from Recents after a reboot may run the last link again. `singleTask` makes the last link
       the task's base intent, and `handleIncomingIntent` never checks `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`.
       The reviewer of #13 raised it as speculative. Nobody has tried it.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `93fef15`: a launch from history skips the link.
 
 ### K. Older backlog, still open
 
-- [ ] Extract the upsert body of `SyncCoordinator.applyRealtime` into `:core:sync`, for a JVM test of the
+- [x] Extract the upsert body of `SyncCoordinator.applyRealtime` into `:core:sync`, for a JVM test of the
       tombstone guard.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `0142abf`: with a JVM test of the tombstone guard.
 - [ ] Land an Android-produced backup fixture in both sibling repos. No sibling imports an Android export today.
-- [ ] A cap test that admits exactly 10,000 imported tasks.
-- [ ] Align spec 8.17's Feedback placement with the real Settings layout.
+- [x] A cap test that admits exactly 10,000 imported tasks.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `d8348c4`: empty rows keep the model gate under a second.
+- [x] Align spec 8.17's Feedback placement with the real Settings layout.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `13ed795`: Feedback has its own group, and the spec says so.
 - [ ] Owner copy pass on the feedback roadmap labels.
-- [ ] Ctrl+1 to Ctrl+4 jump to quadrant is in spec 6.6 and is not wired.
-- [ ] The two-button swipe reveal (Snooze and Delete) from spec 8.1 is not built.
-- [ ] `gsd://quadrant/<id>` opens Matrix and does not scroll to the quadrant.
-- [ ] Onboarding's last page has no sign-in buttons.
+- [x] Ctrl+1 to Ctrl+4 jump to quadrant is in spec 6.6 and is not wired.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `8efb77a`: wired as `gsd://quadrant/<id>`.
+- [x] The two-button swipe reveal (Snooze and Delete) from spec 8.1 is not built.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `8665984`: built; a full trailing swipe snoozes, as on iOS.
+- [x] `gsd://quadrant/<id>` opens Matrix and does not scroll to the quadrant.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `8efb77a`: it scrolls the phone's list to the header.
+- [x] Onboarding's last page has no sign-in buttons.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `e46fbb4`: sign-in buttons that open sign-in, then finish onboarding.
 - [ ] Apple and GitHub sign-in, and a two-device round trip, have never been tried live. Google sign-in has.
 - [ ] Place the widget from a launcher for a visual pass.
 
@@ -239,8 +314,9 @@ Everything already done is in the "Resuming From Here" blocks further down.
       `git branch --merged main` listed each one.
 - [ ] `origin/docs/record-production-application` (#25) is still on origin. Deleting it waits for the owner's
       word; the ask was for local branches.
-- [ ] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
+- [x] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
       seconds with a green check and no review.
+      Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `887d822`: the plugin may run the read-only gh commands it needs.
 - [ ] Add a note to the workspace `CLAUDE.md` "Field limits" row. The numbers match, but iOS counts characters
       while the web and Android count UTF-16 units.
 - [ ] Find out what deletes the `.img` files from the SDK system images. The `google_apis_playstore` image is
@@ -260,6 +336,23 @@ Everything already done is in the "Resuming From Here" blocks further down.
 - [ ] iOS: the editor saves the whole row it opened (`App/Editor/TaskEditorView.swift`, `save()` starts from
       `original`). A completion made while the editor is open is undone. Android had the same bug (finding 44).
       The web merges its draft onto the stored row.
+- [ ] iOS: Ochre and Slate text is under 4.5:1 in light mode. Android now uses the web's `--q3-ink #74591C` and
+      `--q4-ink #615B54` for quadrant-colored text (spec 5.1, 2026-09-24).
+
+### N. Found on 2026-09-24, while fixing the rest
+
+- [ ] Compile PR #29 and run every gate: `:core:model:test`, `testDebugUnitTest`, `connectedAndroidTest` on
+      `gsd-test`, `:app:assembleDebug`, and `:app:assembleRelease`. Nothing on the branch was compiled, so expect
+      small compile errors. Every API it uses was checked against the androidx sources, but not built.
+- [ ] Settings never shows the offline and stale-queue health messages that spec 9.7 lists. `Health.evaluate`
+      in `:core:sync` has no caller, and `health_offline` and `health_stale` are unused strings.
+- [ ] The Sync history screen lists runs but not the totals spec 8.17 names.
+- [ ] The capture bar drops a validation error silently: `MatrixScreen` passes `onError = {}`. An over-long
+      title in the bar does nothing when submitted.
+- [ ] Trash's select button is a plain `IconButton`, so TalkBack hears no on or off state. Matrix uses an
+      `IconToggleButton`.
+- [ ] iOS should take the quadrant text inks from spec 5.1. Android now draws Ochre and Slate text in the web's
+      darker inks, which supersedes the August "Android follows iOS" note. Listed in M as well.
 
 ### Decided, no action needed
 
@@ -433,6 +526,24 @@ Android, like iOS, keeps Settings and the palette as its only feedback entry poi
 stat-card digit morph; the web's pre-parse smart-view structural walker, its read-path guard, and
 `.strict()` unknown-key rejection; the web's sign-in ownership guard over three stores; Sentry key
 trimming. Android's "None" reminder still leaves `notificationEnabled` alone (out of scope).
+
+## Resuming From Here (2026-09-24, every open finding fixed on PR #29, not yet compiled)
+- **Done:** every finding code can fix, on `claude/festive-pascal-b4c4mb` (draft PR #29, one commit per fix,
+  each with its spec amendment). Sections B to F, the Copy and Accessibility sections, the S follow-ups,
+  "Worth a look", and the backlog. The ticks above name each commit. Tiers were Standard throughout.
+- **Owner decisions this round:** exclude cloud backup (16), build the title fetch (41), and send Ctrl+N and
+  Ctrl+K to Matrix (S4 follow-up). The build-access choice was to allow `dl.google.com`, which the container
+  still refused.
+- **A decision I made that the owner may reverse:** quadrant text now uses the web's darker Ochre and Slate
+  inks, for AA. The August parity note had kept raw pigment on both native clients until an owner decision
+  covered iOS too. Reverting is one function, `GsdColors.accentInk`.
+- **Not compiled.** `dl.google.com` answered 403 all session, so no Android module built. What did run, green:
+  `:core:model` 181 (0.7 s), `:core:sync` 102, and a standalone JVM build of the plain-Kotlin `:app` files with
+  their tests, 55. Every Compose API was checked against the androidx sources for the BOM's version (Compose UI
+  1.11): `hintText` semantics, for one, arrived in 1.13 and is not used.
+- **Next, in this order:** build PR #29 and run every gate (section N, first item), then the TalkBack walkthrough
+  (section H), then merge. Section A's release smoke fits after the merge.
+- **Blockers:** the build is the one unknown. Expect small compile errors, since nothing was built.
 
 ## Resuming From Here (2026-09-22, 0.9.1 published to testers)
 - **Done:** recorded the 0.9.1 publish in `docs/play/submission-checklist.md`, read from the Console through
