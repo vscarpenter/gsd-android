@@ -97,9 +97,8 @@ class AppContainer(context: Context) {
         )
         syncCoordinator.lastOwnerId = { prefs.lastOwnerId.first() }
         syncCoordinator.onOwnerConfirmed = { result ->
-            // A prompt rebuilt after a restart knows the user id but no email (spec §8.21)
             prefs.setLastOwner(result.record.id, result.record.email.ifBlank { null })
-            prefs.setLastAuthProvider(authManager.lastProvider)
+            prefs.setLastAuthProvider(syncCoordinator.providerFor(result.record.id))
         }
         syncCoordinator.start()
     }

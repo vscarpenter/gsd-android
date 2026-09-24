@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import dev.vinny.gsd.auth.CachedTokenStore
 import dev.vinny.gsd.prefs.GsdPrefs
+import dev.vinny.gsd.prefs.PendingSignIn
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SyncOp
 import kotlinx.coroutines.CancellationException
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -57,8 +59,10 @@ class SyncCoordinator(
             val userId = auth.currentUserId()
             val previous = lastOwnerId()
             if (userId != null && previous != userId) {
-                // The app died before it recorded this owner: the token is saved, the owner is not.
-                val unfinished = AuthResult(tokens.token().orEmpty(), AuthRecord(userId))
+                // The app died before it recorded this owner: the token is saved, the owner is not. The
+                // pending sign-in keeps the email, or Settings would show none until the next sign-in (review S3).
+                val email = prefs.pendingSignIn.first()?.takeIf { it.id == userId }?.email
+                val unfinished = AuthResult(tokens.token().orEmpty(), AuthRecord(userId, email.orEmpty()))
                 if (previous != null && local.activeTasks().isNotEmpty()) {
                     // A different account with tasks to decide about. Ask again and stay signed out,
                     // so nothing syncs before the user decides (spec §8.21).
@@ -192,6 +196,8 @@ class SyncCoordinator(
 
     suspend fun completeOAuthCallback(uri: String): AuthResult {
         val result = auth.completeOAuth(uri)
+        // Saved before the decision, so a prompt rebuilt after a restart still knows the email and provider
+        prefs.setPendingSignIn(PendingSignIn(result.record.id, result.record.email.ifBlank { null }, auth.lastProvider))
         val previous = lastOwnerId()
         val hasLocalTasks = local.activeTasks().isNotEmpty()
         if (previous != null && previous != result.record.id && hasLocalTasks) {
@@ -216,11 +222,19 @@ class SyncCoordinator(
             keepLocalTasks = !eraseLocalFirst, nowMs = System.currentTimeMillis(),
         )
         onOwnerConfirmed(result)
+        prefs.clearPendingSignIn()
         switchPrompt.value = null
         _sessionExpired.value = false
         _signedIn.value = true
         requestSync(true)
     }
+
+    /**
+     * The provider of [userId]'s sign-in. Held in memory until a restart, and in the pending sign-in
+     * after one, so an owner confirmed on a rebuilt prompt still gets the right account note.
+     */
+    suspend fun providerFor(userId: String): String? =
+        auth.lastProvider ?: prefs.pendingSignIn.first()?.takeIf { it.id == userId }?.provider
 
     /** Cancel on the switch prompt signs back out (spec §8.21). */
     suspend fun cancelSwitch() {
