@@ -2,6 +2,7 @@ package dev.vinny.gsd.sync
 
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.store.SyncQueueEntity
+import java.time.Instant
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -157,4 +158,42 @@ class SseTest {
     private fun wire(taskId: String, owner: String, deviceId: String) =
         WireTask(taskId = taskId, owner = owner, deviceId = deviceId,
             clientUpdatedAt = "2026-06-10T12:00:00.000Z")
+
+    private fun wire(taskId: String, updatedAtMs: Long) = WireMapper.push(
+        Task(id = taskId, title = "remote", urgent = true, important = true,
+            createdAt = Instant.EPOCH, updatedAt = Instant.ofEpochMilli(updatedAtMs)),
+        "other-device", "user-1",
+    )
+
+    private fun localTask(id: String, updatedAtMs: Long) = Task(id = id, title = "local", urgent = true,
+        important = true, createdAt = Instant.EPOCH, updatedAt = Instant.ofEpochMilli(updatedAtMs))
+
+    @Test
+    fun `a realtime upsert never brings back a trashed task it is not newer than`() = runTest {
+        val local = FakeLocal().apply { tombstones["task-0001"] = 1_000L }
+        applyRealtimeUpsert(local, wire("task-0001", 1_000L))
+        assertNull(local.tasks["task-0001"])
+    }
+
+    @Test
+    fun `a strictly newer realtime upsert brings a trashed task back once`() = runTest {
+        val local = FakeLocal().apply { tombstones["task-0001"] = 1_000L }
+        applyRealtimeUpsert(local, wire("task-0001", 1_001L))
+        assertEquals("remote", local.tasks["task-0001"]?.title)
+        assertEquals(listOf("task-0001"), local.removeTombstoneCalls)
+    }
+
+    @Test
+    fun `a realtime upsert older than the local copy changes nothing`() = runTest {
+        val local = FakeLocal().apply { tasks["task-0001"] = localTask("task-0001", 2_000L) }
+        applyRealtimeUpsert(local, wire("task-0001", 1_000L))
+        assertEquals("local", local.tasks["task-0001"]?.title)
+    }
+
+    @Test
+    fun `a newer realtime upsert replaces the local copy`() = runTest {
+        val local = FakeLocal().apply { tasks["task-0001"] = localTask("task-0001", 1_000L) }
+        applyRealtimeUpsert(local, wire("task-0001", 2_000L))
+        assertEquals("remote", local.tasks["task-0001"]?.title)
+    }
 }

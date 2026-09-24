@@ -178,18 +178,7 @@ class SyncCoordinator(
             pendingAnyTaskIds = (pending + failed).map { it.taskId }.toSet(),
         )
         when (decision) {
-            is SseDecision.ApplyUpsert -> {
-                val existing = local.taskById(event.record.taskId)
-                val incoming = WireMapper.pull(event.record, existing) ?: return
-                if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
-                    return // archived/trashed locally, remote not strictly newer (parity spec P§4)
-                }
-                if (existing == null ||
-                    incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli()
-                ) {
-                    local.upsertFromRemote(incoming)
-                }
-            }
+            is SseDecision.ApplyUpsert -> applyRealtimeUpsert(local, event.record)
             is SseDecision.ApplyDelete -> local.deleteFromRemote(event.record.taskId)
             is SseDecision.Drop -> Unit
         }
