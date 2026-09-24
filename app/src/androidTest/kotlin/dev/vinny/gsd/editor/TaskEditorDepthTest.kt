@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasAnyAncestor
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -178,5 +180,48 @@ class TaskEditorDepthTest {
         rule.onNodeWithTag("due_time_row").performScrollTo().performClick()
         rule.onNodeWithText("All day").performClick()
         assertEquals(date.atStartOfDay(zone).toInstant(), edited?.dueDate)
+    }
+
+    /** Review finding 30: subtask toggles were sunken discs with no checkbox role or state. */
+    @Test
+    fun aSubtaskIsACheckboxWithItsState() {
+        val base = draft().copy(subtasks = listOf(Subtask(id = "sub-0001", title = "photos")))
+        var edited: Task? = null
+        editor(base) { edited = it(base) }
+
+        rule.onNodeWithText("photos").performScrollTo().assertIsOff()
+        rule.onNodeWithText("photos").performClick()
+
+        assertEquals(true, edited?.subtasks?.single()?.completed)
+    }
+
+    /** Review finding 30: the estimate showed a bare "90" with no unit. */
+    @Test
+    fun theEstimateShowsItsUnitAndLength() {
+        editor(draft().copy(estimatedMinutes = 90)) {}
+
+        rule.onNodeWithText("min").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("1h 30m", substring = true).assertIsDisplayed()
+    }
+
+    /** Review finding 30: the tag row had no cap, so a 21st tag failed only at Save. */
+    @Test
+    fun theTagFieldGoesAwayAtTwentyTags() {
+        editor(draft().copy(tags = (1..20).map { "tag$it" })) {}
+
+        rule.onNodeWithTag("editor_tag_input").assertDoesNotExist()
+        rule.onNodeWithText("A task holds at most 20 tags.").performScrollTo().assertIsDisplayed()
+    }
+
+    /** Review finding 30: the tag chip stood 48 dp tall around a small icon. The whole chip removes the tag. */
+    @Test
+    fun tappingATagChipRemovesTheTag() {
+        val base = draft().copy(tags = listOf("work"))
+        var edited: Task? = null
+        editor(base) { edited = it(base) }
+
+        rule.onNodeWithContentDescription("Remove tag work").performScrollTo().performClick()
+
+        assertEquals(emptyList(), edited?.tags)
     }
 }

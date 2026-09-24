@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
@@ -41,11 +43,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
@@ -256,18 +261,34 @@ internal fun RepeatSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     }
 }
 
+/** The §7.2 limits the editor enforces as the user types, so no field fails only at Save (finding 30). */
+internal const val MAX_TAGS = 20
+internal const val MAX_TAG_LENGTH = 30
+private const val MAX_SUBTASKS = 50
+private const val MAX_SUBTASK_LENGTH = 100
+private const val MAX_ESTIMATE_DIGITS = 5 // 10,080 minutes, one week
+
+/** The editor's field look: a `sunken` rounded box at least 48dp tall (review finding 30). */
+internal fun Modifier.editorField(fill: Color): Modifier = this
+    .fillMaxWidth()
+    .heightIn(min = 48.dp)
+    .clip(GsdShapes.input)
+    .background(fill)
+    .padding(horizontal = 12.dp)
+
 @Composable
 internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     val gsd = LocalGsdColors.current
     var pending by remember { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         draft.subtasks.forEach { subtask ->
+            // The row is one checkbox with its state; a borderless disc had neither (finding 30)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .toggleable(value = subtask.completed, role = Role.Checkbox) {
                         onEdit { task ->
                             task.copy(subtasks = task.subtasks.map {
                                 if (it.id == subtask.id) it.copy(completed = !it.completed) else it
@@ -275,16 +296,15 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                         }
                     },
             ) {
-                Box(
-                    modifier = Modifier.size(20.dp).clip(CircleShape)
-                        .background(if (subtask.completed) gsd.success else gsd.sunken),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (subtask.completed) {
-                        Icon(Icons.Outlined.Check, contentDescription = null,
-                            tint = gsd.inkOnAccent, modifier = Modifier.size(12.dp))
-                    }
-                }
+                Checkbox(
+                    checked = subtask.completed,
+                    onCheckedChange = null,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = gsd.success,
+                        uncheckedColor = gsd.ink3,
+                        checkmarkColor = gsd.inkOnAccent,
+                    ),
+                )
                 Text(
                     subtask.title,
                     style = GsdType.body,
@@ -301,27 +321,31 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                 }
             }
         }
-        Box {
-            if (pending.isEmpty()) {
-                Text(stringResource(R.string.subtask_add_hint), style = GsdType.subhead, color = gsd.ink3)
-            }
-            BasicTextField(
-                value = pending,
-                onValueChange = { new ->
-                    if (new.endsWith(",") || new.endsWith("\n")) {
-                        val title = new.dropLast(1).trim()
-                        if (title.isNotEmpty()) {
-                            onEdit { it.copy(subtasks = it.subtasks + Subtask(NanoId.generate(), title)) }
+        if (draft.subtasks.size >= MAX_SUBTASKS) {
+            Text(stringResource(R.string.subtasks_at_limit), style = GsdType.metadata, color = gsd.ink3)
+        } else {
+            Box(modifier = Modifier.editorField(gsd.sunken), contentAlignment = Alignment.CenterStart) {
+                if (pending.isEmpty()) {
+                    Text(stringResource(R.string.subtask_add_hint), style = GsdType.subhead, color = gsd.ink3)
+                }
+                BasicTextField(
+                    value = pending,
+                    onValueChange = { new ->
+                        if (new.endsWith(",") || new.endsWith("\n")) {
+                            val title = new.dropLast(1).trim()
+                            if (title.isNotEmpty()) {
+                                onEdit { it.copy(subtasks = it.subtasks + Subtask(NanoId.generate(), title)) }
+                            }
+                            pending = ""
+                        } else {
+                            pending = new.take(MAX_SUBTASK_LENGTH)
                         }
-                        pending = ""
-                    } else {
-                        pending = new
-                    }
-                },
-                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                cursorBrush = gsd.cursor,
-                modifier = Modifier.fillMaxWidth().testTag("subtask_input"),
-            )
+                    },
+                    textStyle = GsdType.subhead.copy(color = gsd.ink),
+                    cursorBrush = gsd.cursor,
+                    modifier = Modifier.fillMaxWidth().testTag("subtask_input"),
+                )
+            }
         }
     }
 }
@@ -330,20 +354,35 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
 internal fun EstimateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     val gsd = LocalGsdColors.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box {
-            if (draft.estimatedMinutes == null) {
-                Text(stringResource(R.string.estimate_hint), style = GsdType.subhead, color = gsd.ink3)
+        // A number keyboard and a unit; it was a bare "90" under a hint that printed the raw limit (finding 30)
+        Row(
+            modifier = Modifier.editorField(gsd.sunken),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                if (draft.estimatedMinutes == null) {
+                    Text(stringResource(R.string.estimate_hint), style = GsdType.subhead, color = gsd.ink3)
+                }
+                BasicTextField(
+                    value = draft.estimatedMinutes?.toString().orEmpty(),
+                    onValueChange = { raw ->
+                        val minutes = raw.filter(Char::isDigit).take(MAX_ESTIMATE_DIGITS).toIntOrNull()
+                        onEdit { it.copy(estimatedMinutes = minutes) }
+                    },
+                    textStyle = GsdType.body.copy(color = gsd.ink),
+                    cursorBrush = gsd.cursor,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth().testTag("estimate_input"),
+                )
             }
-            BasicTextField(
-                value = draft.estimatedMinutes?.toString().orEmpty(),
-                onValueChange = { raw ->
-                    val minutes = raw.filter(Char::isDigit).toIntOrNull()
-                    onEdit { it.copy(estimatedMinutes = minutes) }
-                },
-                textStyle = GsdType.body.copy(color = gsd.ink),
-                cursorBrush = gsd.cursor,
-                modifier = Modifier.fillMaxWidth().testTag("estimate_input"),
-            )
+            draft.estimatedMinutes?.let { minutes ->
+                Text(stringResource(R.string.estimate_unit), style = GsdType.body, color = gsd.ink2)
+                if (minutes >= 60) {
+                    Text("· ${TimeTracking.formatMinutes(minutes)}", style = GsdType.metadata, color = gsd.ink3)
+                }
+            }
         }
         val estimate = draft.estimatedMinutes
         if (estimate != null && draft.timeSpent > 0) {

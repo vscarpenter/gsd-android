@@ -26,7 +26,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -376,50 +377,55 @@ private fun TagsEditor(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
         if (draft.tags.isNotEmpty()) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 draft.tags.forEach { tag ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(gsd.wash(draft.quadrant))
-                            .padding(start = 10.dp, end = 2.dp),
-                    ) {
-                        Text("#$tag", style = GsdType.metadata, color = gsd.accent(draft.quadrant))
-                        IconButton(
-                            onClick = { onEdit { it.copy(tags = it.tags - tag) } },
-                            modifier = Modifier.size(48.dp),
-                        ) {
+                    // A 32dp input chip with a 48dp touch area, not a 48dp pill; a tap anywhere removes it (finding 30)
+                    InputChip(
+                        selected = false,
+                        onClick = { onEdit { it.copy(tags = it.tags - tag) } },
+                        label = { Text("#$tag", style = GsdType.metadata, color = gsd.accent(draft.quadrant)) },
+                        trailingIcon = {
                             Icon(
                                 Icons.Outlined.Close,
                                 contentDescription = stringResource(R.string.cd_remove_tag, tag),
                                 tint = gsd.ink3,
-                                modifier = Modifier.size(14.dp),
+                                modifier = Modifier.size(16.dp),
                             )
-                        }
-                    }
+                        },
+                        shape = CircleShape,
+                        colors = InputChipDefaults.inputChipColors(containerColor = gsd.wash(draft.quadrant)),
+                        border = null,
+                    )
                 }
             }
         }
-        androidx.compose.foundation.layout.Box {
-            if (pending.isEmpty()) {
-                Text(stringResource(R.string.editor_tag_hint), style = GsdType.subhead, color = gsd.ink3)
+        if (draft.tags.size >= MAX_TAGS) {
+            // The field goes at the cap, so a 21st tag cannot fail only at Save (finding 30)
+            Text(stringResource(R.string.tags_at_limit), style = GsdType.metadata, color = gsd.ink3)
+        } else {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.editorField(gsd.sunken),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (pending.isEmpty()) {
+                    Text(stringResource(R.string.editor_tag_hint), style = GsdType.subhead, color = gsd.ink3)
+                }
+                BasicTextField(
+                    value = pending,
+                    onValueChange = { new ->
+                        if (new.endsWith(",")) {
+                            pending = new.dropLast(1)
+                            commit()
+                        } else {
+                            pending = new.take(MAX_TAG_LENGTH)
+                        }
+                    },
+                    textStyle = GsdType.subhead.copy(color = gsd.ink),
+                    cursorBrush = gsd.cursor,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { commit() }),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("editor_tag_input"),
+                )
             }
-            BasicTextField(
-                value = pending,
-                onValueChange = { new ->
-                    if (new.endsWith(",")) {
-                        pending = new.dropLast(1)
-                        commit()
-                    } else {
-                        pending = new
-                    }
-                },
-                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                cursorBrush = gsd.cursor,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { commit() }),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().testTag("editor_tag_input"),
-            )
         }
     }
 }

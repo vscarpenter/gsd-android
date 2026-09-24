@@ -84,7 +84,10 @@
     <string name="snooze_none">Not snoozed</string>
     <string name="snooze_until">Snoozed until %1$s</string>
     <string name="subtask_add_hint">Add subtask</string>
-    <string name="estimate_hint">Minutes (1–10080)</string>
+    <string name="estimate_hint">How many minutes it should take</string>
+    <string name="estimate_unit">min</string>
+    <string name="tags_at_limit">A task holds at most 20 tags.</string>
+    <string name="subtasks_at_limit">A task holds at most 50 subtasks.</string>
     <string name="tracked_of">Tracked %1$s of %2$s</string>
     <string name="cycle_hint">Would create a cycle</string>
     <string name="dependency_search_hint">Search tasks</string>
