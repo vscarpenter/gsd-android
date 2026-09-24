@@ -77,7 +77,11 @@ fun DashboardScreen(container: AppContainer, onOpenOverdue: () -> Unit, modifier
         onOpenTask = { editorViewModel.openExisting(it) },
     )
     if (editorDraft != null) {
-        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+        TaskEditorSheet(
+            viewModel = editorViewModel,
+            reminderSettings = container.notificationSettingsStore,
+            onDismiss = {},
+        )
     }
 }
 

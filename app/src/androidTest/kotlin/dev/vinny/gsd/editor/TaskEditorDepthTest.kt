@@ -3,6 +3,8 @@ package dev.vinny.gsd.editor
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasText
@@ -146,5 +148,41 @@ class TaskEditorDepthTest {
         val stored = Task(title = "x", urgent = true, important = true, createdAt = t0, updatedAt = t0, dueDate = t0, notifyBefore = 2160)
         rule.setContent { GsdTheme { ReminderSection(draft = stored, onEdit = {}) } }
         rule.onNodeWithTag("reminder_row").assertTextEquals("36 hours before")
+    }
+
+    /** Review finding 30: the preset chips never showed which one the due date matched. */
+    @Test
+    fun thePresetMatchingTheDueDateShowsAsSelected() {
+        val zone = java.time.ZoneId.systemDefault()
+        // Next week is strictly after today, so the two chips can never both match
+        val nextMonday = dev.vinny.gsd.model.DuePreset.NEXT_WEEK.resolve(java.time.LocalDate.now(zone))!!
+        val base = draft().copy(dueDate = nextMonday.atStartOfDay(zone).toInstant())
+        editor(base) {}
+        rule.onNodeWithText("Next week").performScrollTo().assertIsSelected()
+        rule.onNodeWithText("Today").assertIsNotSelected()
+    }
+
+    /** Review finding 6: the presets were the only way to set a due date. */
+    @Test
+    fun theDateRowOpensADatePickerThatSetsTheDate() {
+        val base = draft()
+        var edited: Task? = null
+        editor(base) { edited = it(base) }
+        rule.onNodeWithTag("due_date_row").performScrollTo().performClick()
+        rule.onNodeWithText("Done").performClick() // the picker opens on today
+        val zone = java.time.ZoneId.systemDefault()
+        assertEquals(java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant(), edited?.dueDate)
+    }
+
+    @Test
+    fun allDayClearsATimeOfDay() {
+        val zone = java.time.ZoneId.systemDefault()
+        val date = java.time.LocalDate.now(zone).plusDays(3)
+        val base = draft().copy(dueDate = date.atTime(15, 30).atZone(zone).toInstant())
+        var edited: Task? = null
+        editor(base) { edited = it(base) }
+        rule.onNodeWithTag("due_time_row").performScrollTo().performClick()
+        rule.onNodeWithText("All day").performClick()
+        assertEquals(date.atStartOfDay(zone).toInstant(), edited?.dueDate)
     }
 }

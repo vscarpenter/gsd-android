@@ -169,7 +169,11 @@ fun BrowseScreen(
     }
     UndoDeleteEffect(actions, snackbarHost)
     if (editorDraft != null) {
-        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+        TaskEditorSheet(
+            viewModel = editorViewModel,
+            reminderSettings = container.notificationSettingsStore,
+            onDismiss = {},
+        )
     }
 }
 

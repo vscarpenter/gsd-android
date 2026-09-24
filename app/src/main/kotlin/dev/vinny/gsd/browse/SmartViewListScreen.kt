@@ -76,7 +76,11 @@ fun SmartViewListScreen(container: AppContainer, viewId: String, modifier: Modif
     }
     UndoDeleteEffect(actions, snackbarHost)
     if (editorDraft != null) {
-        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+        TaskEditorSheet(
+            viewModel = editorViewModel,
+            reminderSettings = container.notificationSettingsStore,
+            onDismiss = {},
+        )
     }
 }
 

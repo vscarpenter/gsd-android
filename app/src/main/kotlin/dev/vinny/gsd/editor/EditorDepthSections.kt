@@ -1,25 +1,38 @@
 package dev.vinny.gsd.editor
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,14 +41,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.DuePreset
+import dev.vinny.gsd.model.DueTime
 import dev.vinny.gsd.model.NanoId
 import dev.vinny.gsd.model.Recurrence
 import dev.vinny.gsd.model.ReminderLabel
@@ -46,25 +62,48 @@ import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.formatTimeOfDay
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
+/**
+ * Due date (spec §8.3, §8.10): a date row that opens the Material date picker, a time row that opens
+ * the time picker, and the four presets. Every due date used to land at local midnight, because the
+ * presets were the only way in (review finding 6). A date with no time is "All day".
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
-    val gsd = LocalGsdColors.current
+    val context = LocalContext.current
     val zone = ZoneId.systemDefault()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        draft.dueDate?.let { due ->
-            Text(
-                DateTimeFormatter.ofPattern("EEE, MMM d").format(due.atZone(zone)),
-                style = GsdType.body,
-                color = gsd.ink,
+    val today = LocalDate.now(zone)
+    val due = draft.dueDate
+    var pickingDate by remember { mutableStateOf(false) }
+    var pickingTime by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        TappableValue(
+            text = due?.let { DateTimeFormatter.ofPattern("EEE, MMM d").format(it.atZone(zone)) }
+                ?: stringResource(R.string.due_pick_date),
+            tag = "due_date_row",
+            onClick = { pickingDate = true },
+        )
+        if (due != null) {
+            TappableValue(
+                text = DueTime.timeOf(due, zone)?.let { formatTimeOfDay(context, it) }
+                    ?: stringResource(R.string.due_all_day),
+                tag = "due_time_row",
+                onClick = { pickingTime = true },
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             listOf(
                 DuePreset.NONE to R.string.due_none,
                 DuePreset.TODAY to R.string.due_today,
@@ -72,10 +111,9 @@ internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                 DuePreset.NEXT_WEEK to R.string.due_next_week,
             ).forEach { (preset, labelRes) ->
                 FilterChip(
-                    selected = false,
+                    selected = preset.isSelectedFor(due, today, zone),
                     onClick = {
-                        val resolved = preset.resolve(LocalDate.now(zone))
-                            ?.atStartOfDay(zone)?.toInstant()
+                        val resolved = preset.resolve(today)?.atStartOfDay(zone)?.toInstant()
                         onEdit { it.copy(dueDate = resolved) }
                     },
                     label = { Text(stringResource(labelRes), style = GsdType.metadata) },
@@ -83,6 +121,87 @@ internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
             }
         }
     }
+    if (pickingDate) {
+        DueDatePickerDialog(
+            initial = due?.atZone(zone)?.toLocalDate() ?: today,
+            onPick = { date -> onEdit { it.copy(dueDate = DueTime.onDate(it.dueDate, date, zone)) } },
+            onDismiss = { pickingDate = false },
+        )
+    }
+    if (pickingTime && due != null) {
+        DueTimePickerDialog(
+            initial = DueTime.timeOf(due, zone),
+            onPick = { time ->
+                onEdit { task -> task.dueDate?.let { task.copy(dueDate = DueTime.atTime(it, time, zone)) } ?: task }
+            },
+            onDismiss = { pickingTime = false },
+        )
+    }
+}
+
+/** A value the user taps to change, in the interactive tint and at least 48 dp tall. */
+@Composable
+private fun TappableValue(text: String, tag: String, onClick: () -> Unit) {
+    Text(
+        text,
+        style = GsdType.body,
+        color = LocalGsdColors.current.tint,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .wrapContentHeight(Alignment.CenterVertically)
+            .testTag(tag),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DueDatePickerDialog(initial: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    // The picker counts in UTC days, so a local date travels as that day's UTC midnight
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
+                onDismiss()
+            }) { Text(stringResource(R.string.dialog_done)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) } },
+    ) {
+        DatePicker(state = state)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DueTimePickerDialog(initial: LocalTime?, onPick: (LocalTime?) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val start = initial ?: LocalTime.of(9, 0) // a morning default for a date that had no time
+    val state = rememberTimePickerState(
+        initialHour = start.hour,
+        initialMinute = start.minute,
+        is24Hour = DateFormat.is24HourFormat(context),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.due_time_title)) },
+        text = { TimePicker(state = state) },
+        confirmButton = {
+            TextButton(onClick = { onPick(LocalTime.of(state.hour, state.minute)); onDismiss() }) {
+                Text(stringResource(R.string.dialog_done))
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { onPick(null); onDismiss() }) { Text(stringResource(R.string.due_all_day)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+            }
+        },
+    )
 }
 
 @Composable

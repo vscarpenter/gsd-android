@@ -43,14 +43,21 @@ import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskValidator
+import dev.vinny.gsd.notifications.rememberReminderPermissionAsk
+import dev.vinny.gsd.store.NotificationSettingsStore
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskEditorSheet(viewModel: TaskEditorViewModel, onDismiss: () -> Unit) {
+fun TaskEditorSheet(
+    viewModel: TaskEditorViewModel,
+    reminderSettings: NotificationSettingsStore,
+    onDismiss: () -> Unit,
+) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
+    val askForReminders = rememberReminderPermissionAsk(reminderSettings)
     val task = draft ?: return
     val gsd = LocalGsdColors.current
     val context = LocalContext.current
@@ -68,7 +75,13 @@ fun TaskEditorSheet(viewModel: TaskEditorViewModel, onDismiss: () -> Unit) {
             EditorContent(
                 draft = task,
                 canSave = task.title.isNotBlank(),
-                onEdit = viewModel::edit,
+                onEdit = { transform ->
+                    val before = viewModel.draft.value
+                    viewModel.edit(transform)
+                    val after = viewModel.draft.value
+                    // The first due date with a reminder is the moment to ask for notifications (§11.2)
+                    if (before != null && after != null) askForReminders(before, after)
+                },
                 onSave = {
                     viewModel.save(
                         onDone = onDismiss,

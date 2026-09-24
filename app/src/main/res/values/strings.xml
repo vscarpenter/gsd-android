@@ -48,6 +48,9 @@
     <string name="due_today">Today</string>
     <string name="due_this_week">This week</string>
     <string name="due_next_week">Next week</string>
+    <string name="due_pick_date">Pick a date</string>
+    <string name="due_all_day">All day</string>
+    <string name="due_time_title">Due time</string>
     <string name="repeat_never">Never</string>
     <string name="repeat_daily">Daily</string>
     <string name="repeat_weekly">Weekly</string>
@@ -151,6 +154,7 @@
     <string name="trash_restore">Restore</string>
     <string name="trash_delete_forever">Delete forever</string>
     <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_done">Done</string>
     <string name="palette_hint">Search tasks and commands…</string>
     <string name="palette_tasks">Tasks</string>
     <string name="palette_views">Smart Views</string>

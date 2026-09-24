@@ -155,3 +155,43 @@ class ReminderPlannerTest {
         assertEquals(setOf("a", "b"), planned.keys)
     }
 }
+
+/** Review finding 7: reminders default to on, so the ask on the Settings switch never ran. */
+class ReminderPermissionTest {
+    private val now = Instant.parse("2026-07-19T12:00:00.000Z")
+    private val fresh = ReminderSettings(enabled = true, permissionAsked = false)
+    private val noDate = Task(title = "t", urgent = false, important = false, createdAt = now, updatedAt = now)
+    private val dated = noDate.copy(dueDate = now.plusSeconds(86_400))
+
+    @Test
+    fun `asks when an edit first gives a task a due date`() =
+        assertEquals(true, ReminderPermission.shouldAsk(fresh, granted = false, before = noDate, after = dated))
+
+    @Test
+    fun `asks when an edit changes the reminder on a dated task`() =
+        assertEquals(true, ReminderPermission.shouldAsk(fresh, false, dated, dated.copy(notifyBefore = 60)))
+
+    @Test
+    fun `never asks twice`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh.copy(permissionAsked = true), false, noDate, dated))
+
+    @Test
+    fun `never asks once granted`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, granted = true, before = noDate, after = dated))
+
+    @Test
+    fun `never asks while reminders are off`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh.copy(enabled = false), false, noDate, dated))
+
+    @Test
+    fun `never asks for a task whose reminders are off`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, false, noDate, dated.copy(notificationEnabled = false)))
+
+    @Test
+    fun `never asks for an edit that leaves the due date and reminder alone`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, false, dated, dated.copy(title = "renamed")))
+
+    @Test
+    fun `never asks when an edit removes the due date`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, false, dated, noDate))
+}

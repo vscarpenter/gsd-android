@@ -199,7 +199,11 @@ fun MatrixScreen(
     }
     UndoDeleteEffect(actions, snackbarHost)
     if (editorDraft != null) {
-        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+        TaskEditorSheet(
+            viewModel = editorViewModel,
+            reminderSettings = container.notificationSettingsStore,
+            onDismiss = {},
+        )
     }
     if (paletteVisible) {
         val allTasks by editorViewModel.allTasks.collectAsStateWithLifecycle()

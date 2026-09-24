@@ -68,3 +68,16 @@ object ReminderPlanner {
         return deferred.toInstant()
     }
 }
+
+/**
+ * The contextual notification-permission ask (spec §11.2): once, when an edit gives a task a due date
+ * with a reminder, and never at launch. Reminders default to on, so waiting for the Settings switch
+ * meant the ask never came (review finding 7).
+ */
+object ReminderPermission {
+    fun shouldAsk(settings: ReminderSettings, granted: Boolean, before: Task, after: Task): Boolean {
+        if (!settings.enabled || settings.permissionAsked || granted) return false
+        if (after.dueDate == null || !after.notificationEnabled) return false
+        return after.dueDate != before.dueDate || after.notifyBefore != before.notifyBefore
+    }
+}
