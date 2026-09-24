@@ -26,6 +26,10 @@
     <string name="editor_title_new">New Task</string>
     <string name="editor_title_edit">Edit Task</string>
     <string name="editor_save">Save</string>
+    <string name="editor_discard_title">Discard changes?</string>
+    <string name="editor_discard_body">Your edits to this task will be lost.</string>
+    <string name="editor_discard">Discard</string>
+    <string name="editor_keep_editing">Keep editing</string>
     <string name="editor_section_title">Title</string>
     <string name="editor_section_quadrant">Quadrant</string>
     <string name="editor_section_tags">Tags</string>

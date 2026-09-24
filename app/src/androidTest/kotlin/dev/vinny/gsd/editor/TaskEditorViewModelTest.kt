@@ -39,6 +39,29 @@ class TaskEditorViewModelTest {
     @After
     fun tearDown() = db.close()
 
+    /** Review finding 25: a swipe down threw edits away with no prompt. The sheet asks when this is true. */
+    @Test
+    fun onlyAnEditedNewDraftHasUnsavedChanges() {
+        viewModel.openNew(null)
+        assertFalse(viewModel.hasUnsavedChanges())
+
+        viewModel.edit { it.copy(title = "typed") }
+
+        assertTrue(viewModel.hasUnsavedChanges())
+    }
+
+    @Test
+    fun anExistingTaskOpensWithNoUnsavedChanges() = runTest {
+        val saved = store.add(Task(title = "existing", createdAt = t0, updatedAt = t0))
+        viewModel.openExisting(saved.id)
+        viewModel.draft.first { it != null }
+        assertFalse(viewModel.hasUnsavedChanges())
+
+        viewModel.edit { it.copy(title = "renamed") }
+
+        assertTrue(viewModel.hasUnsavedChanges())
+    }
+
     @Test
     fun aNewTaskRequestKeepsAHalfTypedDraft() {
         viewModel.openNew(null)

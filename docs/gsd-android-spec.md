@@ -372,7 +372,9 @@ Tapping a destination keeps one copy of it on the back stack, and the tab being 
 
 ### 6.3 Editor presentation
 
-- **Compact:** a **modal bottom sheet** opening half-expanded with the essential fields and a "Show all details" affordance that expands it fully.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 25
+
+- **Compact:** a **modal bottom sheet** that opens fully expanded, with a header pinned above the scrolling sections: Cancel, the sheet's title, and a filled Save (Tide, `inkOnAccent` text; `sunken` while the title is empty). The half-open sheet used to hide Save, which sat at the end of an eleven-section scroll, and Back collapsed the sheet before closing it. Every way out (Cancel, Back, a swipe down, a tap outside) closes at once when the draft is untouched, and asks first when it has unsaved changes: "Discard changes?" · "Your edits to this task will be lost." · Keep editing / Discard (in `alert`). A save error shows under the header, beside Save.
 - **Medium/expanded:** a centered dialog sheet (the board stays visible behind it).
 
 ### 6.4 Deep links
