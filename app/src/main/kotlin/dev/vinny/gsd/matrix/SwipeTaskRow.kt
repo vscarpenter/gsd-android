@@ -33,6 +33,7 @@ fun SwipeTaskRow(
     onComplete: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val gsd = LocalGsdColors.current
@@ -41,6 +42,7 @@ fun SwipeTaskRow(
     SwipeToDismissBox(
         state = state,
         modifier = modifier,
+        gesturesEnabled = enabled,
         // Material asks confirmValueChange on every drag frame, so an action there ran eight or nine
         // times per swipe. onDismiss runs once, when the swipe settles.
         onDismiss = { direction ->

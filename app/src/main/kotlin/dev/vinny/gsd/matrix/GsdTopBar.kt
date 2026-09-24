@@ -13,6 +13,8 @@ import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -36,6 +38,7 @@ fun GsdTopBar(
     onSearch: () -> Unit,
     modifier: Modifier = Modifier,
     onToggleSelectMode: (() -> Unit)? = null,
+    selectMode: Boolean = false,
     syncChip: (@Composable () -> Unit)? = null,
 ) {
     val gsd = LocalGsdColors.current
@@ -71,11 +74,16 @@ fun GsdTopBar(
             )
         }
         if (onToggleSelectMode != null) {
-            IconButton(onClick = onToggleSelectMode) {
+            // Checked while select mode is on, so the mode shows before anything is selected (finding 13)
+            IconToggleButton(
+                checked = selectMode,
+                onCheckedChange = { onToggleSelectMode() },
+                colors = IconButtonDefaults.iconToggleButtonColors(checkedContainerColor = gsd.tideWash),
+            ) {
                 Icon(
                     Icons.Outlined.Checklist,
                     contentDescription = stringResource(R.string.cd_select_mode),
-                    tint = gsd.ink2,
+                    tint = if (selectMode) gsd.tint else gsd.ink2,
                 )
             }
         }

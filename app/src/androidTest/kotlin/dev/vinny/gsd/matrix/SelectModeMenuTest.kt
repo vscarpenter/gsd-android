@@ -1,11 +1,14 @@
 package dev.vinny.gsd.matrix
 
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import dev.vinny.gsd.GsdApp
@@ -57,5 +60,17 @@ class SelectModeMenuTest {
         rule.onNodeWithContentDescription("Select tasks").performClick()
 
         rule.waitUntil(5_000) { rule.onAllNodes(optionsOnThisCard).fetchSemanticsNodes().isEmpty() }
+    }
+
+    /** Review finding 13: with nothing selected yet, nothing showed that select mode was on. */
+    @Test
+    fun selectModeShowsItIsOnBeforeAnythingIsSelected() {
+        rule.setContent { GsdTheme { MatrixScreen(container = app.container) } }
+        rule.waitUntil(5_000) { rule.onAllNodesWithText(title).fetchSemanticsNodes().isNotEmpty() }
+
+        rule.onNodeWithContentDescription("Select tasks").performClick()
+
+        rule.onNodeWithContentDescription("Select tasks").assertIsOn()
+        rule.onNodeWithText("Tap tasks to select them").assertIsDisplayed()
     }
 }

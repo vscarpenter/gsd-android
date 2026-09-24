@@ -14,14 +14,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.ArrowCircleRight
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Warning
@@ -47,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
@@ -66,6 +70,9 @@ import java.time.temporal.ChronoUnit
 /**
  * Task card per spec §5.6: accent spine, content column, overflow + completion disc. A long press
  * opens the menu unless [longPressOpensMenu] is false, as on the tablet grid, where it starts a drag.
+ *
+ * [selected] is null outside select mode. In select mode the card is one checkbox: a check mark
+ * leads, the menu button and the disc go, and a tap runs [onClick] to toggle it (§8.11).
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -77,6 +84,7 @@ fun TaskCard(
     badges: TaskBadges = TaskBadges(0, 0),
     onOpenMenu: (() -> Unit)? = null,
     longPressOpensMenu: Boolean = true,
+    selected: Boolean? = null,
 ) {
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(task.quadrant)
@@ -85,14 +93,28 @@ fun TaskCard(
         color = gsd.surface,
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, gsd.hairline, GsdShapes.card)
-            .combinedClickable(onClick = onClick, onLongClick = onOpenMenu.takeIf { longPressOpensMenu }),
+            .border(
+                width = if (selected == true) 2.dp else 1.dp,
+                color = if (selected == true) gsd.tint else gsd.hairline,
+                shape = GsdShapes.card,
+            )
+            .then(
+                if (selected != null) {
+                    Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = { onClick() })
+                } else {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onOpenMenu.takeIf { longPressOpensMenu },
+                    )
+                },
+            ),
     ) {
         // Intrinsic height lets the spine run the card's full height, not a fixed 40 dp (finding 34)
         Row(
             modifier = Modifier.height(IntrinsicSize.Min).padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (selected != null) SelectionMark(selected)
             Box(
                 modifier = Modifier
                     .width(3.dp)
@@ -138,7 +160,7 @@ fun TaskCard(
                 SubtaskProgress(task)
             }
             // A card with no menu shows no button. A long press and the button open the same menu (§8.1).
-            if (onOpenMenu != null) {
+            if (onOpenMenu != null && selected == null) {
                 IconButton(onClick = onOpenMenu) {
                     Icon(
                         Icons.Outlined.MoreHoriz,
@@ -148,9 +170,22 @@ fun TaskCard(
                 }
             }
             // Trash and Archive cannot complete a task, so they pass no callback and get no disc.
-            if (onToggleComplete != null) CompletionDisc(task, onToggleComplete)
+            // In select mode a tap selects, and a disc there said "Mark complete" (finding 13).
+            if (onToggleComplete != null && selected == null) CompletionDisc(task, onToggleComplete)
         }
     }
+}
+
+/** The select-mode mark (§8.11): a Tide check circle when selected, a quiet ring when not. */
+@Composable
+private fun SelectionMark(selected: Boolean) {
+    val gsd = LocalGsdColors.current
+    Icon(
+        if (selected) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
+        contentDescription = null, // the card's checkbox state says it
+        tint = if (selected) gsd.tint else gsd.ink3,
+        modifier = Modifier.size(28.dp),
+    )
 }
 
 @Composable

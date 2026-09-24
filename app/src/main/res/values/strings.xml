@@ -161,6 +161,7 @@
     <string name="palette_actions">Actions</string>
     <string name="palette_navigation">Navigation</string>
     <string name="bulk_selected">%1$d selected</string>
+    <string name="bulk_select_prompt">Tap tasks to select them</string>
     <string name="bulk_complete">Done</string>
     <string name="bulk_move">Move</string>
     <string name="bulk_tags">Tags</string>

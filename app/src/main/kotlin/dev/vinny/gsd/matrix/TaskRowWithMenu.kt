@@ -72,13 +72,14 @@ private val menuSnoozePresets: List<Pair<Duration, Int>> = listOf(
     Duration.ofDays(7) to R.string.snooze_next_week,
 )
 
+/** A task card with the §8.1 menu. [selected] is null outside select mode; in it the card has no menu. */
 @Composable
 fun TaskRowWithMenu(
     task: Task,
     badges: TaskBadges,
     actions: TaskRowActions,
     modifier: Modifier = Modifier,
-    menuEnabled: Boolean = true,
+    selected: Boolean? = null,
     longPressOpensMenu: Boolean = true,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -91,8 +92,9 @@ fun TaskRowWithMenu(
             onClick = actions.onEdit,
             badges = badges,
             // Select mode turns the menu off, and a card with no menu draws no button.
-            onOpenMenu = if (menuEnabled) { { menuOpen = true } } else null,
+            onOpenMenu = if (selected == null) { { menuOpen = true } } else null,
             longPressOpensMenu = longPressOpensMenu,
+            selected = selected,
         )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             MenuItem(R.string.menu_edit) { menuOpen = false; actions.onEdit() }

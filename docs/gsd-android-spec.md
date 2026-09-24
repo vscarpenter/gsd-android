@@ -540,7 +540,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1, 2, 3, and 48
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 14
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 13 and 14
 
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
@@ -555,7 +555,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
   - **Tap** → open editor. **Tap the completion disc** → toggle complete (never opens the editor).
   - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete. On the expanded 2×2 grid a long press starts the cross-quadrant drag instead, so there the overflow button is the way to the menu. Grid cards carry the same menu and the same blocked/blocking badges as the phone list.
   - One view model, `TaskActionsViewModel`, owns these row operations. Every screen that draws a task row builds its menu from it. The menu is the same on Matrix, on a smart view list (§8.13), and in Browse search results (§8.14). Delete offers Undo (§8.20) on all three.
-- **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11). A card in select mode has no context menu: no overflow button, and a long press opens nothing.
+- **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11). A card in select mode has no context menu: no overflow button, and a long press opens nothing. The card is one checkbox: it leads with a check mark (a Tide check circle and a 2dp Tide border when selected, an `ink3` ring when not), shows no completion disc, and does not swipe or drag. The toolbar toggle reads as on (Tide on `tideWash`) while the mode lasts, and the bulk bar shows as soon as the mode starts, reading "Tap tasks to select them" until the first pick.
 - **Empty quadrants** show the dashed in-context prompt with tailored copy (§5.10) and an "add to this quadrant" affordance. A fully empty matrix shows "Capture your first task" with an example.
 - **First frame.** `MatrixViewModel.sections` is `StateFlow<List<QuadrantSectionState>?>` whose initial value is **`null`** until Room's first emission; the flag never resets for the ViewModel's lifetime. Gate order: `null` → skeleton; loaded-and-empty → the dashed prompts; else content. "Loaded" means the observer delivered its **first snapshot, even an empty one** — before that, an empty list is indistinguishable from an empty board, which is why cold starts used to flash the four dashed prompts. The **capture bar stays live** through the skeleton (it does not depend on tasks); below it sit four quadrant-section silhouettes in Q1→Q4 order, each a header (26dp icon tile, 120×16dp title bar, 24×12dp count bar) plus **3, 2, 2, 1** card silhouettes — deliberately uneven, because four identical columns read as a loading pattern rather than a preview. Each card silhouette is a 3dp accent-colored spine plus a 14dp title bar and a 10dp metadata bar on a `surface` tile. At expanded width the same silhouettes fill the 2×2 grid cells. There is **no timer and no minimum display time**: if the first snapshot lands within a frame the skeleton is never visibly drawn. Its job is removing the false empty state, not showing a loader. Primitive and shimmer: §5.10.
 - Lists must stay smooth with **hundreds of tasks** (`LazyColumn` keys + stable item contents).
@@ -669,9 +669,11 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 
 ### 8.11 Bulk actions (multi-select)
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 13
+
 **Behavior.** Operations (authoritative): **complete**, **move to quadrant**, **add tags**, **remove tags**, **set due date**, **delete** — each applies per-task validation, enqueues sync per task, and reports partial failures. Delete confirms first. The Archive screen's bulk bar offers **restore** and **delete permanently** (confirmed: "This can't be undone.").
 
-**Android reimagining.** Select mode on matrix (compact + grid), smart-view lists, and archive: checkmarks, a selection count, and a **bottom action bar**. Undo (snackbar) follows destructive actions where applicable (§8.20).
+**Android reimagining.** Select mode on matrix (compact + grid), smart-view lists, and archive: checkmarks, a selection count, and a **bottom action bar**. The Matrix card's selected look is in §8.1. Undo (snackbar) follows destructive actions where applicable (§8.20).
 
 ### 8.12 Archive
 

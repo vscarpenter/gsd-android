@@ -96,6 +96,7 @@ fun MatrixScreen(
                 onToggleShowCompleted = { scope.launch { container.prefs.setShowCompleted(!showCompleted) } },
                 onSearch = { paletteVisible = true },
                 onToggleSelectMode = viewModel::toggleSelectionMode,
+                selectMode = selectionMode,
                 syncChip = {
                     val signedIn by container.syncCoordinator.signedIn.collectAsStateWithLifecycle()
                     val syncing by container.syncCoordinator.syncing.collectAsStateWithLifecycle()
@@ -144,7 +145,8 @@ fun MatrixScreen(
                     onEdit = { editorViewModel.openExisting(task.id) },
                 )
             }
-            if (selectionMode && selection.isNotEmpty()) {
+            // Shown as soon as select mode is on, so an empty selection still says the mode is on (finding 13)
+            if (selectionMode) {
                 val selectedTags = sections.orEmpty().flatMap { it.tasks }
                     .filter { it.id in selection }
                     .flatMap { it.tags }
@@ -167,7 +169,7 @@ fun MatrixScreen(
                         onDropToQuadrant = actions::moveToQuadrant,
                         onDelete = { actions.delete(it.id) },
                         rowActions = rowActions,
-                        menuEnabled = !selectionMode,
+                        selection = selection.takeIf { selectionMode },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -178,7 +180,7 @@ fun MatrixScreen(
                     onOpen = editorViewModel::openExisting,
                     onDelete = { actions.delete(it.id) },
                     rowActions = rowActions,
-                    menuEnabled = !selectionMode,
+                    selection = selection.takeIf { selectionMode },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -249,7 +251,10 @@ fun MatrixScreen(
     }
 }
 
-/** Compact-width matrix: a vertical stack of quadrant sections (spec §6.1). */
+/**
+ * Compact-width matrix: a vertical stack of quadrant sections (spec §6.1). [selection] is null
+ * outside select mode. In it every card shows whether it is selected, and rows do not swipe.
+ */
 @Composable
 fun MatrixList(
     sections: List<QuadrantSectionState>?,
@@ -258,7 +263,7 @@ fun MatrixList(
     modifier: Modifier = Modifier,
     onDelete: (dev.vinny.gsd.model.Task) -> Unit = {},
     rowActions: ((dev.vinny.gsd.model.Task) -> TaskRowActions)? = null,
-    menuEnabled: Boolean = true,
+    selection: Set<String>? = null,
 ) {
     if (sections == null) {
         MatrixSkeleton(modifier = modifier)
@@ -289,13 +294,19 @@ fun MatrixList(
                         task = task,
                         onComplete = { onToggleComplete(task) },
                         onDelete = { onDelete(task) },
+                        enabled = selection == null,
                     ) {
                         val actions = rowActions?.invoke(task) ?: TaskRowActions(
                             onEdit = { onOpen(task.id) },
                             onToggleComplete = { onToggleComplete(task) },
                             onDelete = { onDelete(task) },
                         )
-                        TaskRowWithMenu(task = task, badges = badges, actions = actions, menuEnabled = menuEnabled)
+                        TaskRowWithMenu(
+                            task = task,
+                            badges = badges,
+                            actions = actions,
+                            selected = selection?.let { task.id in it },
+                        )
                     }
                 }
             }

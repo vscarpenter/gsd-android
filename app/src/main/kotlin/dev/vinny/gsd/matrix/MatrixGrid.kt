@@ -38,7 +38,7 @@ fun MatrixGrid(
     modifier: Modifier = Modifier,
     onDelete: (Task) -> Unit = {},
     rowActions: ((Task) -> TaskRowActions)? = null,
-    menuEnabled: Boolean = true,
+    selection: Set<String>? = null,
 ) {
     val byQuadrant = sections.associateBy { it.quadrant }
     val allVisible = sections.flatMap { it.tasks }
@@ -63,7 +63,7 @@ fun MatrixGrid(
                         onDropToQuadrant = onDropToQuadrant,
                         onDelete = onDelete,
                         rowActions = rowActions,
-                        menuEnabled = menuEnabled,
+                        selection = selection,
                         modifier = Modifier.weight(1f).fillMaxSize(),
                     )
                 }
@@ -81,7 +81,7 @@ private fun QuadrantCell(
     onDropToQuadrant: (String, Quadrant) -> Unit,
     onDelete: (Task) -> Unit,
     rowActions: ((Task) -> TaskRowActions)?,
-    menuEnabled: Boolean,
+    selection: Set<String>?,
     modifier: Modifier = Modifier,
 ) {
     val dropTarget = remember(section.quadrant) {
@@ -115,6 +115,7 @@ private fun QuadrantCell(
                     task = task,
                     onComplete = { onToggleComplete(task) },
                     onDelete = { onDelete(task) },
+                    enabled = selection == null,
                 ) {
                     val actions = rowActions?.invoke(task) ?: TaskRowActions(
                         onEdit = { onOpen(task.id) },
@@ -125,11 +126,16 @@ private fun QuadrantCell(
                         task = task,
                         badges = badges,
                         actions = actions,
-                        menuEnabled = menuEnabled,
+                        selected = selection?.let { task.id in it },
                         // Here a long press starts the drag to another quadrant, so the "..." button opens the menu
                         longPressOpensMenu = false,
-                        modifier = Modifier.dragAndDropSource { _ ->
-                            DragAndDropTransferData(ClipData.newPlainText("taskId", task.id))
+                        // Select mode taps to select and drags nothing
+                        modifier = if (selection != null) {
+                            Modifier
+                        } else {
+                            Modifier.dragAndDropSource { _ ->
+                                DragAndDropTransferData(ClipData.newPlainText("taskId", task.id))
+                            }
                         },
                     )
                 }
