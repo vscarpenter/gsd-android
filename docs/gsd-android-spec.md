@@ -1050,7 +1050,9 @@ Android has no numeric app-icon badge API; the notification channel's badge dot 
 
 ### 11.4 Notification actions (Android-native win)
 
-Reminder notifications carry two action buttons: **Complete** (full completion semantics — recurrence spawn, sync enqueue) and **Snooze 1 hour**. Both act through the store without opening the app and dismiss/update the notification.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, follow-up S6
+
+Reminder notifications carry two action buttons: **Complete** (full completion semantics — recurrence spawn, sync enqueue) and **Snooze 1 hour**. Both act through the store without opening the app and dismiss/update the notification. A write that fails is logged and never thrown, because a throw there would crash the process from a notification button. The notification then stays up, so the user can try again or open the task.
 
 ### 11.5 Background work
 
