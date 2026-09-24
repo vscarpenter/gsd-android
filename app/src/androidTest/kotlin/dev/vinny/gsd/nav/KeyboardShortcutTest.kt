@@ -55,7 +55,7 @@ class KeyboardShortcutTest {
 
             pressCtrl(scenario, KeyEvent.KEYCODE_N)
 
-            rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isNotEmpty() }
             rule.onNode(navItem("Matrix")).assertIsSelected()
         }
     }

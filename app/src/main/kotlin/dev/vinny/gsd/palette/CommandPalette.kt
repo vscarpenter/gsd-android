@@ -82,16 +82,37 @@ fun CommandPalette(
                     modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag("palette_query"),
                 )
             }
-            val results = PaletteIndex.query(query, tasks, views)
+            val actionLabels = PaletteAction.entries.associateWith { stringResource(it.labelRes) }
+            val navLabels = PaletteNav.entries.associateWith { stringResource(it.labelRes) }
+            val actionLabel = { action: PaletteAction -> actionLabels.getValue(action) }
+            val navLabel = { nav: PaletteNav -> navLabels.getValue(nav) }
+            val results = PaletteIndex.query(query, tasks, views, actionLabel, navLabel)
             LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 section(R.string.palette_tasks, results.tasks, { it.title }) { onOpenTask(it.id); onDismiss() }
                 section(R.string.palette_views, results.views, { it.name }) { onOpenView(it.id); onDismiss() }
-                section(R.string.palette_actions, results.actions, { it.label }) { onAction(it); onDismiss() }
-                section(R.string.palette_navigation, results.navigation, { it.label }) { onNavigate(it); onDismiss() }
+                section(R.string.palette_actions, results.actions, actionLabel) { onAction(it); onDismiss() }
+                section(R.string.palette_navigation, results.navigation, navLabel) { onNavigate(it); onDismiss() }
             }
         }
     }
 }
+
+/** The words each command shows, and matches on (review, Copy: they were English literals). */
+private val PaletteAction.labelRes: Int
+    get() = when (this) {
+        PaletteAction.NEW_TASK -> R.string.palette_new_task
+        PaletteAction.TOGGLE_SHOW_COMPLETED -> R.string.palette_toggle_completed
+        PaletteAction.TOGGLE_THEME -> R.string.palette_toggle_theme
+        PaletteAction.SEND_FEEDBACK -> R.string.palette_send_feedback
+    }
+
+private val PaletteNav.labelRes: Int
+    get() = when (this) {
+        PaletteNav.MATRIX -> R.string.nav_matrix
+        PaletteNav.DASHBOARD -> R.string.nav_dashboard
+        PaletteNav.ARCHIVE -> R.string.browse_archive
+        PaletteNav.SETTINGS -> R.string.nav_settings
+    }
 
 private fun <T> androidx.compose.foundation.lazy.LazyListScope.section(
     labelRes: Int,

@@ -71,7 +71,7 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
      * a completion, a timer, or a snooze that landed while the sheet was open survives the save.
      * [onMissing] runs when the task was deleted in the meantime. Nothing is written then.
      */
-    fun save(onDone: () -> Unit, onError: (String) -> Unit, onMissing: () -> Unit = {}) {
+    fun save(onDone: () -> Unit, onError: (TaskValidationError) -> Unit, onMissing: () -> Unit = {}) {
         val edited = _draft.value ?: return
         val loaded = original
         viewModelScope.launch {
@@ -84,7 +84,7 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
                 _draft.value = null
                 if (saved == null) onMissing() else onDone()
             } catch (error: TaskValidationError) {
-                onError(error.message ?: "Couldn't save task")
+                onError(error)
             }
         }
     }

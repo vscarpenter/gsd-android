@@ -34,10 +34,11 @@ class ShareCaptureTest {
         assertEquals("", draft.description)
     }
 
+    /** Review, Copy: the fallback was an English literal here. The sheet fills a blank title from resources. */
     @Test
-    fun `empty remainder with no url falls back to review copy`() {
+    fun `empty remainder with no url leaves the title for the sheet to fill`() {
         val draft = ShareCapture.buildDraft("   ")
-        assertEquals("Review link below", draft.title)
+        assertEquals("", draft.title)
     }
 
     @Test

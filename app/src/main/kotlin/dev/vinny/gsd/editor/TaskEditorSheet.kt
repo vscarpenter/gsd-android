@@ -63,6 +63,7 @@ import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.validationMessage
 import kotlinx.coroutines.launch
 
 /**
@@ -128,7 +129,7 @@ fun TaskEditorSheet(
             onSave = {
                 viewModel.save(
                     onDone = onDismiss,
-                    onError = { error = it },
+                    onError = { error = context.resources.validationMessage(it) },
                     onMissing = {
                         Toast.makeText(context, context.getString(R.string.task_not_found), Toast.LENGTH_SHORT).show()
                         onDismiss()

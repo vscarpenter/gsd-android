@@ -1,5 +1,6 @@
 package dev.vinny.gsd.matrix
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
@@ -13,6 +14,7 @@ import dev.vinny.gsd.model.Subtask
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdTheme
 import java.time.Instant
+import java.time.ZonedDateTime
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -66,5 +68,26 @@ class TaskCardLayoutTest {
         rule.onNodeWithText(task.title, useUnmergedTree = true).fetchSemanticsNode()
             .config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
         assertFalse("the title was cut off", layouts.single().hasVisualOverflow)
+    }
+
+    /** Review, Copy: the due labels were English literals in Kotlin. They come from resources now. */
+    @Test
+    fun dueLabelsNameTheDay() {
+        fun dueIn(days: Long) = Task(
+            title = "due in $days",
+            dueDate = ZonedDateTime.now().plusDays(days).toInstant(),
+            createdAt = t0,
+            updatedAt = t0,
+        )
+        rule.setContent {
+            GsdTheme {
+                Column {
+                    listOf(-2L, 0L, 1L, 3L).forEach { TaskCard(task = dueIn(it), onToggleComplete = {}, onClick = {}) }
+                }
+            }
+        }
+        listOf("Overdue", "Due today", "Due tomorrow", "in 3 days").forEach {
+            rule.onNodeWithText(it, useUnmergedTree = true).assertExists()
+        }
     }
 }

@@ -183,9 +183,9 @@ class TabNavigationTest {
      */
     private fun openAndCloseTheEditor(alreadyRequested: Boolean) {
         if (!alreadyRequested) app.container.palette.requestNewTask()
-        rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithContentDescription("Close sheet").performSemanticsAction(SemanticsActions.OnClick)
-        rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isEmpty() }
+        rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isEmpty() }
     }
 
     /**

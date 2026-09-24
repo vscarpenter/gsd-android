@@ -64,6 +64,8 @@ class BrowseTest {
         rule.onNodeWithText("Archive").assertIsDisplayed()
         rule.onNodeWithText("PINNED").assertIsDisplayed()
         rule.onNodeWithText("Today's Focus").assertIsDisplayed()
+        // Review, Copy: a view's menu button announced "Task options"
+        rule.onNodeWithContentDescription("Today's Focus options").assertIsDisplayed()
         rule.onNode(hasScrollAction()).performScrollToNode(hasText("New Smart View"))
         rule.onNodeWithText("New Smart View").assertIsDisplayed()
         rule.onNode(hasScrollAction()).performScrollToNode(hasText("Today's Focus"))

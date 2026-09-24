@@ -49,7 +49,7 @@ class DashboardTest {
         }
         rule.onNodeWithText("ACTIVE").assertIsDisplayed()
         rule.onNodeWithText("50%").assertIsDisplayed()
-        rule.onNodeWithText("1 overdue — review the backlog").performClick()
+        rule.onNodeWithText("1 overdue. Review the backlog.").performClick()
         assertEquals(true, overdueOpened)
     }
 
@@ -118,7 +118,7 @@ class DashboardTest {
         )
         val stats = Analytics.compute(tasks, 7, now, ZoneOffset.UTC)
         rule.setContent { GsdTheme { DashboardContent(stats, 7, {}, {}, loaded = true, now = now, zone = ZoneOffset.UTC, onOpenTask = {}) } }
-        rule.onNodeWithText("Completion by Quadrant").assertIsDisplayed()
+        rule.onNodeWithText("Completion by quadrant").assertIsDisplayed()
         rule.onNodeWithContentDescription("Completion rings, 50% of all tasks complete").assertIsDisplayed()
         rule.onNodeWithContentDescription("Do First: 50% complete").assertExists()
         rule.onNodeWithContentDescription("Schedule: no tasks").assertExists()

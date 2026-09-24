@@ -72,7 +72,7 @@ class ShortcutWhileRunningTest {
 
             rule.waitUntil(10_000) { live<MainActivity>().let { it.size == 1 && it.single() !== original } }
             rule.waitUntil(5_000) { app.container.palette.pendingRoute.value == null }
-            rule.waitUntil(5_000) { onScreen("New Task") }
+            rule.waitUntil(5_000) { onScreen("New task") }
         }
     }
 

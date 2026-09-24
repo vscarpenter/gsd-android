@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.AdsClick
+import androidx.compose.material.icons.outlined.Adjust
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Book
@@ -88,7 +88,7 @@ import java.time.ZoneId
 
 /** Icon token → vector for both built-ins (§5.7) and the 10 curated custom options. */
 val smartViewIcons: Map<String, ImageVector> = mapOf(
-    "adjust" to Icons.Outlined.AdsClick,
+    "adjust" to Icons.Outlined.Adjust, // the crosshair (spec §5.7); AdsClick drew a mouse pointer
     "calendar_month" to Icons.Outlined.CalendarMonth,
     "warning" to Icons.Outlined.Warning,
     "event_busy" to Icons.Outlined.EventBusy,
@@ -368,7 +368,7 @@ private fun SmartViewRow(
             IconButton(onClick = { menuOpen = true }) {
                 Icon(
                     Icons.Outlined.MoreHoriz,
-                    contentDescription = stringResource(R.string.cd_task_options),
+                    contentDescription = stringResource(R.string.cd_view_options, row.view.name),
                     tint = gsd.ink3,
                 )
             }

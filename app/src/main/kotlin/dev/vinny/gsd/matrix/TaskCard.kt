@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -203,7 +204,7 @@ private fun MetadataRow(task: Task, badges: TaskBadges) {
     if (!hasAny) return
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         task.dueDate?.let { due ->
-            val (label, color) = dueLabel(due, Instant.now(), gsd.tide, gsd.alert, gsd.ink3)
+            val (label, color) = dueLabel(due, Instant.now())
             val overdue = color == gsd.alert
             Icon(
                 if (overdue) Icons.Outlined.Warning else Icons.Outlined.Event,
@@ -303,22 +304,18 @@ private fun LiveTimerText(startedAt: Instant) {
 }
 
 /** Relative due formatting (§8.1): today in Tide, overdue in alert, else quiet ink. */
-internal fun dueLabel(
-    due: Instant,
-    now: Instant,
-    tide: androidx.compose.ui.graphics.Color,
-    alert: androidx.compose.ui.graphics.Color,
-    ink3: androidx.compose.ui.graphics.Color,
-): Pair<String, androidx.compose.ui.graphics.Color> {
+@Composable
+internal fun dueLabel(due: Instant, now: Instant): Pair<String, androidx.compose.ui.graphics.Color> {
+    val gsd = LocalGsdColors.current
     val zone = ZoneId.systemDefault()
     val dueDay = due.atZone(zone).toLocalDate()
     val today = now.atZone(zone).toLocalDate()
     val days = ChronoUnit.DAYS.between(today, dueDay)
     return when {
-        days < 0L -> "Overdue" to alert
-        days == 0L -> "Due today" to tide
-        days == 1L -> "Due tomorrow" to ink3
-        else -> "in $days days" to ink3
+        days < 0L -> stringResource(R.string.card_due_overdue) to gsd.alert
+        days == 0L -> stringResource(R.string.card_due_today) to gsd.tide
+        days == 1L -> stringResource(R.string.card_due_tomorrow) to gsd.ink3
+        else -> pluralStringResource(R.plurals.card_due_in_days, days.toInt(), days) to gsd.ink3
     }
 }
 

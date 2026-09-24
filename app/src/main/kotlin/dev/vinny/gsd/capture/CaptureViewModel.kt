@@ -25,7 +25,7 @@ class CaptureViewModel(private val store: TaskStore) : ViewModel() {
     }
 
     /** Adds the parsed task; keeps the raw text in place on validation failure (spec §8.2). */
-    fun submit(onError: (String) -> Unit) {
+    fun submit(onError: (TaskValidationError) -> Unit) {
         val current = _state.value
         val parsed = current.parsed
         if (parsed.title.isEmpty()) return
@@ -45,7 +45,7 @@ class CaptureViewModel(private val store: TaskStore) : ViewModel() {
                 )
                 _state.value = CaptureState() // clear for rapid serial capture
             } catch (error: TaskValidationError) {
-                onError(error.message ?: "Couldn't add task")
+                onError(error)
             }
         }
     }

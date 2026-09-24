@@ -50,6 +50,7 @@ import dev.vinny.gsd.theme.GsdTheme
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.validationMessage
 import java.time.Instant
 import kotlinx.coroutines.launch
 
@@ -79,7 +80,8 @@ class ShareActivity : ComponentActivity() {
             }
             GsdTheme(darkTheme = darkTheme) {
                 val gsd = LocalGsdColors.current
-                var title by rememberSaveable { mutableStateOf(draft.title) }
+                val fallbackTitle = stringResource(R.string.share_fallback_title)
+                var title by rememberSaveable { mutableStateOf(draft.title.ifEmpty { fallbackTitle }) }
                 var quadrant by rememberSaveable { mutableStateOf(Quadrant.ELIMINATE) } // §12.2 default
                 var tagsRaw by rememberSaveable { mutableStateOf("") }
                 var error by remember { mutableStateOf<String?>(null) }
@@ -201,7 +203,7 @@ class ShareActivity : ComponentActivity() {
             finish()
             null
         } catch (invalid: TaskValidationError) {
-            invalid.message
+            resources.validationMessage(invalid)
         } catch (failure: Exception) {
             android.util.Log.w("GsdShare", "share failed: ${failure.javaClass.simpleName}")
             getString(R.string.share_failed)

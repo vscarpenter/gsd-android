@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdTheme
 import java.time.Instant
+import java.time.ZoneId
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -99,11 +100,11 @@ class TrashScreenTest {
                 )
             }
         }
-        rule.onNodeWithText("Delete forever").performClick()
+        rule.onNodeWithText("Delete permanently").performClick()
         assertNull(deleted) // confirmation dialog gates it
-        rule.onNodeWithText("Delete \"old thing\" forever?").assertIsDisplayed() // finding 31: it names the task
+        rule.onNodeWithText("Delete \"old thing\" permanently?").assertIsDisplayed() // finding 31: it names the task
         rule.onNodeWithText("This can't be undone.").assertIsDisplayed()
-        rule.onAllNodesWithText("Delete forever")[1].performClick()
+        rule.onAllNodesWithText("Delete permanently")[1].performClick()
         assertEquals(task.id, deleted)
     }
 
@@ -149,7 +150,7 @@ class TrashScreenTest {
             }
         }
         rule.onNodeWithContentDescription("Select tasks").performClick()
-        // Selection mode hides the per-row Restore/Delete forever buttons — the
+        // Selection mode hides the per-row Restore/Delete permanently buttons — the
         // row checkboxes are the selection UI; check both.
         rule.onAllNodes(isToggleable())[0].performClick()
         rule.onAllNodes(isToggleable())[1].performClick()
@@ -179,7 +180,7 @@ class TrashScreenTest {
         rule.onAllNodes(isToggleable())[0].performClick()
         rule.onAllNodes(isToggleable())[1].performClick()
 
-        rule.onNodeWithText("Delete forever").performClick() // bulk bar button — only match while dialog is closed
+        rule.onNodeWithText("Delete permanently").performClick() // bulk bar button — only match while dialog is closed
         assertEquals(emptyList(), deleted) // confirmation dialog gates it
         rule.onNodeWithText("Delete 2 tasks?").assertIsDisplayed()
 
@@ -188,9 +189,33 @@ class TrashScreenTest {
         assertEquals(emptyList(), deleted)
 
         // Confirming deletes every selected task
-        rule.onNodeWithText("Delete forever").performClick()
-        rule.onAllNodesWithText("Delete forever")[1].performClick() // [0] bulk bar, [1] dialog confirm
+        rule.onNodeWithText("Delete permanently").performClick()
+        rule.onAllNodesWithText("Delete permanently")[1].performClick() // [0] bulk bar, [1] dialog confirm
         assertEquals(setOf(taskA.id, taskB.id), deleted.toSet())
+    }
+
+    /** Review, Copy: counts in sentences took no plural form, so these read "1 days left" and "Delete 1 tasks?". */
+    @Test
+    fun countsOfOneReadInTheSingular() {
+        val task = trashedTask("almost gone")
+        val deletedAt = t0.atZone(ZoneId.systemDefault()).minusDays(29).toInstant() // one day remains
+        rule.setContent {
+            GsdTheme {
+                TrashContent(
+                    trashed = listOf(task to deletedAt),
+                    now = t0,
+                    onRestore = {},
+                    onDeleteForever = {},
+                    onEmptyTrash = {},
+                )
+            }
+        }
+        rule.onNodeWithText("1 day left").assertIsDisplayed()
+
+        rule.onNodeWithContentDescription("Select tasks").performClick()
+        rule.onAllNodes(isToggleable())[0].performClick()
+        rule.onNodeWithText("Delete permanently").performClick()
+        rule.onNodeWithText("Delete 1 task?").assertIsDisplayed()
     }
 
     @Test

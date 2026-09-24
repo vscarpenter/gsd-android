@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -187,7 +188,7 @@ fun TrashContent(
             text = { Text(stringResource(R.string.archive_delete_body), style = GsdType.body) },
             confirmButton = {
                 TextButton(onClick = { onDeleteForever(task.id); confirmDeleteForever = null }) {
-                    Text(stringResource(R.string.trash_delete_forever), color = gsd.alert)
+                    Text(stringResource(R.string.trash_delete_permanently), color = gsd.alert)
                 }
             },
             dismissButton = {
@@ -217,13 +218,18 @@ fun TrashContent(
     if (confirmBulkDelete) {
         AlertDialog(
             onDismissRequest = { confirmBulkDelete = false },
-            title = { Text(stringResource(R.string.bulk_delete_confirm, selection.size), style = GsdType.cardTitle) },
+            title = {
+                Text(
+                    pluralStringResource(R.plurals.bulk_delete_confirm, selection.size, selection.size),
+                    style = GsdType.cardTitle,
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     selection.forEach(onDeleteForever)
                     confirmBulkDelete = false
                     exitSelection()
-                }) { Text(stringResource(R.string.trash_delete_forever), color = gsd.alert) }
+                }) { Text(stringResource(R.string.trash_delete_permanently), color = gsd.alert) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmBulkDelete = false }) { Text(stringResource(R.string.dialog_cancel)) }
@@ -253,7 +259,7 @@ private fun TrashRow(
                     Text(stringResource(R.string.trash_restore), style = GsdType.metadata, color = gsd.tint)
                 }
                 TextButton(onClick = onDeleteForever) {
-                    Text(stringResource(R.string.trash_delete_forever), style = GsdType.metadata, color = gsd.alert)
+                    Text(stringResource(R.string.trash_delete_permanently), style = GsdType.metadata, color = gsd.alert)
                 }
             }
         }
@@ -281,7 +287,7 @@ private fun TrashBulkBar(
             Text(stringResource(R.string.trash_restore), style = GsdType.metadata, color = gsd.tint)
         }
         TextButton(onClick = onDeleteForever) {
-            Text(stringResource(R.string.trash_delete_forever), style = GsdType.metadata, color = gsd.alert)
+            Text(stringResource(R.string.trash_delete_permanently), style = GsdType.metadata, color = gsd.alert)
         }
     }
 }
@@ -300,6 +306,6 @@ internal fun trashRetentionLabel(
     return if (daysLeft <= 0) {
         stringResource(R.string.trash_last_day) to gsd.alert
     } else {
-        stringResource(R.string.trash_days_left, daysLeft) to gsd.ink3
+        pluralStringResource(R.plurals.trash_days_left, daysLeft.toInt(), daysLeft) to gsd.ink3
     }
 }

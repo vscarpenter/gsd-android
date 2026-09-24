@@ -75,7 +75,7 @@ class RunningAppLinkTest {
             awaitSelected("Matrix")
 
             send("gsd://capture")
-            rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isNotEmpty() }
 
             assertEquals(Lifecycle.State.RESUMED, scenario.state)
         }

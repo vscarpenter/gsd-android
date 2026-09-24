@@ -36,15 +36,15 @@ class LaunchIntentTest {
         val capture = Intent(Intent.ACTION_VIEW, Uri.parse("gsd://capture"), app, MainActivity::class.java)
 
         ActivityScenario.launch<MainActivity>(capture).use { scenario ->
-            rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isNotEmpty() }
             rule.onNodeWithContentDescription("Close sheet").performSemanticsAction(SemanticsActions.OnClick)
-            rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isEmpty() }
+            rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isEmpty() }
             rule.onNode(navItem("Settings")).performClick()
 
             scenario.recreate() // what a rotation does
             rule.waitForIdle()
 
-            rule.onAllNodesWithText("New Task").assertCountEquals(0)
+            rule.onAllNodesWithText("New task").assertCountEquals(0)
             rule.onNode(navItem("Settings")).assertIsSelected()
         }
     }

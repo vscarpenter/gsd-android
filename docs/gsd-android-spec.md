@@ -205,7 +205,7 @@ Theme preference: **System / Light / Dark** (user-selectable in Settings; follow
 
 ### 5.4 Typography
 
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 21 and 35
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 21 and 35, and the Copy section
 
 Exactly **two typefaces**:
 
@@ -216,7 +216,7 @@ Exactly **two typefaces**:
 | Role | Face | Size / weight | Used for |
 |---|---|---|---|
 | Large Title | Newsreader | 34sp / semibold | top-app-bar expanded titles |
-| Title | Newsreader | 28sp / semibold | sheet titles ("New Task"), onboarding |
+| Title | Newsreader | 28sp / semibold | sheet titles ("New task"), onboarding |
 | Quadrant Title | Newsreader | 20sp / semibold | quadrant headers (in the quadrant pigment), empty-state headlines |
 | Card title | Sans | 17sp / semibold | task titles |
 | Body | Sans | 17sp / regular | editor fields, body copy |
@@ -226,7 +226,7 @@ Exactly **two typefaces**:
 
 Dashboard stat numerals are Newsreader. Use `sp` everywhere (respect user font scale; test at 2× / non-linear scaling). Tabular (monospaced) digits for counts, timers, and subtask progress. Card title wraps to 2 lines (unlimited at accessibility scales, meaning font scale 1.5 and up: the steps Android 14 added above the old 1.3 maximum); description 2 lines; metadata row 1 line. Bottom-bar labels stay on one line and end in an ellipsis rather than break mid-word.
 
-Brand lockup in the top app bar: 24dp app mark + "GSD" (sans, bold, ink) + "·" (ink3) + screen name (sans, semibold, ink2, one line). Every screen has this bar, at least 56dp tall. Matrix adds its actions (§6.1). A pushed screen (a smart view, Archive, Trash, the smart view editor, Sync History, Feedback, the Field Guide) shows an Up arrow ("Navigate up") in place of the mark, Archive and Trash carry their buttons in the bar, and a smart view's bar shows the view's name. TalkBack reads the lockup as one heading and skips the dot.
+Brand lockup in the top app bar: 24dp app mark + "GSD" (sans, bold, ink) + "·" (ink3) + screen name (sans, semibold, ink2, one line). Every screen has this bar, at least 56dp tall. Matrix adds its actions (§6.1). A pushed screen (a smart view, Archive, Trash, the smart view editor, Sync history, Feedback, the Field Guide) shows an Up arrow ("Navigate up") in place of the mark, Archive and Trash carry their buttons in the bar, and a smart view's bar shows the view's name. TalkBack reads the lockup as one heading and skips the dot.
 
 ### 5.5 Shape & spacing
 
@@ -338,6 +338,16 @@ The brand mark is a **2×2 grid of four rounded pigment tiles with a white check
 - **Loading skeletons:** first-frame silhouettes shown while a surface's task state is still `null` (§8.1, §8.13, §8.15) — never a spinner, never a minimum display time. Built from one primitive, `SkeletonBlock(height, width = null, shape = GsdShapes.small)`: a `sunken`-filled rounded rectangle that fills the available width when `width` is null. `Modifier.skeletonShimmer()` sweeps **one** light band across the whole composition left→right — band width 50 % of the container, a horizontal gradient `transparent → surface @ 75 % → transparent` (the raised `surface` tone, not white: a white band reads as glare on warm paper and vanishes in dark mode), **1600 ms** linear sweep with a **600 ms** delay before each pass (including the first, so layout settles before anything moves), repeating. The band is masked to the placeholder shapes (`CompositingStrategy.Offscreen` + `BlendMode.SrcIn`) so it never streaks across gaps, and it draws only — it never intercepts touch. Apply it **once**, to the outermost skeleton container. Every skeleton is **one** semantics node (`clearAndSetSemantics`) with `contentDescription` "Loading". Under reduced motion the band is not drawn at all — the skeleton is a static silhouette (§13.3).
 - **Onboarding:** 4 paged, skippable, editorial screens on `paper` (§8.19).
 
+### 5.11 Copy
+
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy section
+
+- **Case.** Sentence case for everything a person reads: screen and sheet titles, buttons, rows, menu items, chips, and card and section headings ("New task", "Sync now", "Delete account…", "Completion by quadrant"). Names keep their capitals: GSD, Smart View, the Field Guide, the quadrant names (Do First, Schedule, Delegate, Eliminate), and the built-in smart view names (Today's Focus, This Week, …).
+- **One name per action.** Marking a task done is **Complete** in the row menu, the bulk bar, and the notification. The irreversible delete is **Delete permanently** in Archive and in Trash.
+- **Punctuation.** No em dashes in copy; a comma, colon, or period does the job. The one "—" a person sees is the rings legend's no-data value (§8.15), a value rather than punctuation. Quotes and apostrophes are straight.
+- **Plurals.** A count inside a sentence uses a plurals resource: "1 day left", "Delete 1 task?", "in 3 days".
+- **Resources.** Every string a person reads lives in `strings.xml`: the palette's command labels, which the palette also matches on (§8.14), the card's due labels, the share sheet's fallback title (§12.2), and validation messages. A validation error's model message is for logs and tests; the editor, the capture bar, and the share sheet show the app's own sentence for it, and a too-long tag is named in it. No surface shows an exception's message.
+
 ---
 
 ## 6. Information Architecture & Navigation
@@ -348,7 +358,7 @@ The app adapts by **window size class**, the Android analog of the iPhone/iPad s
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 43
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 21 and the follow-up to finding 43
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 21 and the follow-up to finding 43, and the Copy section
 
 A **bottom navigation bar** with four destinations:
 
@@ -406,8 +416,9 @@ There is one `MainActivity`. Its launch mode is `singleTask`, so a link, a widge
 ### 6.5 App shortcuts (launcher long-press)
 
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 46
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy section
 
-Two static shortcuts: **"New Task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`. Each has an adaptive icon, a Rust glyph (a plus; the crosshair) on paper, since without one the launcher drew blank circles (review finding 28). The system gives a static shortcut `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`, and the app cannot change that. A shortcut fired while GSD is on screen therefore destroys the running `MainActivity` and starts a fresh one, which discards an open draft. For a moment both copies exist, and the old one is paused before the new one is created. That ordering is what the §6.7 RESUMED gates rely on: the fresh copy takes the route, and the paused copy takes nothing.
+Two static shortcuts: **"New task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`. Each has an adaptive icon, a Rust glyph (a plus; the crosshair) on paper, since without one the launcher drew blank circles (review finding 28). The system gives a static shortcut `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`, and the app cannot change that. A shortcut fired while GSD is on screen therefore destroys the running `MainActivity` and starts a fresh one, which discards an open draft. For a moment both copies exist, and the old one is paused before the new one is created. That ordering is what the §6.7 RESUMED gates rely on: the fresh copy takes the route, and the paused copy takes nothing.
 
 ### 6.6 Hardware keyboard shortcuts
 
@@ -738,7 +749,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 49
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 22 and 26
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 22 and 26, and the Copy section
 
 **Behavior.** Full-text **case-insensitive substring** search across title, description, tags, and subtask titles, live-updating. The command palette matches both **tasks** and **commands** — substring matching (not fuzzy), sectioned results: **Tasks · Smart Views · Actions · Navigation**. Actions: New task, Toggle show completed, Toggle theme, **Send feedback** (navigates to the feedback screen, §8.17 — both siblings expose feedback from the palette). Navigation: Matrix, Dashboard, Archive, Settings, and each smart view.
 
@@ -757,6 +768,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 ### 8.15 Analytics dashboard
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy section
 
 **Behavior (authoritative metric set — computed from the current task set, on demand, off the main thread):**
 - **Stat grid:** Active tasks, Completed tasks, Completion rate (completed ÷ total), total Tracked time. **No streaks, no badges — deliberately removed; do not add.**
@@ -772,7 +784,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 
 **Android reimagining.** A stat-card grid (Newsreader numerals) + charts drawn in Compose (Canvas or a light chart lib) using quadrant pigments only; graceful empty state ("No stats yet") when there are no tasks.
 
-**"Completion by Quadrant" rings card.** Positioned after the quadrant-distribution bars and before Top tags. Card chrome: `surface` fill, 1dp `hairline` border, `GsdShapes.card` (22dp), 18dp padding — the StatCard treatment at card radius; title "Completion by Quadrant" in `GsdType.quadrantTitle`, `ink`.
+**"Completion by quadrant" rings card.** Positioned after the quadrant-distribution bars and before Top tags. Card chrome: `surface` fill, 1dp `hairline` border, `GsdShapes.card` (22dp), 18dp padding — the StatCard treatment at card radius; title "Completion by Quadrant" in `GsdType.quadrantTitle`, `ink`.
 
 - **Geometry.** Outer size **196dp**, ring width **13dp**, gap **5dp**; ring `i` (0 = Q1, outermost) has diameter `196 − i × 36` → 196, 160, 124, 88. Each ring draws a full-circle track in the quadrant **wash**, then a value arc in the quadrant **accent**, round caps, starting at 12 o'clock and sweeping clockwise by `completionRate × growth × 360°`. All four on one `Canvas`.
 - **Center.** The overall rate via `Analytics.percent(stats.completionRate)` in `GsdType.title` (Newsreader, `tnum`), `ink`, single line, auto-shrunk to fit the ~67dp hole; beneath it the literal lowercase "complete" in `GsdType.caption`, `ink3`.
@@ -798,7 +810,7 @@ Completed tasks never appear here (`upcoming` is active-only), so they never car
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 >
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 39 and 40
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 39 and 40, and the Copy section
 
 **Export, import, and erase finish once started.** They run in the app's process-wide scope, not the screen's, so a rotation or a tab switch cannot cancel them midway. Each reports its outcome once, in a snackbar the next time Settings is on screen. The snackbar sits over the Settings scroll, so it shows wherever the user has scrolled.
 
@@ -828,7 +840,7 @@ Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet. Th
 
 Both cross-platform fixtures (`ios-backup-export.json`, `web-backup-2.1.0.json`, byte-identical copies at `core/model/src/test/resources/fixtures/cross-platform/`) round-trip through decode, count validation, and re-export/re-import in the JVM suite.
 
-**Erase all data.** A guarded destructive flow: type **"RESET"** to confirm, with an export-first prompt. Clears tasks, archive, **trash**, custom views, sync queue, pins, archive settings, the pull cursor (§9.4), **and the saved feedback draft together with its submission id**; cancels reminders; **keeps theme, onboarding flags, and the share-title preference**. Both Erase All Data and *Delete account & erase everything* (§8.21) clear the feedback draft in the same step as the local wipe — a reset must not resurrect a draft. Clearing the trash on erase matches iOS (erase "must mean all of it"); the web's `resetEverything` currently omits `deletedTasks`, an upstream bug, not behavior Android copies. If signed in, it erases **everywhere**: all remote records are deleted first (§9.8); only after remote success does the local wipe proceed. If the remote step fails, nothing is erased, and Settings says so and asks the user to check the connection and try again.
+**Erase all data.** A guarded destructive flow: type **"RESET"** to confirm, with an export-first prompt. Clears tasks, archive, **trash**, custom views, sync queue, pins, archive settings, the pull cursor (§9.4), **and the saved feedback draft together with its submission id**; cancels reminders; **keeps theme, onboarding flags, and the share-title preference**. Both Erase all data and *Delete account & erase everything* (§8.21) clear the feedback draft in the same step as the local wipe — a reset must not resurrect a draft. Clearing the trash on erase matches iOS (erase "must mean all of it"); the web's `resetEverything` currently omits `deletedTasks`, an upstream bug, not behavior Android copies. If signed in, it erases **everywhere**: all remote records are deleted first (§9.8); only after remote success does the local wipe proceed. If the remote step fails, nothing is erased, and Settings says so and asks the user to check the connection and try again.
 
 ### 8.17 Settings
 
@@ -836,25 +848,25 @@ Both cross-platform fixtures (`ios-backup-export.json`, `web-backup-2.1.0.json`,
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 >
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 20 and 29
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 20 and 29, and the Copy section
 
 Sections in order (Material list groups). Every tappable row is at least 48dp tall, and no option marks its choice with a text glyph such as " ✓":
 
 1. **Appearance** — Theme (System/Light/Dark), three radio rows, each a whole 48dp target with the radio 12dp from its label; Show Completed Tasks.
 2. **Sharing** — "Fetch titles for shared links" (default **off**; footer explains it performs a network fetch).
-3. **Account** — signed out: Sign in with Google / Apple / GitHub as outlined pill buttons (the onboarding's, §8.19), not bare text links + a one-line privacy hint; signed in: account email, a **two-tier Apple note** when the session's provider is Apple (§10.4) — relay address (`…@privaterelay.appleid.com`): "Signed in with a private relay email — this is a separate account from your web tasks."; any other Apple sign-in: "Signed in with Apple. If you use Google or GitHub on the web, that’s a different account and won’t show the same tasks." — sync status ("Synced · N pending"), health message when unhealthy, **Sync Now**, **Sync History** (screen: totals + the ~50 most recent entries with status/counts/duration), **Sign Out**, **Delete Account…** (§8.21). There is deliberately **no** sync on/off toggle — signing in *is* enabling sync.
-4. **Archive** — auto-archive toggle; "Archive after" 30/60/90 as chips ("30 days") with a selected state; **Archive Now** as its own row, apart from the day chips + status line.
+3. **Account** — signed out: Sign in with Google / Apple / GitHub as outlined pill buttons (the onboarding's, §8.19), not bare text links + a one-line privacy hint; signed in: account email, a **two-tier Apple note** when the session's provider is Apple (§10.4) — relay address (`…@privaterelay.appleid.com`): "Signed in with a private relay email. This is a separate account from your web tasks."; any other Apple sign-in: "Signed in with Apple. If you use Google or GitHub on the web, that's a different account and won't show the same tasks." — sync status ("Synced · N pending"), health message when unhealthy, **Sync now**, **Sync history** (screen: totals + the ~50 most recent entries with status/counts/duration), **Sign out**, **Delete account…** (§8.21). There is deliberately **no** sync on/off toggle — signing in *is* enabling sync.
+4. **Archive** — auto-archive toggle; "Archive after" 30/60/90 as chips ("30 days") with a selected state; **Archive now** as its own row, apart from the day chips + status line.
 5. **Notifications** — Enable Reminders; Default Reminder (15m/30m/1h/2h/1d) as chips in the editor's words ("15 minutes before") with a selected state; Sound; Quiet Hours toggle + from/to pickers (default 22:00–07:00): "Quiet from" and "Quiet until" rows print the time in the user's clock, 12 or 24 hours as the device is set, and each opens a time picker; system-permission status row with a contextual **Enable notifications** / **Open system settings** action.
-6. **Data & Storage** — Export (prepare → share/save); Import (file picker → Merge/Replace choice); Erase All Data (§8.16).
+6. **Data & storage** — Export (prepare → share/save); Import (file picker → Merge/Replace choice); Erase all data (§8.16).
 7. **Feedback** — anonymous, opt-in, no auth header, no identifiers beyond the payload: sentiment toggle (up/down), category chips (idea/praise/gripe/bug), message field (≤1000 chars, live count near the limit), a roadmap vote checklist (Android's 8 slugs: `natural-language-dates, calendar-sync, task-templates, weekly-review, focus-timer, task-notes, shared-lists, wear-os`), and a **"What gets sent" preview** rendering the literal payload object, built by the same pure builder that produces the request body so preview and payload cannot drift. The draft persists locally (DataStore) and clears on success; Send is disabled while the draft is empty. Confirmation is calm ("Thanks — sent."). Wire contract: `POST https://api.vinny.io/api/collections/feedback/records`, no Authorization header, no cookies; exactly 7 snake_case keys (`submission_id`, `sentiment`, `category`, `message`, `votes`, `app_version`, `client_submitted_at` — limits in Appendix B), pinned by an exact-keys test. A 2xx is success; a 400 whose body has `data.submission_id.code == "validation_not_unique"` (a duplicate retry of the same draft) also collapses to success.
 
    **Failure is tiered, and every tier keeps the draft *and its submission id*** so a retry collapses server-side rather than double-filing:
 
    | Condition | Kind | Copy |
    |---|---|---|
-   | Transport error (`IOException`) | `OFFLINE` | "Couldn't reach the server. Your draft is saved — try again when you're online." |
-   | HTTP 429 — the PocketBase rate limit **or** the server hook's quota response | `RATE_LIMITED` | "Too many submissions right now. Your draft is saved — try again later." |
-   | HTTP ≥ 500, including the hook's fail-closed 500 | `SERVER` | "The server had a problem. Your draft is saved — try again shortly." |
+   | Transport error (`IOException`) | `OFFLINE` | "Couldn't reach the server. Your draft is saved. Try again when you're online." |
+   | HTTP 429 — the PocketBase rate limit **or** the server hook's quota response | `RATE_LIMITED` | "Too many submissions right now. Your draft is saved. Try again later." |
+   | HTTP ≥ 500, including the hook's fail-closed 500 | `SERVER` | "The server had a problem. Your draft is saved. Try again shortly." |
    | Any other non-2xx, including a 400 that is **not** the duplicate | `REJECTED` | "The server refused this submission. Your draft is saved." |
 
    Server-side facts, stated so nobody re-derives them from client behavior: the anonymous-feedback hook enforces 30 requests/minute, a 10,000-record aggregate quota, and **180-day retention**; `client_submitted_at` is an untrusted client clock kept for context only. The disclosure copy needs no change — it already states exactly what is sent, and retention is a server policy, not a payload field.
@@ -880,18 +892,18 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48 (review of #18)
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 31
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 31, and the Copy section
 
 **Behavior.** Deleting an active task moves the full record to the trash store with `deletedAt = now`, rather than hard-deleting it. The remote `delete` is enqueued *before* the local move, in the same transaction — the enqueue-before-write invariant, extended; if the enqueue fails, the delete aborts. The store invariant is now three-state: a task id lives in exactly one of `tasks`, `archivedTasks`, `deletedTasks`.
 
 - **Retention: 30 days**, using a **start-of-day (local) cutoff 30 days back** — following iOS; the web uses a rolling `now − 30 d` instant instead, an accepted per-client divergence. Purge deletes strictly older than the cutoff (a row whose `deletedAt` sits exactly on it is kept — strict `<`), running on launch and on the periodic maintenance sweep. Purge enqueues nothing.
 - **Restore** re-activates the record **with its original timestamps preserved** — a faithful undo, matching both siblings — and **enqueues `create`**, safe because the remote record was already deleted at trash time (no LWW contest). Reminders for the restored task are rescheduled.
-- **Delete forever** (single row) and **Empty trash** enqueue nothing — the remote record was already deleted when the task entered the trash.
+- **Delete permanently** (single row) and **Empty trash** enqueue nothing — the remote record was already deleted when the task entered the trash.
 - Trash contents **never sync** (like the archive): a remote delete arriving via SSE/reconcile removes the local active row directly, without creating a local trash entry — only the deleting device holds the recoverable copy.
 - Archiving is unaffected — a separate store; archive is for completed history, trash for deletions. Restoring from trash returns to active, never to archive.
-- Erase All Data clears the trash too (§8.16).
+- Erase all data clears the trash too (§8.16).
 
-**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete forever (trailing, confirmed by a dialog titled `Delete "<title>" forever?` over "This can't be undone."), a multi-select bulk bar (Restore / Delete forever), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
+**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", "1 day left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete permanently (trailing, confirmed by a dialog titled `Delete "<title>" permanently?` over "This can't be undone."), a multi-select bulk bar (Restore / Delete permanently), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
 
 ### 8.21 Account switching, account deletion, recovery
 
@@ -899,7 +911,7 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 >
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S3
 >
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, follow-up S3 and finding 40
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, follow-up S3 and finding 40, and the Copy section
 
 - **Account switch:** when a sign-in resolves to a **different** account than the last known owner *and* local active tasks exist, prompt: **"Different account"** — *Keep my tasks* (merge: local tasks seed-upload into the new account), *Start fresh (erase tasks on this device)* (destructive), *Cancel* (signs back out). Archived tasks never trigger the prompt (they don't sync).
   - **What the decision does.** `SyncCoordinator.confirmOwner` reads the previous owner, erases local data for *Start fresh*, runs the pure `OwnerChange.adopt` in `:core:sync`, and records the new owner last. A different owner **clears the pull cursor**, so the new account is listed in full. *Keep my tasks* also **seeds the queue once**: every active task with no pending or failed row gets one `UPDATE` row carrying the task as stored, with no restamp. Those rows make reconciliation `PROTECT` the tasks until the push lands them, and last-write-wins still decides against anything already in the new account. A same-owner or first sign-in changes nothing, so a task deleted on another device while this one was signed out still deletes here.
@@ -908,7 +920,7 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 - **Delete account:** confirmation offering *Delete & keep tasks on this device* or *Delete & erase everything* (+ Cancel), warning it's permanent and removes every synced task. The deletion itself is **route-first with a bounded fallback**, orchestrated by a pure `AccountDeleter` in `:core:sync` over the `SyncRemote` plus a small `AccountRemote` port (`deleteAccountViaRoute()`, `deleteUser(id)`), so the whole outcome matrix runs on JVM fakes:
   1. **Preferred:** `DELETE /api/gsd/account` with the auth header. **`204`** means the server erased every task and the user in one transaction — proceed to sign-out (and local erase, if that option was chosen). **Only a `404` falls back** (the route is not deployed — true of `api.vinny.io` today, so the fallback is the live production path). Any other failure, **including a transport error, stops with nothing changed locally.**
   2. **Fallback:** up to **3 passes** of *enumerate* (under §9.4's bounded, fail-closed listing rules) → delete each record with the existing ~100 ms throttle. The **user record (`DELETE /api/collections/users/records/{id}`) is deleted only after a complete listing comes back empty**, then the token is cleared. Retrying is therefore always safe: the user record is never deleted before the task wipe finishes.
-  3. **The outcome is surfaced, always** — the call used to be wrapped in a silent `runCatching`. The outcome line renders **outside the signed-in branch** of the Account group, so it survives the sign-out that a successful deletion performs and the user still sees what happened: listing failed before any delete → "Couldn't list your synced tasks, so nothing was deleted. Check your connection and try again."; some tasks deleted then auth rejected → "Some synced tasks were deleted, but your account is still there. Sign in again, then run Delete account once more."; some tasks deleted then any other failure, or three passes exhausted → "Some synced tasks were deleted, but your account is still there. Try again to finish deleting it."; cloud deleted but the local erase threw → "Cloud account deleted, but local erase was incomplete. Use Erase All Data to retry local cleanup." Success keeps the unchanged sign-out flow. *Delete & erase everything* also clears the saved feedback draft (§8.16).
+  3. **The outcome is surfaced, always** — the call used to be wrapped in a silent `runCatching`. The outcome line renders **outside the signed-in branch** of the Account group, so it survives the sign-out that a successful deletion performs and the user still sees what happened: listing failed before any delete → "Couldn't list your synced tasks, so nothing was deleted. Check your connection and try again."; some tasks deleted then auth rejected → "Some synced tasks were deleted, but your account is still there. Sign in again, then run Delete account once more."; some tasks deleted then any other failure, or three passes exhausted → "Some synced tasks were deleted, but your account is still there. Try again to finish deleting it."; cloud deleted but the local erase threw → "Cloud account deleted, but local erase was incomplete. Use Erase all data to retry local cleanup." Success keeps the unchanged sign-out flow. *Delete & erase everything* also clears the saved feedback draft (§8.16).
 - **Database-unavailable recovery:** if the local DB cannot open even after recovery attempts, show a calm full-screen fallback — "Couldn't open your tasks", reassurance (data not deleted; restart; free storage), Contact Support — and **never** start sync or observation against a broken store.
 
 ---
@@ -1131,7 +1143,7 @@ One periodic **WorkManager** job (~hourly, battery-friendly constraints): auto-a
 
 ### 12.2 Share target (the Share-Extension analog)
 
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 9 and 41, and "Also worth a look" (styled shared text)
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 9 and 41, and "Also worth a look" (styled shared text), and the Copy section
 
 An `ACTION_SEND` (`text/plain`) share target: sharing a URL or text from any app opens a compact **"Add to GSD"** compose sheet. The activity's window is see-through (`Theme.Gsd.Share`) and the sheet is a Material bottom sheet that scrolls, so it opens over the sharing app, clear of the status bar and the keyboard, in the in-app theme. `EXTRA_TEXT` and `EXTRA_SUBJECT` are read as `CharSequence`, because some apps share styled text and `getStringExtra` drops it.
 - Editable **Title** — prefilled from shared text; a bare URL takes the sharing app's `EXTRA_SUBJECT` as its title when that is present and is not itself an address (browsers put the page title there, as iOS's share sheet carries it), and otherwise derives a readable title from the URL (host/path words). Empty → **"Review link below"**. Clamped to 80 UTF-16 units, never cutting a surrogate pair in half.

@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
@@ -157,7 +158,12 @@ fun BulkActionBar(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text(stringResource(R.string.bulk_delete_confirm, selectedCount), style = GsdType.cardTitle) },
+            title = {
+                Text(
+                    pluralStringResource(R.plurals.bulk_delete_confirm, selectedCount, selectedCount),
+                    style = GsdType.cardTitle,
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { confirmDelete = false; onRun(BulkOp.Delete) }) {
                     Text(stringResource(R.string.bulk_delete), color = gsd.alert)

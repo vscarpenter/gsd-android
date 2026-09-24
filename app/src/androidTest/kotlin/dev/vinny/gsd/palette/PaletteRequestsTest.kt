@@ -39,14 +39,14 @@ class PaletteRequestsTest {
     fun aNewTaskRequestOpensTheEditorOnlyOnce() {
         container.palette.requestNewTask() // what Ctrl+N and gsd://capture send
 
-        rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isNotEmpty() }
         // The sheet covers the scrim's center on a small screen, so a touch there would miss.
         rule.onNodeWithContentDescription("Close sheet").performSemanticsAction(SemanticsActions.OnClick)
-        rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isEmpty() }
+        rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isEmpty() }
 
         leaveTheMatrixTabAndReturn()
 
-        rule.onAllNodesWithText("New Task").assertCountEquals(0)
+        rule.onAllNodesWithText("New task").assertCountEquals(0)
     }
 
     @Test

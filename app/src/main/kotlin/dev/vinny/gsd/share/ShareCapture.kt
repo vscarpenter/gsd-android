@@ -8,7 +8,8 @@ data class ShareDraft(val title: String, val description: String)
  * Shared-text → task draft (spec §12.2): URLs sanitized by the §8.2 rules move
  * to the description; a bare URL takes the sharing app's subject as its title,
  * as iOS takes the page title, or derives a readable one from host + path
- * words; the title is the one explicitly-clamped input (80 chars).
+ * words; the title is the one explicitly-clamped input (80 chars). With nothing
+ * to title it by, the title is blank, and the sheet fills in its own words.
  */
 object ShareCapture {
     private val urlPattern = Regex("""https?://\S+""")
@@ -30,7 +31,7 @@ object ShareCapture {
         val title = when {
             remainder.isNotEmpty() -> remainder
             urls.isNotEmpty() -> pageTitle ?: deriveTitle(urls.first())
-            else -> "Review link below"
+            else -> ""
         }
         return ShareDraft(
             title = clampTitle(title),
@@ -64,6 +65,6 @@ object ShareCapture {
         val host = withoutScheme.substringBefore('/')
         val path = withoutScheme.substringAfter('/', "")
         val words = separators.split(path).filter { it.isNotBlank() }
-        return (listOf(host) + words).joinToString(" ").trim().ifEmpty { "Review link below" }
+        return (listOf(host) + words).joinToString(" ").trim()
     }
 }
