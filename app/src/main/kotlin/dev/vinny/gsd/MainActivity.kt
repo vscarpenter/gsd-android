@@ -21,9 +21,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,16 +63,22 @@ class MainActivity : ComponentActivity() {
                 ?.let { container.palette.pendingRoute.value = it }
         }
         if (data?.scheme == "gsd" && data.host == "oauth-callback") {
-            lifecycleScope.launch {
+            // The app's scope: a rotation during the token exchange must not cancel the sign-in (finding 40)
+            val appContext = applicationContext
+            container.appScope.launch {
                 try {
                     container.syncCoordinator.completeOAuthCallback(data.toString())
+                } catch (cancelled: kotlin.coroutines.cancellation.CancellationException) {
+                    throw cancelled
                 } catch (failure: Exception) {
                     android.util.Log.w("GsdAuth", "oauth callback failed: ${failure.javaClass.simpleName}")
-                    android.widget.Toast.makeText(
-                        this@MainActivity,
-                        getString(R.string.sign_in_error),
-                        android.widget.Toast.LENGTH_LONG,
-                    ).show()
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            appContext,
+                            appContext.getString(R.string.sign_in_error),
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    }
                 }
             }
         }
@@ -109,7 +116,8 @@ class MainActivity : ComponentActivity() {
             GsdTheme(darkTheme = darkTheme) {
                 val switchPrompt by container.syncCoordinator.switchPrompt.collectAsStateWithLifecycle()
                 switchPrompt?.let { pendingAuth ->
-                    val scope = rememberCoroutineScope()
+                    // The app's scope, so a rotation cannot cancel an account switch midway (finding 40)
+                    val scope = container.appScope
                     androidx.compose.material3.AlertDialog(
                         onDismissRequest = { scope.launch { container.syncCoordinator.cancelSwitch() } },
                         title = { Text(stringResource(R.string.switch_title)) },

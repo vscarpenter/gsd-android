@@ -1,6 +1,7 @@
 package dev.vinny.gsd
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.preferencesDataStore
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.ArchiveStore
@@ -11,6 +12,10 @@ import dev.vinny.gsd.store.SmartViewStore
 import dev.vinny.gsd.store.TaskStore
 import dev.vinny.gsd.store.TrashStore
 import java.time.Clock
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 
 private val Context.dataStore by preferencesDataStore(name = "gsd_prefs")
@@ -21,6 +26,24 @@ private val Context.dataStore by preferencesDataStore(name = "gsd_prefs")
  */
 class AppContainer(context: Context) {
     val clock: Clock = Clock.systemUTC()
+
+    /**
+     * Work for the life of the process: sync, reminders, and a user's import, export, erase, or
+     * account change, which a rotation must not cancel midway (review finding 40). A failure there is
+     * logged, never fatal: a widget write or a purge that throws must not take the app down. The log
+     * names only the exception's class, because a message can carry task text (spec §13.4).
+     */
+    val appScope: CoroutineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, error ->
+            Log.e("GsdApp", "background work failed: ${error.javaClass.simpleName}")
+        },
+    )
+
+    /** What that work has to tell the user, shown once by Settings, even after a trip elsewhere. */
+    val settingsMessages = dev.vinny.gsd.palette.OneShotRequest<String>()
+
+    /** The last account deletion's outcome. It stays until the next sign-in attempt (spec §8.21). */
+    val accountDeletionMessage = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
 
     val db: GsdDatabase = GsdDatabase.build(context)
 

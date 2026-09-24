@@ -226,6 +226,10 @@
     <string name="import_merge">Merge</string>
     <string name="import_replace">Replace</string>
     <string name="import_result">Imported %1$d, skipped %2$d</string>
+    <string name="import_failed">Couldn\'t read that file. Choose a GSD export and try again.</string>
+    <string name="import_too_large">That file is too large to import. The limit is 10 MB and 10,000 tasks.</string>
+    <string name="export_failed">Couldn\'t save the export. Try another location.</string>
+    <string name="erase_remote_failed">Couldn\'t erase your synced tasks, so nothing was erased. Check your connection and try again.</string>
     <string name="erase_title">Erase all data?</string>
     <string name="erase_body">Type RESET to confirm. Consider exporting first — this clears every task, the archive, and custom views.</string>
     <string name="erase_confirm">Erase</string>

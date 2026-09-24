@@ -42,12 +42,15 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     val authProvider by container.prefs.lastAuthProvider.collectAsStateWithLifecycle(initialValue = null)
     var deleteOpen by remember { mutableStateOf(false) }
     var signInError by remember { mutableStateOf<String?>(null) }
-    var deletionMessage by remember { mutableStateOf<Int?>(null) }
+    val deletionMessage by container.accountDeletionMessage.collectAsStateWithLifecycle()
 
     fun deleteAccount(eraseLocal: Boolean) {
         deleteOpen = false
-        scope.launch {
-            deletionMessage = when (container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = eraseLocal)) {
+        // The app's scope, so a rotation cannot cancel a deletion midway or lose its outcome (finding 40)
+        container.appScope.launch {
+            container.accountDeletionMessage.value = when (
+                container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = eraseLocal)
+            ) {
                 DeleteAccountOutcome.Deleted -> null
                 DeleteAccountOutcome.ListingFailed -> R.string.account_delete_listing_failed
                 DeleteAccountOutcome.PartialAuthRejected -> R.string.account_delete_partial_auth
@@ -60,7 +63,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     fun launchProvider(provider: String) {
         scope.launch {
             signInError = null
-            deletionMessage = null
+            container.accountDeletionMessage.value = null
             try {
                 val pendingAuth = container.authManager.beginOAuth(provider)
                 CustomTabsIntent.Builder().build().launchUrl(context, pendingAuth.url.toUri())
@@ -102,7 +105,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
             AccountAction(R.string.account_sync_now) { container.syncCoordinator.requestSync(true) }
             AccountAction(R.string.account_sync_history, onClick = onOpenHistory)
             AccountAction(R.string.account_sign_out) {
-                scope.launch { container.syncCoordinator.signOut() }
+                container.appScope.launch { container.syncCoordinator.signOut() }
             }
             AccountAction(R.string.account_delete, tint = gsd.alert) { deleteOpen = true }
         }
