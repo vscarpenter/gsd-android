@@ -8,6 +8,8 @@ import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.prefs.PendingSignIn
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SyncOp
+import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
@@ -40,6 +42,8 @@ class SyncCoordinator(
     private val sse: SseClient,
     private val scope: CoroutineScope,
     private val prefs: GsdPrefs,
+    /** In noBackupFilesDir, the one place a phone-to-phone transfer never copies (see [ensureOwnDeviceId]). */
+    private val deviceMarker: File = File(context.noBackupFilesDir, "device-identity"),
 ) {
     private val foreground = MutableStateFlow(false)
     private val syncRequests = MutableSharedFlow<Boolean>(extraBufferCapacity = 16)
@@ -55,6 +59,7 @@ class SyncCoordinator(
 
     fun start() {
         scope.launch {
+            ensureOwnDeviceId() // first: sync and realtime only begin once this launch signs in, below
             tokens.warm()
             val userId = auth.currentUserId()
             val previous = lastOwnerId()
@@ -186,6 +191,20 @@ class SyncCoordinator(
             is SseDecision.ApplyDelete -> local.deleteFromRemote(event.record.taskId)
             is SseDecision.Drop -> Unit
         }
+    }
+
+    /**
+     * Gives this install its own device id before anything reads it (spec §9.8). Without the marker,
+     * the data is new or came from another phone, which keeps the old id. Sharing it, each phone
+     * dropped the other's realtime events as echoes until the next pull (review finding 42).
+     */
+    private suspend fun ensureOwnDeviceId() {
+        if (deviceMarker.exists()) return
+        db.syncMetadataDao().get()?.let { row ->
+            db.syncMetadataDao().upsert(row.copy(deviceId = UUID.randomUUID().toString()))
+        }
+        deviceMarker.parentFile?.mkdirs()
+        deviceMarker.createNewFile()
     }
 
     /** Set when a sign-in resolves to a different owner with local tasks present (spec §8.21). */

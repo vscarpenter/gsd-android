@@ -985,7 +985,10 @@ Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (c
 
 ### 9.8 Device identity & remote erase
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 42
+
 - On first run generate a stable `deviceId` (UUID) + a human `deviceName` (model); persist locally. `deviceId` populates `device_id` on pushes (echo filtering) and sync history.
+- **Moved data gets its own id.** The id lives in the database, and a phone-to-phone transfer (§13.4) copies the database. A marker file in `noBackupFilesDir`, which no transfer copies, says this install already has its own id. Without it, `SyncCoordinator.start` replaces the stored id before anything reads it, and writes the marker. Two phones with one id each dropped the other's realtime events as echoes until the next pull.
 - **Erase-all-remote** (used by erase-everywhere and account deletion): list the full remote index fresh, `DELETE` every record (~100 ms throttle), and only clear the local queue after **all** deletes succeed. A dead session throws (so callers refuse to wipe local data on a false "success"); signed-out is a silent no-op.
 
 ---
@@ -1128,7 +1131,9 @@ Cold start to interactive quickly (baseline profiles); the matrix smooth with hu
 
 ### 13.4 Privacy & security
 
-Local-only by default; **no analytics/tracking**. Tokens Keystore-encrypted, never logged. HTTPS only. The §8.2 URL sanitizer is security-relevant — replicate exactly. Logging is structured with secret/content masking: never log task content or tokens.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 16
+
+Local-only by default; **no analytics/tracking**. Tokens Keystore-encrypted, never logged. **No cloud backup:** `allowBackup="false"`, and the data extraction rules exclude every domain from cloud backup, so the Settings line "Your tasks never leave this device unless you sign in to sync" holds. A phone-to-phone transfer is the user moving their own data, so it carries tasks and settings, but never the sign-in token (its Keystore key stays on the old phone), and the device id is replaced on arrival (§9.8). HTTPS only. The §8.2 URL sanitizer is security-relevant — replicate exactly. Logging is structured with secret/content masking: never log task content or tokens.
 
 ### 13.5 Error handling
 

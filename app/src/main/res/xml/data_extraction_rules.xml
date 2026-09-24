@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Review findings 16 and 42 (spec §13.4). Tasks never leave this device unless the user signs in
+     to sync, so nothing goes to Google's cloud backup. A phone-to-phone transfer is the user moving
+     their own data, so it carries tasks and settings, but never the sign-in token: its Keystore key
+     stays on the old phone. The device id travels inside the database, and the new phone replaces it
+     on first launch (SyncCoordinator.ensureOwnDeviceId). -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="datastore/gsd_auth.preferences_pb" />
+    </device-transfer>
+</data-extraction-rules>
