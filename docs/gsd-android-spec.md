@@ -1044,12 +1044,13 @@ iOS pre-schedules every reminder with the system notification center; Android's 
 ### 11.2 Android mechanics
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 47
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 8 and "Also worth a look" (time zone changes)
 
-- `AlarmManager.setExactAndAllowWhileIdle` for fire times, with the **`SCHEDULE_EXACT_ALARM`** permission (user-grantable special access). If exact alarms are not permitted, degrade gracefully to inexact windows and say so in Settings — never silently fail.
+- `AlarmManager.setExactAndAllowWhileIdle` for fire times, with the **`SCHEDULE_EXACT_ALARM`** permission (user-grantable special access, denied by default on Android 14 and later). If exact alarms are not permitted, degrade gracefully to inexact windows and say so in Settings — never silently fail. Settings then shows "Exact alarms are off, so reminders may arrive a few minutes late." and an **Allow exact alarms** row that opens the system's page for GSD (`ACTION_REQUEST_SCHEDULE_EXACT_ALARM`). Settings re-reads both permissions each time it resumes, so the rows go away as soon as the user comes back with the permission granted.
 - A `BroadcastReceiver` posts the notification at alarm time: title = task title, body = description (if any), tap → `gsd://task/<id>`. The tap is that link and nothing else, so the router goes to Matrix first and the task opens from any tab (§6.4).
 - **Notification channels:** *Reminders* (default importance, sound) and *Reminders (silent)*; the in-app **Sound** toggle selects the channel (channel sound is user-owned on Android — the two-channel split is the honest mapping).
 - **Runtime permission:** `POST_NOTIFICATIONS` requested **contextually** (first reminder enablement / first due date with reminder), never at cold launch. Track `permissionAsked`; reflect OS state in Settings with a path to system settings when denied.
-- **Reboot / update:** alarms die on reboot — a `BOOT_COMPLETED` (+ `MY_PACKAGE_REPLACED`) receiver reschedules everything from the store.
+- **Reboot / update / system changes:** alarms die on reboot — a `BOOT_COMPLETED` (+ `MY_PACKAGE_REPLACED`) receiver reschedules everything from the store. The same receiver also takes `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` (a grant turns every inexact alarm exact), `TIMEZONE_CHANGED`, and `TIME_SET`, because a new zone or clock moves quiet-hours deferrals. A reschedule that fails is logged, never thrown.
 - Mark `notificationSent`/`lastNotificationAt` when a reminder posts (device-local, §4.7), through `TaskStore.markReminderSent` so the write never restamps `updatedAt` or queues a push.
 
 ### 11.3 Badges

@@ -256,7 +256,8 @@
     <string name="settings_quiet_hours">Quiet hours (22:00–07:00)</string>
     <string name="settings_notification_permission">Enable notifications</string>
     <string name="settings_notification_denied">Open system settings</string>
-    <string name="settings_exact_degraded">Exact alarms unavailable — reminders may arrive a little late.</string>
+    <string name="settings_exact_degraded">Exact alarms are off, so reminders may arrive a few minutes late.</string>
+    <string name="settings_exact_allow">Allow exact alarms</string>
     <string name="settings_account">Account</string>
     <string name="account_privacy_hint">Sync is optional. Without an account your tasks never leave this device.</string>
     <string name="sign_in_error">Couldn\'t start sign-in. Check your connection and try again.</string>
