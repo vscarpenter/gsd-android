@@ -63,7 +63,8 @@ class SyncEngine(
             reconcileDeletions(owner)
         } catch (failure: Exception) {
             error = failure.message ?: failure.javaClass.simpleName
-            notSignedIn = failure is NotSignedIn
+            // A token the server rejects is a dead session, however long before it expires (review S1)
+            notSignedIn = failure is NotSignedIn || failure is PocketBaseApi.Unauthorized
         }
         val failedCount = local.failedQueue().size
         val status = when {

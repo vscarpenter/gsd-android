@@ -1005,11 +1005,12 @@ Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (c
 ### 10.3 Token lifecycle
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S1
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, follow-up S1
 
 - PocketBase JWTs live ~14 days; there is **no refresh token**. When the token expires within a **7-day skew**, call `POST /api/collections/users/auth-refresh` (bare-JWT auth header, no body) → fresh `{token, record}`.
 - A **transient** refresh failure (offline, 5xx) falls back to the still-valid stored token — offline-first means network failures **never** sign the user out. Clear the stored token **only** on a definitive 401/403.
 - Decode the JWT payload locally (base64url, no signature verification) for `id` and `exp` only.
-- **Session end.** A definitive rejection clears the token, and the next run reports `notSignedIn`. The coordinator then sets `signedIn = false` and `sessionExpired = true`, and Settings shows "Session expired. Sign in again to keep syncing." above the sign-in options. Signing in again clears the flag. A dead session never syncs as a guest (§9.4).
+- **Session end.** A definitive rejection clears the token, and the next run reports `notSignedIn`. So does a 401 or 403 from any call in a run, the identity check (§9.4) included: the server can revoke a token long before it enters the 7-day window, and the refresh never sees that one. The coordinator then clears the token, so a restart cannot sign back in to the dead session, and sets `signedIn = false` and `sessionExpired = true`, and Settings shows "Session expired. Sign in again to keep syncing." above the sign-in options. Signing in again clears the flag. A dead session never syncs as a guest (§9.4).
 
 ### 10.4 Identity caveats
 

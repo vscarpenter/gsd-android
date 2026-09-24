@@ -199,6 +199,19 @@ class SyncEngineTest {
         assertEquals("error", result.status)
     }
 
+    /**
+     * Review follow-up S1: a token the server rejects is a dead session, even with more than 7 days
+     * before it expires, so the run says so and the coordinator signs the user out.
+     */
+    @Test
+    fun `a rejected identity check ends the session`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.rejectIdentity = true
+        local.tasks["synced"] = task("synced")
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+    }
+
     @Test
     fun `an unconfirmed session abandons nothing to trash`() = runTest {
         val local = FakeLocal(); val remote = FakeRemote()
