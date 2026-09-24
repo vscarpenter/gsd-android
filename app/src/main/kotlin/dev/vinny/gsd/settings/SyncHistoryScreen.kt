@@ -22,6 +22,7 @@ import dev.vinny.gsd.R
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -46,7 +47,7 @@ fun SyncHistoryScreen(container: AppContainer, modifier: Modifier = Modifier) {
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(entries, key = { it.id }) { entry ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(modifier = reorderMotion(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             format.format(Instant.ofEpochMilli(entry.timestamp).atZone(ZoneId.systemDefault())),
                             style = GsdType.metadata,

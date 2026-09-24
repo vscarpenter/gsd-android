@@ -78,9 +78,10 @@ import dev.vinny.gsd.model.FilterStatus
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskOrdering
 import dev.vinny.gsd.theme.GsdType
-import dev.vinny.gsd.ui.EmptyState
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
 
@@ -294,7 +295,12 @@ fun BrowseSearchResults(
                 blocking = DependencyGraph.blocking(allTasks, task).size,
             )
             val actions = rowActions(task)
-            SwipeTaskRow(task = task, onComplete = actions.onToggleComplete, onDelete = actions.onDelete) {
+            SwipeTaskRow(
+                task = task,
+                onComplete = actions.onToggleComplete,
+                onDelete = actions.onDelete,
+                modifier = reorderMotion(),
+            ) {
                 TaskRowWithMenu(task = task, badges = badges, actions = actions)
             }
         }
@@ -330,7 +336,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(
         )
     }
     items(rows, key = { it.view.id }) { row ->
-        SmartViewRow(row, onOpenView, onTogglePin, onEditView, onDeleteView)
+        SmartViewRow(row, onOpenView, onTogglePin, onEditView, onDeleteView, modifier = reorderMotion())
     }
 }
 
@@ -341,13 +347,14 @@ private fun SmartViewRow(
     onTogglePin: (String) -> Unit,
     onEditView: (String) -> Unit,
     onDeleteView: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val gsd = LocalGsdColors.current
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxWidth().clickable { onOpenView(row.view.id) }.padding(vertical = 8.dp),
+        modifier = modifier.fillMaxWidth().clickable { onOpenView(row.view.id) }.padding(vertical = 8.dp),
     ) {
         Icon(
             smartViewIcons[row.view.icon] ?: Icons.Outlined.Bolt,

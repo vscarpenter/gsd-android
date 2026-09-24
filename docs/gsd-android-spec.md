@@ -299,13 +299,14 @@ Built-in smart-view icons: Today's Focus `target`-style crosshair (`adjust`), Th
 ### 5.8 Motion & haptics
 
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, findings 50 and 51
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 33
 
 Motion is intentional and sparse; **all non-essential animation is suppressed when the system reports animations disabled** (animator duration scale 0 / "Remove animations" accessibility setting — check `ValueAnimator.areAnimatorsEnabled()`).
 
 - **Confetti on completion** — the one celebration. Parameters (feel reference from iOS): **160 particles**, 1.6s duration, gravity 700, launch speed 150–460 with an upward bias (−220 vertical offset), particle size 5–10dp, opacity fading 1→0, origin around the card/center (normalized x 0.3–0.7). **Colors: the four quadrant pigments + success green** — never generic rainbow. Draw on a Compose `Canvas` driven by a frame clock; skip entirely under reduced motion.
 - **Running-timer dot:** 7dp dot pulsing opacity 1↔0.35, ~0.85s ease-in-out, repeating; static under reduced motion.
 - **Count changes** roll numerically (Compose `AnimatedContent`-style numeric transition) on quadrant headers.
-- **Snackbars/toasts** slide+fade from bottom (fade-only under reduced motion). Sheet expansions and list reorders use default snappy springs.
+- **Snackbars/toasts** slide+fade from bottom (fade-only under reduced motion). Sheet expansions and list reorders use default snappy springs. Every lazy list row (Matrix list and grid, smart views, Browse results and view rows, Archive, Trash, sync history) slides to its new place and fades in or out on the default `animateItem` spring, and the Matrix headers and empty prompts move with the rows. Under reduced motion rows snap into place.
 - **Haptics:** exactly one. A success haptic on complete and on uncomplete, sent through `LocalHapticFeedback` as `HapticFeedbackType.Confirm`, which Compose maps to `HapticFeedbackConstants.CONFIRM`. A test can replace that local and count the calls. Resist adding more.
 
 ### 5.9 App icon & brand mark

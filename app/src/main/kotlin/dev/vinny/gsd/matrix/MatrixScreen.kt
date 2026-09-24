@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import dev.vinny.gsd.ui.reorderMotion
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -276,14 +277,18 @@ fun MatrixList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         sections.forEach { section ->
+            // Headers and prompts move with the rows, so the whole board slides as a task changes place
             item(key = "header-${section.quadrant.id}") {
                 QuadrantHeader(
                     section,
-                    modifier = Modifier.padding(top = if (section.quadrant == Quadrant.DO_FIRST) 0.dp else 20.dp),
+                    modifier = reorderMotion()
+                        .padding(top = if (section.quadrant == Quadrant.DO_FIRST) 0.dp else 20.dp),
                 )
             }
             if (section.tasks.isEmpty()) {
-                item(key = "empty-${section.quadrant.id}") { EmptyQuadrantPrompt(section.quadrant) }
+                item(key = "empty-${section.quadrant.id}") {
+                    EmptyQuadrantPrompt(section.quadrant, modifier = reorderMotion())
+                }
             } else {
                 items(section.tasks, key = { it.id }) { task ->
                     val badges = TaskBadges(
@@ -294,6 +299,7 @@ fun MatrixList(
                         task = task,
                         onComplete = { onToggleComplete(task) },
                         onDelete = { onDelete(task) },
+                        modifier = reorderMotion(),
                         enabled = selection == null,
                     ) {
                         val actions = rowActions?.invoke(task) ?: TaskRowActions(
@@ -356,12 +362,12 @@ private val emptyCopy: Map<Quadrant, Int> = mapOf(
 
 /** Dashed in-context empty prompt (spec §5.10): hairlineStrong dash 5, radius 22. */
 @Composable
-private fun EmptyQuadrantPrompt(quadrant: Quadrant) {
+private fun EmptyQuadrantPrompt(quadrant: Quadrant, modifier: Modifier = Modifier) {
     val gsd = LocalGsdColors.current
     val strokeColor = gsd.hairlineStrong
     val density = LocalDensity.current
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .drawBehind {
                 val dash = with(density) { 5.dp.toPx() }

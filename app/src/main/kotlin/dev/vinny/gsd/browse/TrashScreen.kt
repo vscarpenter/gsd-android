@@ -42,6 +42,7 @@ import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -160,7 +161,7 @@ fun TrashContent(
                     if (selectionMode) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = reorderMotion().fillMaxWidth(),
                         ) {
                             Checkbox(checked = isSelected, onCheckedChange = { toggleSelected() })
                             Box(modifier = Modifier.weight(1f)) { row() }
@@ -170,6 +171,7 @@ fun TrashContent(
                             task = task,
                             onComplete = { onRestore(task.id) },
                             onDelete = { confirmDeleteForever = task },
+                            modifier = reorderMotion(),
                             content = row,
                         )
                     }

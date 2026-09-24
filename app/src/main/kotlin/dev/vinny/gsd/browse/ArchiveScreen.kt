@@ -41,6 +41,7 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
 import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.reorderMotion
 import kotlinx.coroutines.launch
 
 /** Archive surface (spec §8.12): dimmed read-only cards, restore, permanent delete. */
@@ -156,7 +157,7 @@ fun ArchiveContent(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(visible, key = { it.id }) { task ->
-                    Column(modifier = Modifier.alpha(0.72f)) {
+                    Column(modifier = reorderMotion().alpha(0.72f)) {
                         TaskCard(task = task, onToggleComplete = null, onClick = {})
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             TextButton(onClick = { onRestore(task.id) }) {

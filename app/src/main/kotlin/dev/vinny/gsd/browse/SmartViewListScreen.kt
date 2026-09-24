@@ -50,6 +50,7 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
 import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
 
@@ -159,7 +160,12 @@ fun ViewListContent(
                         blocking = DependencyGraph.blocking(allTasks.orEmpty(), task).size,
                     )
                     val actions = rowActions(task)
-                    SwipeTaskRow(task = task, onComplete = actions.onToggleComplete, onDelete = actions.onDelete) {
+                    SwipeTaskRow(
+                        task = task,
+                        onComplete = actions.onToggleComplete,
+                        onDelete = actions.onDelete,
+                        modifier = reorderMotion(),
+                    ) {
                         TaskRowWithMenu(task = task, badges = badges, actions = actions)
                     }
                 }

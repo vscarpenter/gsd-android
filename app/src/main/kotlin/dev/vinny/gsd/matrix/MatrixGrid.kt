@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.ui.reorderMotion
 
 /**
  * Expanded-width matrix (spec §6.2): a true 2×2 grid — Q1 TL, Q2 TR, Q3 BL,
@@ -115,6 +116,7 @@ private fun QuadrantCell(
                     task = task,
                     onComplete = { onToggleComplete(task) },
                     onDelete = { onDelete(task) },
+                    modifier = reorderMotion(),
                     enabled = selection == null,
                 ) {
                     val actions = rowActions?.invoke(task) ?: TaskRowActions(
