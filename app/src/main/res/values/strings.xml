@@ -146,6 +146,10 @@
     <string name="archive_auto_off">Turn off auto-archive</string>
     <string name="archive_after_days">Archive after %1$d days</string>
     <string name="archive_now">Archive now</string>
+    <plurals name="day_count">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
     <string name="archive_search_hint">Search archive…</string>
     <string name="archive_empty">Nothing archived yet</string>
     <string name="archive_empty_body">Completed tasks you archive will live here.</string>
@@ -327,7 +331,9 @@
     <string name="settings_enable_reminders">Enable reminders</string>
     <string name="settings_default_reminder">Default reminder</string>
     <string name="settings_sound">Sound</string>
-    <string name="settings_quiet_hours">Quiet hours (22:00–07:00)</string>
+    <string name="settings_quiet_hours">Quiet hours</string>
+    <string name="settings_quiet_start">Quiet from</string>
+    <string name="settings_quiet_end">Quiet until</string>
     <string name="settings_notification_permission">Enable notifications</string>
     <string name="settings_notification_denied">Open system settings</string>
     <string name="settings_exact_degraded">Exact alarms are off, so reminders may arrive a few minutes late.</string>

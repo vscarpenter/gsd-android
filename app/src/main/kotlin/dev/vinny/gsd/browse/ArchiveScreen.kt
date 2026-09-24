@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.AlertDialog
@@ -28,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
@@ -108,15 +111,17 @@ fun ArchiveContent(
                         onClick = { menuOpen = false; onSetAutoArchive(!autoArchiveEnabled, archiveAfterDays) },
                     )
                     listOf(30, 60, 90).forEach { days ->
+                        val chosen = days == archiveAfterDays
+                        // A check icon and a selected state, not a " ✓" glyph in the text (finding 29)
                         DropdownMenuItem(
-                            text = {
-                                Text(
-                                    stringResource(R.string.archive_after_days, days) +
-                                        if (days == archiveAfterDays) " ✓" else "",
-                                    style = GsdType.body,
-                                )
-                            },
+                            text = { Text(stringResource(R.string.archive_after_days, days), style = GsdType.body) },
                             onClick = { menuOpen = false; onSetAutoArchive(autoArchiveEnabled, days) },
+                            modifier = Modifier.semantics { selected = chosen },
+                            trailingIcon = if (chosen) {
+                                { Icon(Icons.Outlined.Check, contentDescription = null, tint = gsd.tint) }
+                            } else {
+                                null
+                            },
                         )
                     }
                     DropdownMenuItem(

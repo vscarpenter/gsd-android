@@ -205,8 +205,9 @@ private fun DueTimePickerDialog(initial: LocalTime?, onPick: (LocalTime?) -> Uni
     )
 }
 
+/** The words for a reminder offset, shared by the editor and Settings' default reminder. */
 @Composable
-private fun reminderLabel(minutes: Int?): String = when (val label = minutes?.let(ReminderLabel::of)) {
+internal fun reminderLabel(minutes: Int?): String = when (val label = minutes?.let(ReminderLabel::of)) {
     null -> stringResource(R.string.reminder_none)
     ReminderLabel.AtTime -> stringResource(R.string.reminder_at_time)
     is ReminderLabel.Minutes -> pluralStringResource(R.plurals.reminder_minutes_before, label.count, label.count)

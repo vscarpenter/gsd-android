@@ -1,7 +1,6 @@
 package dev.vinny.gsd.onboarding
 
 import android.animation.ValueAnimator
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +31,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,6 +57,7 @@ import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.SignInButton
 import kotlinx.coroutines.launch
 
 private const val PAGE_COUNT = 4
@@ -110,8 +109,8 @@ fun OnboardingFlow(
                 } else {
                     InkPill(stringResource(R.string.onboarding_start), onFinished)
                     if (onSignIn != null) {
-                        SignInPill(stringResource(R.string.sign_in_google)) { onSignIn("google") }
-                        SignInPill(stringResource(R.string.sign_in_apple)) { onSignIn("apple") }
+                        SignInButton(stringResource(R.string.sign_in_google), onClick = { onSignIn("google") })
+                        SignInButton(stringResource(R.string.sign_in_apple), onClick = { onSignIn("apple") })
                         Text(
                             stringResource(R.string.onboarding_sync_hint),
                             style = GsdType.metadata,
@@ -339,19 +338,5 @@ private fun InkPill(label: String, onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
     ) {
         Text(label, style = GsdType.body.copy(fontWeight = FontWeight.SemiBold))
-    }
-}
-
-/** Optional sync sign-in: the tint is kept for it, on a quiet outlined pill. */
-@Composable
-private fun SignInPill(label: String, onClick: () -> Unit) {
-    val gsd = LocalGsdColors.current
-    OutlinedButton(
-        onClick = onClick,
-        shape = CircleShape,
-        border = BorderStroke(1.dp, gsd.hairlineStrong),
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-    ) {
-        Text(label, style = GsdType.body, color = gsd.tint)
     }
 }

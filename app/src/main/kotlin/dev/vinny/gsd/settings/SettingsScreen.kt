@@ -6,15 +6,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -31,7 +37,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
@@ -46,6 +54,7 @@ import dev.vinny.gsd.theme.cursor
 import kotlinx.coroutines.launch
 
 /** The settings surface (spec §8.17). */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     container: AppContainer,
@@ -89,20 +98,28 @@ fun SettingsScreen(
         ) {
             GroupLabel(R.string.settings_appearance)
             Text(stringResource(R.string.settings_theme), style = GsdType.cardTitle, color = gsd.ink)
-            listOf(
-                ThemePref.SYSTEM to R.string.theme_system,
-                ThemePref.LIGHT to R.string.theme_light,
-                ThemePref.DARK to R.string.theme_dark,
-            ).forEach { (pref, labelRes) ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.selectable(
-                        selected = theme == pref,
-                        onClick = { scope.launch { container.prefs.setTheme(pref) } },
-                    ),
-                ) {
-                    RadioButton(selected = theme == pref, onClick = null)
-                    Text(stringResource(labelRes), style = GsdType.body, color = gsd.ink)
+            Column(modifier = Modifier.selectableGroup()) {
+                listOf(
+                    ThemePref.SYSTEM to R.string.theme_system,
+                    ThemePref.LIGHT to R.string.theme_light,
+                    ThemePref.DARK to R.string.theme_dark,
+                ).forEach { (pref, labelRes) ->
+                    // A whole 48dp row picks, with the radio set apart from its label (finding 29)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .selectable(
+                                selected = theme == pref,
+                                role = Role.RadioButton,
+                                onClick = { scope.launch { container.prefs.setTheme(pref) } },
+                            ),
+                    ) {
+                        RadioButton(selected = theme == pref, onClick = null)
+                        Text(stringResource(labelRes), style = GsdType.body, color = gsd.ink)
+                    }
                 }
             }
             ToggleRow(R.string.settings_show_completed, showCompleted) {
@@ -125,28 +142,27 @@ fun SettingsScreen(
                     )
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Chips with a selected state, not a " ✓" glyph; Archive now is its own row (finding 29)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(30, 60, 90).forEach { days ->
-                    TextButton(onClick = {
-                        scope.launch {
-                            container.db.archiveSettingsDao().upsert(
-                                ArchiveSettingsEntity(
-                                    enabled = archiveSettings?.enabled ?: false,
-                                    archiveAfterDays = days,
-                                ),
-                            )
-                        }
-                    }) {
-                        Text(
-                            "${days}d" + if ((archiveSettings?.archiveAfterDays ?: 30) == days) " ✓" else "",
-                            style = GsdType.metadata,
-                            color = gsd.tint,
-                        )
-                    }
+                    FilterChip(
+                        selected = (archiveSettings?.archiveAfterDays ?: 30) == days,
+                        onClick = {
+                            scope.launch {
+                                container.db.archiveSettingsDao().upsert(
+                                    ArchiveSettingsEntity(
+                                        enabled = archiveSettings?.enabled ?: false,
+                                        archiveAfterDays = days,
+                                    ),
+                                )
+                            }
+                        },
+                        label = { Text(pluralStringResource(R.plurals.day_count, days, days), style = GsdType.metadata) },
+                    )
                 }
-                TextButton(onClick = {
-                    scope.launch { container.archiveStore.sweep(archiveSettings?.archiveAfterDays ?: 30) }
-                }) { Text(stringResource(R.string.archive_now), style = GsdType.metadata, color = gsd.tint) }
+            }
+            ActionRow(R.string.archive_now) {
+                scope.launch { container.archiveStore.sweep(archiveSettings?.archiveAfterDays ?: 30) }
             }
 
             NotificationsGroup(container)
@@ -239,6 +255,7 @@ private fun ToggleRow(labelRes: Int, value: Boolean, onChange: (Boolean) -> Unit
     }
 }
 
+/** A tappable row of tinted text, at least 48dp tall; rows had measured under 48dp (finding 29). */
 @Composable
 internal fun ActionRow(labelRes: Int, tint: androidx.compose.ui.graphics.Color? = null, onClick: () -> Unit) {
     val gsd = LocalGsdColors.current
@@ -246,6 +263,10 @@ internal fun ActionRow(labelRes: Int, tint: androidx.compose.ui.graphics.Color? 
         stringResource(labelRes),
         style = GsdType.body,
         color = tint ?: gsd.tint,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .wrapContentHeight(Alignment.CenterVertically),
     )
 }

@@ -1,10 +1,8 @@
 package dev.vinny.gsd.settings
 
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -26,6 +24,7 @@ import dev.vinny.gsd.R
 import dev.vinny.gsd.sync.DeleteAccountOutcome
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.SignInButton
 import kotlinx.coroutines.launch
 
 /**
@@ -112,12 +111,12 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
             if (failed > 0) {
                 Text(stringResource(R.string.health_failed), style = GsdType.metadata, color = gsd.ochre)
             }
-            AccountAction(R.string.account_sync_now) { container.syncCoordinator.requestSync(true) }
-            AccountAction(R.string.account_sync_history, onClick = onOpenHistory)
-            AccountAction(R.string.account_sign_out) {
+            ActionRow(R.string.account_sync_now) { container.syncCoordinator.requestSync(true) }
+            ActionRow(R.string.account_sync_history, onClick = onOpenHistory)
+            ActionRow(R.string.account_sign_out) {
                 container.appScope.launch { container.syncCoordinator.signOut() }
             }
-            AccountAction(R.string.account_delete, tint = gsd.alert) { deleteOpen = true }
+            ActionRow(R.string.account_delete, tint = gsd.alert) { deleteOpen = true }
         }
         // Rendered outside the signed-in branch: a local-erase failure after a successful
         // remote delete flips signedIn to false before this recomposes, so the message must
@@ -155,20 +154,10 @@ internal fun SignedOutAccount(sessionExpired: Boolean, signInError: String?, onP
         // Ochre, not alert: nothing was lost, the user only needs to sign in again (spec §5.3)
         Text(stringResource(R.string.health_expired), style = GsdType.metadata, color = gsd.ochre)
     }
-    AccountAction(R.string.sign_in_google) { onProvider("google") }
-    AccountAction(R.string.sign_in_apple) { onProvider("apple") }
-    AccountAction(R.string.sign_in_github) { onProvider("github") }
+    // Buttons, not bare text links (finding 29)
+    SignInButton(stringResource(R.string.sign_in_google), onClick = { onProvider("google") })
+    SignInButton(stringResource(R.string.sign_in_apple), onClick = { onProvider("apple") })
+    SignInButton(stringResource(R.string.sign_in_github), onClick = { onProvider("github") })
     signInError?.let { Text(it, style = GsdType.metadata, color = gsd.alert) }
     Text(stringResource(R.string.account_privacy_hint), style = GsdType.metadata, color = gsd.ink3)
-}
-
-@Composable
-private fun AccountAction(labelRes: Int, tint: androidx.compose.ui.graphics.Color? = null, onClick: () -> Unit) {
-    val gsd = LocalGsdColors.current
-    Text(
-        stringResource(labelRes),
-        style = GsdType.body,
-        color = tint ?: gsd.tint,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
-    )
 }
