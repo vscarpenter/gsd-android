@@ -7,10 +7,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
+import androidx.compose.ui.graphics.toArgb
 import dev.vinny.gsd.GsdApp
 import dev.vinny.gsd.MainActivity
 import dev.vinny.gsd.R
+import dev.vinny.gsd.theme.GsdColorsLight
 import java.time.Instant
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,7 +50,9 @@ class ReminderReceiver : BroadcastReceiver() {
                     )
 
                 val notification = Notification.Builder(context, channel)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setSmallIcon(R.drawable.ic_notification)
+                    .setColor(GsdColorsLight.tint.toArgb())
+                    .setCategory(Notification.CATEGORY_REMINDER)
                     .setContentTitle(task.title)
                     .apply { if (task.description.isNotEmpty()) setContentText(task.description) }
                     .setContentIntent(tapIntent)
@@ -71,6 +77,11 @@ class ReminderReceiver : BroadcastReceiver() {
 
                 // Device-local reminder state (spec §4.7): bookkeeping, so no restamp and no push
                 container.store.markReminderSent(task.id, Instant.now())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                // Logged, not thrown: a throw here would crash the process from an alarm
+                Log.w("GsdReminders", "reminder failed: ${error.javaClass.simpleName}")
             } finally {
                 result.finish()
             }
