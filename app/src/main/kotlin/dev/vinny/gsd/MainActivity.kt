@@ -38,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.platform.LocalConfiguration
@@ -185,13 +186,22 @@ class MainActivity : ComponentActivity() {
                             },
                         )
                     }
-                    val hasOnboarded by container.prefs.hasOnboarded.collectAsStateWithLifecycle(initialValue = true)
-                    if (!hasOnboarded) {
-                        val scope = rememberCoroutineScope()
-                        dev.vinny.gsd.onboarding.OnboardingFlow(
-                            onFinished = { scope.launch { container.prefs.setHasOnboarded(true) } },
-                        )
-                        return@Surface
+                    // Unknown until the pref loads. Assuming "done" composed the nav host for a moment on a
+                    // first launch, and its router could take a deep link that onboarding then replaced.
+                    val onboardedOrUnknown = androidx.compose.runtime.remember {
+                        container.prefs.hasOnboarded.map<Boolean, Boolean?> { it }
+                    }
+                    val hasOnboarded by onboardedOrUnknown.collectAsStateWithLifecycle(initialValue = null)
+                    when (hasOnboarded) {
+                        null -> return@Surface // paper, for the moment the pref takes to load
+                        false -> {
+                            val scope = rememberCoroutineScope()
+                            dev.vinny.gsd.onboarding.OnboardingFlow(
+                                onFinished = { scope.launch { container.prefs.setHasOnboarded(true) } },
+                            )
+                            return@Surface
+                        }
+                        true -> Unit
                     }
                     val navController = rememberNavController()
                     val backStack by navController.currentBackStackEntryAsState()
