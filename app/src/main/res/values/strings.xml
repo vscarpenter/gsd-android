@@ -20,7 +20,8 @@
     <string name="cd_task_options">Task options</string>
     <string name="cd_view_options">%1$s options</string>
     <string name="cd_navigate_up">Navigate up</string>
-    <string name="capture_placeholder">Capture a task…  (!!  *  #tag)</string>
+    <!-- Quoted: Android collapses runs of spaces, and spec 5.10 spaces the markers apart -->
+    <string name="capture_placeholder">"Capture a task…  (!!  *  #tag)"</string>
     <string name="capture_auto">Auto</string>
     <string name="capture_details">Details</string>
     <string name="cd_capture_quadrant_chip">Quadrant override</string>

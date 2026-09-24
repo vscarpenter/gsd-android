@@ -26,7 +26,8 @@ class FieldNamesTest {
                 CaptureBarContent(state = CaptureState(), onTextChange = {}, onCycleOverride = {}, onSubmit = {}, onDetails = {})
             }
         }
-        rule.onNodeWithTag("capture_field").assert(hasText("Capture a task", substring = true))
+        // Exact, double spaces included: unquoted, the resource collapsed them to one
+        rule.onNodeWithTag("capture_field").assert(hasText("Capture a task…  (!!  *  #tag)"))
     }
 
     @Test
