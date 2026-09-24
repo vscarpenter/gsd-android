@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -49,8 +48,8 @@ import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskOrdering
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
-import dev.vinny.gsd.theme.cursor
 import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.SearchField
 import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
@@ -122,19 +121,12 @@ fun ViewListContent(
         // The view's name heads its own bar, with an Up arrow when pushed (finding 21)
         ScreenTopBar(view.name, onUp = onUp)
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-            Box(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                if (query.isEmpty()) {
-                    Text(stringResource(R.string.view_search_hint), style = GsdType.subhead, color = gsd.ink3)
-                }
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    textStyle = GsdType.subhead.copy(color = gsd.ink),
-                    cursorBrush = gsd.cursor,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("view_search"),
-                )
-            }
+            SearchField(
+                value = query,
+                onValueChange = { query = it },
+                hint = stringResource(R.string.view_search_hint),
+                modifier = Modifier.padding(bottom = 8.dp).testTag("view_search"),
+            )
             if (matches == null) {
                 TaskListSkeleton()
             } else if (matches.isEmpty()) {

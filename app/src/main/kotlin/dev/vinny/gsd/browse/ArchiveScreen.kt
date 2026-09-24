@@ -1,7 +1,6 @@
 package dev.vinny.gsd.browse
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -39,8 +37,8 @@ import dev.vinny.gsd.matrix.TaskCard
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
-import dev.vinny.gsd.theme.cursor
 import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.SearchField
 import dev.vinny.gsd.ui.reorderMotion
 import kotlinx.coroutines.launch
 
@@ -129,19 +127,12 @@ fun ArchiveContent(
             }
         }
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-            Box(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                if (query.isEmpty()) {
-                    Text(stringResource(R.string.archive_search_hint), style = GsdType.subhead, color = gsd.ink3)
-                }
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    textStyle = GsdType.subhead.copy(color = gsd.ink),
-                    cursorBrush = gsd.cursor,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("archive_search"),
-                )
-            }
+            SearchField(
+                value = query,
+                onValueChange = { query = it },
+                hint = stringResource(R.string.archive_search_hint),
+                modifier = Modifier.padding(bottom = 8.dp).testTag("archive_search"),
+            )
             // §5.10 empty states (finding 32). A search that matches nothing says so, not "Nothing archived".
             if (archived.isEmpty()) {
                 EmptyState(

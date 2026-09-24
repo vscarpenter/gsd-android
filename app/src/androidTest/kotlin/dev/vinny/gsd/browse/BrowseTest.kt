@@ -1,5 +1,6 @@
 package dev.vinny.gsd.browse
 
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
@@ -16,6 +17,7 @@ import dev.vinny.gsd.model.BuiltInSmartViews
 import dev.vinny.gsd.model.Subtask
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdTheme
+import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.ZoneOffset
 import org.junit.Rule
@@ -104,6 +106,19 @@ class BrowseTest {
         }
         rule.onNodeWithContentDescription("Loading").assertIsDisplayed()
         rule.onNodeWithText("Nothing overdue").assertDoesNotExist()
+    }
+
+    /** Review finding 22: the search field read as a label, stood 37 dp tall, and had no clear button. */
+    @Test
+    fun theSearchFieldIsATallFieldWithAClearButton() {
+        content(buildBrowseState(BuiltInSmartViews.all, emptyList(), emptyList(), t0, ZoneOffset.UTC), emptyList())
+        rule.onNodeWithTag("browse_search").assertHeightIsAtLeast(48.dp)
+
+        rule.onNodeWithTag("browse_search").performTextInput("milk")
+        rule.onNodeWithText("Archive").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Clear search").performClick()
+
+        rule.onNodeWithText("Archive").assertIsDisplayed()
     }
 
     private fun content(state: BrowseState, tasks: List<Task>, onOpen: (String) -> Unit = {}) = rule.setContent {

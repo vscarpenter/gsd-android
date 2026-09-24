@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AdsClick
@@ -79,8 +78,8 @@ import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskOrdering
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
-import dev.vinny.gsd.theme.cursor
 import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.SearchField
 import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
@@ -194,19 +193,12 @@ fun BrowseContent(
     var query by remember { mutableStateOf("") }
     val trimmed = query.trim()
     Column(modifier = modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 4.dp)) {
-            if (query.isEmpty()) {
-                Text(stringResource(R.string.browse_search_hint), style = GsdType.subhead, color = gsd.ink3)
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                cursorBrush = gsd.cursor,
-                modifier = Modifier.fillMaxWidth().testTag("browse_search"),
-            )
-        }
+        SearchField(
+            value = query,
+            onValueChange = { query = it },
+            hint = stringResource(R.string.browse_search_hint),
+            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 4.dp).testTag("browse_search"),
+        )
         if (trimmed.isNotEmpty()) {
             BrowseSearchResults(
                 query = trimmed,

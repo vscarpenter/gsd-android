@@ -121,6 +121,7 @@
     <string name="view_empty_generic_body">Tasks matching \"%1$s\" will appear here.</string>
     <string name="view_search_hint">Search in this view…</string>
     <string name="browse_search_hint">Search all tasks</string>
+    <string name="cd_clear_search">Clear search</string>
     <string name="search_empty_title">No tasks match \"%1$s\"</string>
     <string name="search_empty_body">Try a different word, tag, or quadrant.</string>
     <string name="view_editor_title">Smart View</string>
