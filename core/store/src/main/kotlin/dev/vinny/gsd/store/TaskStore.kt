@@ -60,13 +60,20 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         }
     }
 
-    /** A state change to a stored task: quadrant, due date, snooze, timers. Null when the task is gone. */
+    /**
+     * A state change to a stored task: quadrant, due date, snooze, timers. Null when the task is gone.
+     * The row is read inside the transaction, as in [edit], so a snooze or a timer write can never
+     * overwrite an editor save that committed a moment earlier.
+     */
     suspend fun change(id: String, transform: (Task) -> Task): Task? {
-        val current = get(id) ?: return null
         val now = clock.instant()
-        val changed = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
-        write(SyncOp.UPDATE, changed, now)
-        return changed
+        return db.withTransaction {
+            val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
+            val changed = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
+            db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, changed, now))
+            db.taskDao().upsert(changed.toEntity())
+            changed
+        }
     }
 
     /** A copy holds nothing the user typed just now, so it only normalizes. Null when the task is gone. */
