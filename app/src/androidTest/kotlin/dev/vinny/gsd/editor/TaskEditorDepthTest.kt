@@ -13,7 +13,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
@@ -39,16 +38,11 @@ class TaskEditorDepthTest {
         Task(id = "task-under-edit-00000", title = "t", urgent = false, important = false,
             createdAt = t0, updatedAt = t0)
 
+    /** The body scrolls its own sections under the pinned header (finding 25), so no outer scroll. */
     private fun editor(draft: Task, allTasks: List<Task> = emptyList(), onEdit: ((Task) -> Task) -> Unit) {
         rule.setContent {
             GsdTheme {
-                androidx.compose.foundation.layout.Column(
-                    modifier = androidx.compose.ui.Modifier.verticalScroll(
-                        androidx.compose.foundation.rememberScrollState(),
-                    ),
-                ) {
-                    EditorContent(draft = draft, canSave = true, onEdit = onEdit, onSave = {}, allTasks = allTasks)
-                }
+                EditorContent(draft = draft, canSave = true, onEdit = onEdit, onSave = {}, allTasks = allTasks)
             }
         }
     }
