@@ -42,6 +42,7 @@ import dev.vinny.gsd.store.ArchiveSettingsEntity
 import dev.vinny.gsd.store.ImportMode
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.openInBrowser
 import kotlinx.coroutines.launch
 
 /** The settings surface (spec §8.17). */
@@ -163,6 +164,8 @@ fun SettingsScreen(
                 color = gsd.ink2,
             )
             Text(stringResource(R.string.settings_privacy_blurb), style = GsdType.metadata, color = gsd.ink3)
+            // Play's User Data policy wants the policy inside the app, since sync sends email and tasks (finding 15)
+            ActionRow(R.string.settings_privacy_policy) { openInBrowser(context, AppContainer.PRIVACY_POLICY_URL) }
             ActionRow(R.string.settings_field_guide, onClick = onOpenHelp)
             ActionRow(R.string.settings_show_onboarding) {
                 scope.launch { container.prefs.setHasOnboarded(false) }

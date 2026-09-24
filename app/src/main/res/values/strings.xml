@@ -224,6 +224,8 @@
     <string name="feedback_failed_rejected">The server refused this submission. Your draft is saved.</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_privacy_blurb">Local-only by default. Your tasks never leave this device unless you sign in to sync.</string>
+    <string name="settings_privacy_policy">Privacy policy</string>
+    <string name="no_browser">No browser is installed to open this page.</string>
     <string name="settings_field_guide">How to use GSD</string>
     <string name="settings_show_onboarding">Show onboarding again</string>
     <string name="import_mode_title">Import mode</string>

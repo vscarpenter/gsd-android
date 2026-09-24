@@ -105,6 +105,8 @@ class AppContainer(context: Context) {
 
     companion object {
         const val BACKEND_URL = "https://api.vinny.io"
+        const val SITE_URL = "https://gsdtaskmanager.com"
+        const val PRIVACY_POLICY_URL = "$SITE_URL/privacy/"
     }
 }
 
