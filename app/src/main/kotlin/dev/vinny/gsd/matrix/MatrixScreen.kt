@@ -317,18 +317,19 @@ fun MatrixList(
                         blocked = dev.vinny.gsd.model.DependencyGraph.uncompletedBlockers(allVisible, task).size,
                         blocking = dev.vinny.gsd.model.DependencyGraph.blocking(allVisible, task).size,
                     )
+                    val actions = rowActions?.invoke(task) ?: TaskRowActions(
+                        onEdit = { onOpen(task.id) },
+                        onToggleComplete = { onToggleComplete(task) },
+                        onDelete = { onDelete(task) },
+                    )
                     SwipeTaskRow(
                         task = task,
                         onComplete = { onToggleComplete(task) },
                         onDelete = { onDelete(task) },
                         modifier = reorderMotion(),
                         enabled = selection == null,
+                        onSnooze = { actions.onSnooze(QuickSnooze) },
                     ) {
-                        val actions = rowActions?.invoke(task) ?: TaskRowActions(
-                            onEdit = { onOpen(task.id) },
-                            onToggleComplete = { onToggleComplete(task) },
-                            onDelete = { onDelete(task) },
-                        )
                         TaskRowWithMenu(
                             task = task,
                             badges = badges,

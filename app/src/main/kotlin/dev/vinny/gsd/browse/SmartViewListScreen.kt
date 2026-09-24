@@ -34,6 +34,7 @@ import dev.vinny.gsd.R
 import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
 import dev.vinny.gsd.matrix.ConfettiOverlay
+import dev.vinny.gsd.matrix.QuickSnooze
 import dev.vinny.gsd.matrix.ScreenTopBar
 import dev.vinny.gsd.matrix.SwipeTaskRow
 import dev.vinny.gsd.matrix.TaskActionsViewModel
@@ -172,6 +173,7 @@ fun ViewListContent(
                             onComplete = actions.onToggleComplete,
                             onDelete = actions.onDelete,
                             modifier = reorderMotion(),
+                            onSnooze = { actions.onSnooze(QuickSnooze) },
                         ) {
                             TaskRowWithMenu(task = task, badges = badges, actions = actions)
                         }

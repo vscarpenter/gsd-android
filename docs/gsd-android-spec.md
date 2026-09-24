@@ -559,7 +559,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1, 2, 3, and 48
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 13, 14, and 31
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 13, 14, and 31, and `tasks/todo.md` K, the two-button trailing swipe
 
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
@@ -568,7 +568,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 - **Expanded:** true 2×2 grid; **drag a card across quadrant boundaries** to reclassify.
 - **Row interactions (both):**
   - **Swipe right (leading)** → complete/uncomplete (full-swipe commits), with the success haptic + confetti on complete.
-  - **Swipe left (trailing)** → reveal **Snooze** (quick-snooze **1 hour**) and **Delete**.
+  - **Swipe left (trailing)** → reveal **Snooze** (quick-snooze **1 hour**) and **Delete**. A part swipe opens the two buttons behind the row, Delete (`alert`) and then Snooze (Slate) at the edge, 76dp each, and a tap on one runs it and closes the row. A full trailing swipe runs Snooze, the edge-most action, as on iOS; Delete takes a tap, then offers Undo. A row that cannot snooze (Trash) keeps one trailing action, which a full swipe runs.
   - A full swipe runs its action once, when the swipe settles. The row then slides back.
   - The swipe background (green check or red bin) is drawn only while a swipe is in progress. A row at rest paints nothing behind its content, so a dimmed row or a bare line of text never sits on it.
   - **Tap** → open editor. **Tap the completion disc** → toggle complete (never opens the editor).

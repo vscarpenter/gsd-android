@@ -12,7 +12,10 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
@@ -40,7 +43,11 @@ class SwipeTaskRowTest {
     private var success = Color.Unspecified
 
     /** The content paints nothing, like the line of text under a Trash card. */
-    private fun showRowOnPaper(onComplete: () -> Unit = {}, onDelete: () -> Unit = {}) = rule.setContent {
+    private fun showRowOnPaper(
+        onComplete: () -> Unit = {},
+        onDelete: () -> Unit = {},
+        onSnooze: (() -> Unit)? = null,
+    ) = rule.setContent {
         GsdTheme {
             paper = LocalGsdColors.current.paper
             success = LocalGsdColors.current.success
@@ -52,6 +59,7 @@ class SwipeTaskRowTest {
                     ),
                     onComplete = onComplete,
                     onDelete = onDelete,
+                    onSnooze = onSnooze,
                     modifier = Modifier.testTag("row"),
                 ) {
                     Spacer(Modifier.fillMaxWidth().height(48.dp))
@@ -105,5 +113,40 @@ class SwipeTaskRowTest {
         rule.waitForIdle()
 
         assertEquals(1, completes)
+    }
+
+    /** Spec 8.1: a trailing swipe opens Snooze and Delete. It used to delete, with no snooze. */
+    @Test
+    fun aPartTrailingSwipeOpensSnoozeAndDelete() {
+        var snoozes = 0
+        var deletes = 0
+        showRowOnPaper(onDelete = { deletes++ }, onSnooze = { snoozes++ })
+
+        rule.onNodeWithTag("row").performTouchInput {
+            down(centerRight)
+            moveBy(Offset(-100.dp.toPx(), 0f)) // past half of the two buttons, short of a full swipe
+            up()
+        }
+        rule.waitForIdle()
+        rule.onNodeWithText("Delete").assertIsDisplayed()
+        rule.onNodeWithText("Snooze").assertIsDisplayed().performClick()
+        rule.waitForIdle()
+
+        assertEquals(1, snoozes)
+        assertEquals(0, deletes)
+    }
+
+    /** As on iOS, a full trailing swipe runs the edge-most action, Snooze, once. Delete takes a tap. */
+    @Test
+    fun aFullTrailingSwipeWithSnoozeSnoozesOnce() {
+        var snoozes = 0
+        var deletes = 0
+        showRowOnPaper(onDelete = { deletes++ }, onSnooze = { snoozes++ })
+
+        rule.onNodeWithTag("row").performTouchInput { swipeLeft() }
+        rule.waitForIdle()
+
+        assertEquals(1, snoozes)
+        assertEquals(0, deletes)
     }
 }
