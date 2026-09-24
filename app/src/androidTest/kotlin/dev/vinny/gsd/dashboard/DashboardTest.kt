@@ -63,6 +63,7 @@ class DashboardTest {
             }
         }
         rule.onNodeWithText("No stats yet").assertIsDisplayed()
+        rule.onNodeWithText("Complete a few tasks and your trends will appear.").assertIsDisplayed()
     }
 
     // Split into two tests, not one with setContent called twice: this Compose-test BOM

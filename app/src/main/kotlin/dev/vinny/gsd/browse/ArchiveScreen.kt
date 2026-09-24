@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -39,6 +40,7 @@ import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.EmptyState
 import kotlinx.coroutines.launch
 
 /** Archive surface (spec §8.12): dimmed read-only cards, restore, permanent delete. */
@@ -141,10 +143,16 @@ fun ArchiveContent(
                 modifier = Modifier.fillMaxWidth().testTag("archive_search"),
             )
         }
-        if (visible.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.archive_empty), style = GsdType.subhead, color = gsd.ink2)
-            }
+        // §5.10 empty states (finding 32). A search that matches nothing says so, not "Nothing archived".
+        if (archived.isEmpty()) {
+            EmptyState(
+                icon = Icons.Outlined.Inventory2,
+                title = stringResource(R.string.archive_empty),
+                body = stringResource(R.string.archive_empty_body),
+                modifier = Modifier.padding(top = 40.dp),
+            )
+        } else if (visible.isEmpty()) {
+            SearchMissEmptyState(query.trim())
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(visible, key = { it.id }) { task ->

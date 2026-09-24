@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -40,6 +41,7 @@ import dev.vinny.gsd.matrix.TaskCard
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.EmptyState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -130,9 +132,13 @@ fun TrashContent(
         }
 
         if (trashed.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.trash_empty_state), style = GsdType.subhead, color = gsd.ink2)
-            }
+            // The §5.10 empty state (finding 32)
+            EmptyState(
+                icon = Icons.Outlined.DeleteOutline,
+                title = stringResource(R.string.trash_empty_state),
+                body = stringResource(R.string.trash_empty_body),
+                modifier = Modifier.padding(top = 40.dp),
+            )
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(trashed, key = { it.first.id }) { (task, deletedAt) ->

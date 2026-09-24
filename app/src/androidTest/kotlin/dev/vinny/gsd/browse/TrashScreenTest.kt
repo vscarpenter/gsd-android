@@ -207,5 +207,6 @@ class TrashScreenTest {
             }
         }
         rule.onNodeWithText("Trash is empty").assertIsDisplayed()
+        rule.onNodeWithText("Deleted tasks stay here for 30 days, then they're gone.").assertIsDisplayed()
     }
 }

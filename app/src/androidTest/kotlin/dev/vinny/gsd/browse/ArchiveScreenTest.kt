@@ -91,5 +91,6 @@ class ArchiveScreenTest {
             }
         }
         rule.onNodeWithText("Nothing archived yet").assertIsDisplayed()
+        rule.onNodeWithText("Completed tasks you archive will live here.").assertIsDisplayed()
     }
 }

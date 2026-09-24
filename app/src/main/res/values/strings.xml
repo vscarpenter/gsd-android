@@ -109,8 +109,11 @@
     <string name="view_menu_edit">Edit</string>
     <string name="view_menu_delete">Delete</string>
     <string name="view_empty_overdue">Nothing overdue</string>
+    <string name="view_empty_overdue_body">You\'re all caught up.</string>
     <string name="view_empty_wins">No wins yet this week</string>
-    <string name="view_empty_generic">Nothing here</string>
+    <string name="view_empty_wins_body">Completed tasks from the last 7 days show here.</string>
+    <string name="view_empty_generic">Nothing here yet</string>
+    <string name="view_empty_generic_body">Tasks matching \"%1$s\" will appear here.</string>
     <string name="view_search_hint">Search in this view…</string>
     <string name="browse_search_hint">Search all tasks</string>
     <string name="search_empty_title">No tasks match \"%1$s\"</string>
@@ -139,6 +142,7 @@
     <string name="archive_now">Archive now</string>
     <string name="archive_search_hint">Search archive…</string>
     <string name="archive_empty">Nothing archived yet</string>
+    <string name="archive_empty_body">Completed tasks you archive will live here.</string>
     <string name="archive_restore">Restore</string>
     <string name="archive_delete">Delete permanently</string>
     <string name="archive_delete_title">Delete \"%1$s\" permanently?</string>
@@ -149,6 +153,7 @@
     <string name="trash_days_left">%1$d days left</string>
     <string name="trash_last_day">Last day</string>
     <string name="trash_empty_state">Trash is empty</string>
+    <string name="trash_empty_body">Deleted tasks stay here for 30 days, then they\'re gone.</string>
     <string name="trash_empty_action">Empty trash</string>
     <string name="trash_empty_confirm">Empty trash?</string>
     <string name="trash_restore">Restore</string>
@@ -175,6 +180,7 @@
     <string name="bulk_result_failed">Updated %1$d, failed %2$d</string>
     <string name="cd_select_mode">Select tasks</string>
     <string name="dashboard_empty">No stats yet</string>
+    <string name="dashboard_empty_body">Complete a few tasks and your trends will appear.</string>
     <string name="skeleton_loading">Loading</string>
     <string name="dashboard_overdue_banner">%1$d overdue — review the backlog</string>
     <string name="dashboard_active">Active</string>
@@ -308,6 +314,7 @@
     <string name="cd_sync_status">Sync status</string>
     <string name="history_title">Sync History</string>
     <string name="history_empty">No syncs yet</string>
+    <string name="history_empty_body">Each sync from this device shows here, with what it sent and received.</string>
     <string name="help_body">The board groups tasks into four quadrants. Capture from the bar with shorthand: \'!! ship the deck #work\' lands in Do First tagged #work. Swipe right to complete, left to delete. Long-press a card for everything else. Cloud sync is optional — sign in from Settings when it arrives.</string>
     <string name="browse_placeholder_title">Nothing here yet</string>
     <string name="browse_placeholder_body">Smart views and the archive arrive in a later phase.</string>

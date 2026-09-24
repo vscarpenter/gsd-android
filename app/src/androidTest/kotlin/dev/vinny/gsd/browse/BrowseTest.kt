@@ -78,6 +78,20 @@ class BrowseTest {
             }
         }
         rule.onNodeWithText("Nothing overdue").assertIsDisplayed()
+        rule.onNodeWithText("You're all caught up.").assertIsDisplayed() // finding 32: headline plus sentence
+    }
+
+    /** Review finding 32: a custom view's empty state read only "Nothing here". */
+    @Test
+    fun aCustomViewsEmptyStateNamesTheView() {
+        val custom = BuiltInSmartViews.all.first { it.id == "today-focus" }.copy(id = "custom-errands", name = "Errands")
+        rule.setContent {
+            GsdTheme {
+                ViewListContent(view = custom, allTasks = emptyList(), rowActions = { TaskRowActions() })
+            }
+        }
+        rule.onNodeWithText("Nothing here yet").assertIsDisplayed()
+        rule.onNodeWithText("Tasks matching \"Errands\" will appear here.").assertIsDisplayed()
     }
 
     @Test
@@ -89,7 +103,7 @@ class BrowseTest {
             }
         }
         rule.onNodeWithContentDescription("Loading").assertIsDisplayed()
-        rule.onNodeWithText("Nothing here").assertDoesNotExist()
+        rule.onNodeWithText("Nothing overdue").assertDoesNotExist()
     }
 
     private fun content(state: BrowseState, tasks: List<Task>, onOpen: (String) -> Unit = {}) = rule.setContent {

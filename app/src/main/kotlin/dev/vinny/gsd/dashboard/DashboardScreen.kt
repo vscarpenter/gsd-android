@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -48,6 +50,7 @@ import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.BadgeStyle
+import dev.vinny.gsd.ui.EmptyState
 import dev.vinny.gsd.ui.StatusBadge
 import java.time.Instant
 import java.time.ZoneId
@@ -103,8 +106,13 @@ fun DashboardContent(
         return
     }
     if (stats.active + stats.completed == 0) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.dashboard_empty), style = GsdType.quadrantTitle, color = gsd.ink2)
+        // The §5.10 empty state, worded as on iOS (finding 32)
+        Box(modifier = modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
+            EmptyState(
+                icon = Icons.Outlined.BarChart,
+                title = stringResource(R.string.dashboard_empty),
+                body = stringResource(R.string.dashboard_empty_body),
+            )
         }
         return
     }

@@ -1,7 +1,6 @@
 package dev.vinny.gsd.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,10 +8,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -21,6 +21,7 @@ import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.EmptyState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -35,9 +36,13 @@ fun SyncHistoryScreen(container: AppContainer, modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(stringResource(R.string.history_title), style = GsdType.quadrantTitle, color = gsd.ink)
         if (entries.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.history_empty), style = GsdType.subhead, color = gsd.ink2)
-            }
+            // The §5.10 empty state (finding 32)
+            EmptyState(
+                icon = Icons.Outlined.History,
+                title = stringResource(R.string.history_empty),
+                body = stringResource(R.string.history_empty_body),
+                modifier = Modifier.padding(top = 40.dp),
+            )
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 items(entries, key = { it.id }) { entry ->

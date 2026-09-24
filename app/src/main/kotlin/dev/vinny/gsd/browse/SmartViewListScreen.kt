@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -45,6 +49,7 @@ import dev.vinny.gsd.model.TaskOrdering
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.EmptyState
 import java.time.Instant
 import java.time.ZoneId
 
@@ -122,13 +127,28 @@ fun ViewListContent(
             if (query.isNotEmpty()) {
                 SearchMissEmptyState(query.trim())
             } else {
-                val emptyRes = when (view.id) {
-                    "overdue" -> R.string.view_empty_overdue
-                    "weeks-wins" -> R.string.view_empty_wins
-                    else -> R.string.view_empty_generic
-                }
-                Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                    Text(stringResource(emptyRes), style = GsdType.subhead, color = gsd.ink2)
+                // §5.10 view-aware empty states, worded as on iOS (finding 32)
+                val emptyModifier = Modifier.padding(top = 40.dp)
+                when (view.id) {
+                    "overdue" -> EmptyState(
+                        icon = Icons.Outlined.CheckCircle,
+                        title = stringResource(R.string.view_empty_overdue),
+                        body = stringResource(R.string.view_empty_overdue_body),
+                        modifier = emptyModifier,
+                        iconTint = gsd.success, // the one reassuring tint §5.10 allows
+                    )
+                    "weeks-wins" -> EmptyState(
+                        icon = Icons.Outlined.EmojiEvents,
+                        title = stringResource(R.string.view_empty_wins),
+                        body = stringResource(R.string.view_empty_wins_body),
+                        modifier = emptyModifier,
+                    )
+                    else -> EmptyState(
+                        icon = smartViewIcons[view.icon] ?: Icons.Outlined.Bolt,
+                        title = stringResource(R.string.view_empty_generic),
+                        body = stringResource(R.string.view_empty_generic_body, view.name),
+                        modifier = emptyModifier,
+                    )
                 }
             }
         } else {
