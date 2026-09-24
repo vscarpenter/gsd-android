@@ -9,6 +9,7 @@ import dev.vinny.gsd.model.TaskValidator
 import dev.vinny.gsd.model.TimeTracking
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -113,7 +114,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
             ).copy(updatedAt = now)
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, updated, now))
             db.taskDao().upsert(updated.toEntity())
-            val spawned = if (completed) RecurrenceEngine.spawnNext(updated, now) else null
+            val spawned = if (completed) RecurrenceEngine.spawnNext(updated, now, ZoneId.systemDefault()) else null
             if (spawned != null) {
                 val nextInstance = TaskValidator.normalize(spawned, now)
                 db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.CREATE, nextInstance, now))

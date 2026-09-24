@@ -615,13 +615,14 @@ One `CompletionCelebration` owns the haptic and the confetti trigger. Matrix, a 
 ### 8.5 Recurrence engine
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S5
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (recurrence in UTC)
 
 **Completion is a transition.** Only a change from open to completed spawns an instance. The store reads the task inside the write transaction, so a double-fired complete sees the first one's result. A call that asks for the state the task already has writes nothing. That means no instance, no new `completedAt`, no `updatedAt` restamp, and no queue row. A stale notification action and bulk Done over finished tasks both land here.
 
 **Behavior (authoritative).** `recurrence ∈ {none, daily, weekly, monthly}`. When a recurring task is completed, immediately create a **new task instance**:
 - New `id`, `createdAt`, `updatedAt`; `completed = false`.
 - `parentTaskId` = the completed task's `id` — or, if that task was itself an instance, *its* `parentTaskId` (single-level lineage to the original). Lineage is device-local (§7.2).
-- `dueDate` advanced from the **prior due date**: daily +1 day; weekly +7 days; monthly +1 calendar month with month-end clamping (Jan 31 → Feb 28/29). No due date → the instance has none.
+- `dueDate` advanced from the **prior due date**: daily +1 day; weekly +7 days; monthly +1 calendar month with month-end clamping (Jan 31 → Feb 28/29). No due date → the instance has none. The math runs on the device's calendar in its current time zone, as iOS and the web do, so a task due at local midnight stays at local midnight across a daylight-saving change. UTC math made a daily series read a day early after the autumn change.
 - **All subtasks reset to incomplete.** Reminder state reset (`notificationSent = false`; `lastNotificationAt`, `snoozedUntil` cleared).
 - The completed original remains as history; the new instance carries the recurrence forward. Schedule the instance's reminder at spawn time.
 
