@@ -736,7 +736,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 49
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 22
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 22 and 26
 
 **Behavior.** Full-text **case-insensitive substring** search across title, description, tags, and subtask titles, live-updating. The command palette matches both **tasks** and **commands** — substring matching (not fuzzy), sectioned results: **Tasks · Smart Views · Actions · Navigation**. Actions: New task, Toggle show completed, Toggle theme, **Send feedback** (navigates to the feedback screen, §8.17 — both siblings expose feedback from the palette). Navigation: Matrix, Dashboard, Archive, Settings, and each smart view.
 
@@ -750,7 +750,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 - **Rows and actions** are the smart-view list's composable and `TaskRowActions`: tap → editor sheet; completion disc → toggle with the usual confetti; leading swipe → toggle completion; trailing swipe → delete with Undo (§8.20); blocked/blocking badges computed over the **full** task set, not the filtered one.
 - **Miss** shows the shared search-miss empty state (§8.13). Results show **no skeleton** — they exist only after the task set has loaded; Browse's composable takes the task list as an optional parameter defaulting to `null` (so previews and the Browse-only tests need not supply one), and a query typed before the first snapshot simply matches the empty set and shows the miss state.
 
-**Android reimagining.** Invoked by the toolbar search button on any surface, or Ctrl+K / Ctrl+F on hardware keyboards. Full-screen search surface on compact (keyboard-first); a centered palette dialog on expanded with arrow-key navigation + Enter. Archive keeps its own plain in-list search.
+**Android reimagining.** Invoked by the toolbar search button on any surface, or Ctrl+K / Ctrl+F on hardware keyboards. The palette opens with its query field focused and the keyboard up, at the top of its list, and a new query starts at the top of its results. Its rows carry no keys: the smart views arrive a frame after it opens, and a keyed section header used to hold the scroll where the first section had been, so the palette opened scrolled past them. Full-screen search surface on compact (keyboard-first); a centered palette dialog on expanded with arrow-key navigation + Enter. Archive keeps its own plain in-list search.
 
 ### 8.15 Analytics dashboard
 
