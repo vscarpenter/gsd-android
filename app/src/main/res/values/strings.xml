@@ -350,6 +350,10 @@
     <string name="share_add">Add</string>
     <string name="share_failed">Couldn\'t add the task. Try again.</string>
     <string name="widget_title">Today\'s Focus</string>
+    <string name="widget_description">Your Do First tasks, a tap away on the home screen.</string>
+    <string name="widget_preview_task_1">Call the landlord about the lease</string>
+    <string name="widget_preview_task_2">Send the Q3 deck</string>
+    <string name="widget_preview_task_3">Renew passport</string>
     <string name="widget_all_clear">All clear</string>
     <string name="widget_more">+%1$d more</string>
     <string name="shortcut_new_task">New Task</string>

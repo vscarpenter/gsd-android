@@ -407,7 +407,7 @@ There is one `MainActivity`. Its launch mode is `singleTask`, so a link, a widge
 
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 46
 
-Two static shortcuts: **"New Task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`. The system gives a static shortcut `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`, and the app cannot change that. A shortcut fired while GSD is on screen therefore destroys the running `MainActivity` and starts a fresh one, which discards an open draft. For a moment both copies exist, and the old one is paused before the new one is created. That ordering is what the §6.7 RESUMED gates rely on: the fresh copy takes the route, and the paused copy takes nothing.
+Two static shortcuts: **"New Task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`. Each has an adaptive icon, a Rust glyph (a plus; the crosshair) on paper, since without one the launcher drew blank circles (review finding 28). The system gives a static shortcut `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`, and the app cannot change that. A shortcut fired while GSD is on screen therefore destroys the running `MainActivity` and starts a fresh one, which discards an open draft. For a moment both copies exist, and the old one is paused before the new one is created. That ordering is what the §6.7 RESUMED gates rely on: the fresh copy takes the route, and the paused copy takes nothing.
 
 ### 6.6 Hardware keyboard shortcuts
 
@@ -1120,8 +1120,11 @@ One periodic **WorkManager** job (~hourly, battery-friendly constraints): auto-a
 
 ### 12.1 Home-screen widget (Glance)
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 28
+
 **Today's Focus** — the one widget (parity with shipped iOS):
-- Sizes: small (~2×2; up to 3 tasks) and medium (~4×2; up to 5), "+N more" overflow, "All clear" empty state, "Today's Focus" header with the crosshair glyph.
+- Sizes: small (~2×2; up to 3 tasks) and medium (~4×2; up to 5), "+N more" overflow, "All clear" empty state, "Today's Focus" header with the crosshair glyph. Each task row is 36dp tall (they were about 23dp), and the widget shows as many rows as its height fits, one at least and five at most (`widgetRows`): three at the usual two-cell height, five once resized to about 254dp (resizable to 360dp).
+- Picker: the label "Today's Focus" (the receiver's own label, not the app's "GSD"), the description "Your Do First tasks, a tap away on the home screen.", and a preview layout drawn in the widget's own tokens and dark palette, with the header and three sample rows.
 - Content: the Q1-active task list (title + optional due). Styled with GSD tokens (paper/surface, ink, Rust accents) in both light/dark.
 - Data: a precomputed snapshot pushed by the app on every relevant data change (Glance is push-updated — no timeline needed).
 - Taps: widget body → `gsd://smart-view/today-focus`; each row → `gsd://task/<id>`.

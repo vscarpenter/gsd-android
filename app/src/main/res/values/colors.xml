@@ -2,4 +2,10 @@
 <resources>
     <!-- Adaptive-icon background: paper (spec §5.9) -->
     <color name="ic_launcher_background">#F4F1E9</color>
+    <!-- Launcher shortcuts and the widget's picker preview, in GSD's tokens (spec §5.1, §5.2, §12.1) -->
+    <color name="gsd_rust">#B23A2E</color>
+    <color name="widget_paper">#F4F1E9</color>
+    <color name="widget_ink">#211E1A</color>
+    <color name="widget_ink3">#797368</color>
+    <color name="widget_rust">#B23A2E</color>
 </resources>

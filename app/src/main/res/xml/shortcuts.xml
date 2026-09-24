@@ -3,6 +3,7 @@
     <shortcut
         android:shortcutId="new-task"
         android:enabled="true"
+        android:icon="@drawable/ic_shortcut_new_task"
         android:shortcutShortLabel="@string/shortcut_new_task">
         <intent
             android:action="android.intent.action.VIEW"
@@ -13,6 +14,7 @@
     <shortcut
         android:shortcutId="today-focus"
         android:enabled="true"
+        android:icon="@drawable/ic_shortcut_focus"
         android:shortcutShortLabel="@string/shortcut_today_focus">
         <intent
             android:action="android.intent.action.VIEW"
