@@ -6,6 +6,7 @@ import androidx.activity.SystemBarStyle
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.only
@@ -288,7 +289,12 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                         ) { innerPadding ->
-                            GsdNavHost(navController, container, Modifier.padding(innerPadding))
+                            // Consumed, so a snackbar's imePadding counts only the keyboard above the bar
+                            GsdNavHost(
+                                navController,
+                                container,
+                                Modifier.padding(innerPadding).consumeWindowInsets(innerPadding),
+                            )
                         }
 
                         NavLayout.RAIL -> Row {
