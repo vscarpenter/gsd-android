@@ -1,7 +1,6 @@
 package dev.vinny.gsd.notifications
 
 import android.Manifest
-import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -11,7 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.model.ReminderPermission
 import dev.vinny.gsd.model.Task
@@ -35,8 +33,8 @@ fun rememberReminderPermissionAsk(settingsStore: NotificationSettingsStore): (be
     }
     return { before, after ->
         val current = settings
-        val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        // Below Android 13 there is nothing to ask for, and the launcher's answer would read as a denial
+        val granted = notificationPermissionGranted(context)
         if (!launched && current != null && ReminderPermission.shouldAsk(current, granted, before, after)) {
             launched = true
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)

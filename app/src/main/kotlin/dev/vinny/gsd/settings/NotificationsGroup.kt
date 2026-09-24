@@ -1,9 +1,7 @@
 package dev.vinny.gsd.settings
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.text.format.DateFormat
@@ -39,13 +37,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.editor.reminderLabel
 import dev.vinny.gsd.model.ReminderSettings
+import dev.vinny.gsd.notifications.notificationPermissionGranted
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.formatTimeOfDay
@@ -63,10 +61,10 @@ internal fun NotificationsGroup(container: AppContainer) {
         .collectAsStateWithLifecycle(initialValue = ReminderSettings())
 
     // Both permissions change in the system's own settings, so re-read them whenever Settings resumes
-    var notificationsAllowed by remember { mutableStateOf(notificationsGranted(context)) }
+    var notificationsAllowed by remember { mutableStateOf(notificationPermissionGranted(context)) }
     var exactAllowed by remember { mutableStateOf(container.reminderScheduler.canScheduleExact()) }
     LifecycleResumeEffect(Unit) {
-        notificationsAllowed = notificationsGranted(context)
+        notificationsAllowed = notificationPermissionGranted(context)
         exactAllowed = container.reminderScheduler.canScheduleExact()
         onPauseOrDispose { }
     }
@@ -84,10 +82,7 @@ internal fun NotificationsGroup(container: AppContainer) {
         SwitchRow(R.string.settings_enable_reminders, settings.enabled) { enabled ->
             update { it.copy(enabled = enabled) }
             // Contextual permission ask on first enablement (spec §11.2)
-            if (enabled && !settings.permissionAsked &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
+            if (enabled && !settings.permissionAsked && !notificationPermissionGranted(context)) {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
@@ -200,9 +195,6 @@ private fun SwitchRow(labelRes: Int, value: Boolean, onChange: (Boolean) -> Unit
         Switch(checked = value, onCheckedChange = onChange)
     }
 }
-
-private fun notificationsGranted(context: Context): Boolean =
-    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
 /** A tappable line of tinted text, at least 48 dp tall so it is a real touch target. */
 @Composable
