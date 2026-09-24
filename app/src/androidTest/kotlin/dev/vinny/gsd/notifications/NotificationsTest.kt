@@ -6,6 +6,7 @@ import android.content.Intent
 import androidx.compose.ui.graphics.toArgb
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.GsdApp
 import dev.vinny.gsd.model.ReminderPlanner
 import dev.vinny.gsd.model.Task
@@ -14,6 +15,7 @@ import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import org.junit.Assume.assumeFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.test.assertEquals
@@ -28,6 +30,16 @@ class NotificationsTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    /**
+     * The app's own container, for tests that write tasks. They go through the real store, which
+     * syncs, so a signed-in device skips them rather than send test tasks to the account.
+     */
+    private fun signedOutContainer(): AppContainer {
+        val container = (context.applicationContext as GsdApp).container
+        assumeFalse("signed in: refusing to write test tasks", container.syncCoordinator.signedIn.value)
+        return container
+    }
+
     @Test
     fun channelsExistAfterAppInit() {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -37,7 +49,7 @@ class NotificationsTest {
 
     @Test
     fun reminderBroadcastPostsNotificationAndMarksSent(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
+        val container = signedOutContainer()
         val task = container.store.add(
             Task(title = "standup", urgent = true, important = true,
                 createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
@@ -66,7 +78,7 @@ class NotificationsTest {
 
     @Test
     fun aFiredReminderStaysOutOfLastWriteWins(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
+        val container = signedOutContainer()
         val task = container.store.add(
             Task(title = "review finding S2", urgent = true, important = true,
                 createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
@@ -96,7 +108,7 @@ class NotificationsTest {
 
     @Test
     fun completeActionCompletesTaskThroughStore(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
+        val container = signedOutContainer()
         val task = container.store.add(
             Task(title = "notify me", urgent = false, important = false,
                 createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
@@ -126,7 +138,7 @@ class NotificationsTest {
      */
     @Test
     fun aReminderSnoozedFromItsNotificationIsPlannedAgain(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
+        val container = signedOutContainer()
         val now = Instant.now()
         val task = container.store.add(
             Task(title = "snooze me", urgent = true, important = true, createdAt = now, updatedAt = now,
@@ -157,8 +169,7 @@ class NotificationsTest {
     /** Review finding 27: reminders used a stock system icon, with no color and no category. */
     @Test
     fun aReminderCarriesTheBrandIconColorAndCategory(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
-        org.junit.Assume.assumeFalse("signed in: refusing to write test tasks", container.syncCoordinator.signedIn.value)
+        val container = signedOutContainer()
         val task = container.store.add(
             Task(title = "finding 27", urgent = true, important = true, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
         )

@@ -224,6 +224,17 @@ class InterchangeTest {
         assertEquals(30, notif.defaultReminder)
     }
 
+    /**
+     * The cap admits its limit: 10,000 rows get past it at the default, and one more is refused. The
+     * cap counts rows before any decode, so empty rows keep this fast; each is then skipped and counted.
+     */
+    @Test
+    fun `the default cap admits exactly ten thousand tasks`() {
+        fun payload(n: Int) = List(n) { "{}" }.joinToString(",", prefix = "{\"tasks\": [", postfix = "], \"version\": \"2.1.0\"}")
+        assertEquals(10_000, Interchange.parse(payload(10_000)).skipped)
+        assertTrue(runCatching { Interchange.parse(payload(10_001)) }.exceptionOrNull() is Interchange.TooLarge)
+    }
+
     @Test
     fun `a malformed singleton decodes to null, treated as absent`() {
         val parsed = Interchange.parse("""{"tasks": [],
