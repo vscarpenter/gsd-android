@@ -84,6 +84,7 @@ import dev.vinny.gsd.model.TaskOrdering
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import java.time.Instant
 import java.time.ZoneId
 
@@ -205,6 +206,7 @@ fun BrowseContent(
                 onValueChange = { query = it },
                 singleLine = true,
                 textStyle = GsdType.subhead.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
                 modifier = Modifier.fillMaxWidth().testTag("browse_search"),
             )
         }

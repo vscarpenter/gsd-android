@@ -39,6 +39,7 @@ import dev.vinny.gsd.model.ParsedCapture
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 
 data class CaptureState(val text: String = "", val override: Quadrant? = null) {
     val parsed: ParsedCapture get() = CaptureParser.parse(text)
@@ -94,6 +95,7 @@ fun CaptureBarContent(
                     value = state.text,
                     onValueChange = onTextChange,
                     textStyle = GsdType.body.copy(color = gsd.ink),
+                    cursorBrush = gsd.cursor,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { onSubmit() }),
                     singleLine = true,

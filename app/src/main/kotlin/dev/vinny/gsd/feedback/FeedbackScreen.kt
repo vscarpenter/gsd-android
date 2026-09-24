@@ -39,6 +39,7 @@ import dev.vinny.gsd.model.Sentiment
 import dev.vinny.gsd.sync.FeedbackFailure
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
@@ -104,6 +105,7 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     value = draft.message,
                     onValueChange = viewModel::setMessage,
                     textStyle = GsdType.body.copy(color = gsd.ink),
+                    cursorBrush = gsd.cursor,
                     modifier = Modifier.fillMaxWidth().testTag("feedback_message"),
                 )
             }

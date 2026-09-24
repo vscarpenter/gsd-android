@@ -37,6 +37,7 @@ import dev.vinny.gsd.model.FilterStatus
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import kotlinx.coroutines.launch
 
 /** Create/edit a custom smart view (spec §8.13): name, curated icon, criteria controls. */
@@ -78,6 +79,7 @@ fun SmartViewEditorScreen(
                 value = name,
                 onValueChange = { name = it.take(60) },
                 textStyle = GsdType.body.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("view_name"),
             )

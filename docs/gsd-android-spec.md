@@ -188,12 +188,14 @@ The one place accent **alpha** is used: the editor 2×2 picker's unselected cell
 
 ### 5.3 Color — functional
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 10 and 23
+
 | Token | Purpose | Light | Dark |
 |---|---|---|---|
 | `success` | completion, 100% progress | `#3E7D52` | `#6FB07F` |
 | `alert` | overdue, delete, destructive | `#B23A2E` | `#E0705F` |
 | `alertWash` | field behind alert text | `#F4E4E0` | `#3A211D` |
-| `tint` | the single interactive tint (links, actions) = Tide | `#2C6680` | `#6FAACB` |
+| `tint` | the single interactive tint (links, actions, the text caret in every field) = Tide | `#2C6680` | `#6FAACB` |
 
 Sync-status semantics: error = `alert`; soft health warning = **Ochre** ("attention, not alarm"); pending/progress = default ink.
 

@@ -48,6 +48,7 @@ import dev.vinny.gsd.store.NotificationSettingsStore
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,6 +135,7 @@ fun EditorContent(
             value = draft.title,
             onValueChange = { new -> onEdit { it.copy(title = new) } },
             textStyle = GsdType.body.copy(color = gsd.ink),
+            cursorBrush = gsd.cursor,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(GsdShapes.input)
@@ -153,6 +155,7 @@ fun EditorContent(
             value = draft.description,
             onValueChange = { new -> onEdit { it.copy(description = new) } },
             textStyle = GsdType.body.copy(color = gsd.ink),
+            cursorBrush = gsd.cursor,
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(GsdShapes.input)
@@ -303,6 +306,7 @@ private fun TagsEditor(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                     }
                 },
                 textStyle = GsdType.subhead.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { commit() }),
                 singleLine = true,

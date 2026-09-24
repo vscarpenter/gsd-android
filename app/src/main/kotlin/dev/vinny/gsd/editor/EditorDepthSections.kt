@@ -62,6 +62,7 @@ import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import dev.vinny.gsd.ui.formatTimeOfDay
 import java.time.Duration
 import java.time.Instant
@@ -315,6 +316,7 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                     }
                 },
                 textStyle = GsdType.subhead.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
                 modifier = Modifier.fillMaxWidth().testTag("subtask_input"),
             )
         }
@@ -336,6 +338,7 @@ internal fun EstimateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                     onEdit { it.copy(estimatedMinutes = minutes) }
                 },
                 textStyle = GsdType.body.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
                 modifier = Modifier.fillMaxWidth().testTag("estimate_input"),
             )
         }
@@ -429,6 +432,7 @@ internal fun DependenciesSection(draft: Task, allTasks: List<Task>, onEdit: ((Ta
                 value = query,
                 onValueChange = { query = it },
                 textStyle = GsdType.subhead.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
                 modifier = Modifier.fillMaxWidth().testTag("dependency_search"),
             )
         }

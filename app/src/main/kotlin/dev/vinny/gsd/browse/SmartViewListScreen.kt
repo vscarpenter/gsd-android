@@ -44,6 +44,7 @@ import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskOrdering
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import java.time.Instant
 import java.time.ZoneId
 
@@ -110,6 +111,7 @@ fun ViewListContent(
                 value = query,
                 onValueChange = { query = it },
                 textStyle = GsdType.subhead.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("view_search"),
             )

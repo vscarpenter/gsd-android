@@ -27,6 +27,7 @@ import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 
 /** The §8.14 command palette: one query, sectioned results, substring matching. */
 @Composable
@@ -58,6 +59,7 @@ fun CommandPalette(
                     value = query,
                     onValueChange = { query = it },
                     textStyle = GsdType.body.copy(color = gsd.ink),
+                    cursorBrush = gsd.cursor,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("palette_query"),
                 )

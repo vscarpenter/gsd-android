@@ -42,6 +42,7 @@ import dev.vinny.gsd.store.ArchiveSettingsEntity
 import dev.vinny.gsd.store.ImportMode
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import dev.vinny.gsd.ui.openInBrowser
 import kotlinx.coroutines.launch
 
@@ -210,6 +211,7 @@ fun SettingsScreen(
                         value = confirmText,
                         onValueChange = { confirmText = it },
                         textStyle = GsdType.body.copy(color = gsd.ink),
+                        cursorBrush = gsd.cursor,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().testTag("erase_confirm_field"),
                     )

@@ -38,6 +38,7 @@ import dev.vinny.gsd.matrix.TaskCard
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import kotlinx.coroutines.launch
 
 /** Archive surface (spec §8.12): dimmed read-only cards, restore, permanent delete. */
@@ -135,6 +136,7 @@ fun ArchiveContent(
                 value = query,
                 onValueChange = { query = it },
                 textStyle = GsdType.subhead.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("archive_search"),
             )

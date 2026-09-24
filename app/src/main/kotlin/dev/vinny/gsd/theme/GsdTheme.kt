@@ -7,8 +7,13 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 
 val LocalGsdColors = staticCompositionLocalOf { GsdColorsLight }
+
+/** The text caret, in Tide. BasicTextField's default is black, which vanishes on dark paper (finding 10). */
+val GsdColors.cursor: Brush get() = SolidColor(tint)
 
 /**
  * Material 3 mapping per spec §5.3 — no dynamic color, no tonal elevation

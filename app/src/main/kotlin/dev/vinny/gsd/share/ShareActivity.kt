@@ -49,6 +49,7 @@ import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdTheme
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import java.time.Instant
 import kotlinx.coroutines.launch
 
@@ -102,6 +103,7 @@ class ShareActivity : ComponentActivity() {
                             value = title,
                             onValueChange = { title = ShareCapture.clampTitle(it) },
                             textStyle = GsdType.body.copy(color = gsd.ink),
+                            cursorBrush = gsd.cursor,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(GsdShapes.input)
@@ -129,6 +131,7 @@ class ShareActivity : ComponentActivity() {
                                 value = tagsRaw,
                                 onValueChange = { tagsRaw = it },
                                 textStyle = GsdType.subhead.copy(color = gsd.ink),
+                                cursorBrush = gsd.cursor,
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )

@@ -26,6 +26,7 @@ import dev.vinny.gsd.model.DuePreset
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -108,6 +109,7 @@ fun BulkActionBar(
                         value = tag,
                         onValueChange = { tag = it },
                         textStyle = GsdType.body.copy(color = gsd.ink),
+                        cursorBrush = gsd.cursor,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().testTag("bulk_tag_input"),
                     )
