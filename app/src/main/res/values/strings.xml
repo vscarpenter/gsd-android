@@ -271,6 +271,7 @@
     <string name="share_sheet_title">Add to GSD</string>
     <string name="share_tags_hint">Tags (comma-separated)</string>
     <string name="share_add">Add</string>
+    <string name="share_failed">Couldn\'t add the task. Try again.</string>
     <string name="widget_title">Today\'s Focus</string>
     <string name="widget_all_clear">All clear</string>
     <string name="widget_more">+%1$d more</string>

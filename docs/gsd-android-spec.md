@@ -1087,12 +1087,14 @@ One periodic **WorkManager** job (~hourly, battery-friendly constraints): auto-a
 
 ### 12.2 Share target (the Share-Extension analog)
 
-An `ACTION_SEND` (`text/plain`) share target: sharing a URL or text from any app opens a compact **"Add to GSD"** compose sheet:
-- Editable **Title** — prefilled from shared text; a bare URL derives a readable title from the URL (host/path words). Empty → **"Review link below"**. Clamped to 80 chars.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 9 and 41, and "Also worth a look" (styled shared text)
+
+An `ACTION_SEND` (`text/plain`) share target: sharing a URL or text from any app opens a compact **"Add to GSD"** compose sheet. The activity's window is see-through (`Theme.Gsd.Share`) and the sheet is a Material bottom sheet that scrolls, so it opens over the sharing app, clear of the status bar and the keyboard, in the in-app theme. `EXTRA_TEXT` and `EXTRA_SUBJECT` are read as `CharSequence`, because some apps share styled text and `getStringExtra` drops it.
+- Editable **Title** — prefilled from shared text; a bare URL takes the sharing app's `EXTRA_SUBJECT` as its title when that is present and is not itself an address (browsers put the page title there, as iOS's share sheet carries it), and otherwise derives a readable title from the URL (host/path words). Empty → **"Review link below"**. Clamped to 80 UTF-16 units, never cutting a surrogate pair in half.
 - **Quadrant picker** defaulting to **Eliminate (Q4)**.
 - Comma-separated **tags** field with live chips (normalized: trim/lowercase/dedupe/≤30 chars/max 20).
 - Read-only **Link** section: URLs sanitized by the §8.2 rules land in the description (newline-joined, clamped to 600).
-- **Add** writes directly through the store (same process — no outbox dance needed) and enqueues sync; errors keep the sheet open. Optional post-save title enrichment (fetch the page title) only when the "Fetch titles for shared links" setting is on and the title is still URL-derived.
+- **Add** writes directly through the store (same process — no outbox dance needed) and enqueues sync; errors keep the sheet open, with a validation message as written or plain copy for anything else. Optional post-save title enrichment (fetch the page title) only when the "Fetch titles for shared links" setting is on and the title is still URL-derived. It follows iOS: the address is the first line of the description and must be `https`; the fetch reads at most 64 KB with an 8-second timeout; `og:title` wins over `<title>` (`PageTitleParser` in `:core:model`, the same cases as iOS's tests); and the title is re-checked inside the write, so a title the user edited meanwhile is never overwritten. The task appears at once; the new title lands when the fetch returns, or never if it fails.
 
 ### 12.3 App shortcuts & assistant surface
 

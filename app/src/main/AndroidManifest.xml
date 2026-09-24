@@ -35,7 +35,7 @@
         <activity
             android:name=".share.ShareActivity"
             android:exported="true"
-            android:theme="@style/Theme.Gsd"
+            android:theme="@style/Theme.Gsd.Share"
             android:excludeFromRecents="true">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
