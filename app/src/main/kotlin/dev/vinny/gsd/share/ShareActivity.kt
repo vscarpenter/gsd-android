@@ -8,7 +8,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -50,6 +49,8 @@ import dev.vinny.gsd.theme.GsdTheme
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
+import dev.vinny.gsd.ui.announced
 import dev.vinny.gsd.ui.validationMessage
 import java.time.Instant
 import kotlinx.coroutines.launch
@@ -101,6 +102,7 @@ class ShareActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text(stringResource(R.string.share_sheet_title), style = GsdType.title, color = gsd.ink)
+                        val titleHint = stringResource(R.string.editor_title_hint)
                         BasicTextField(
                             value = title,
                             onValueChange = { title = ShareCapture.clampTitle(it) },
@@ -112,6 +114,7 @@ class ShareActivity : ComponentActivity() {
                                 .background(gsd.sunken)
                                 .padding(12.dp)
                                 .testTag("share_title"),
+                            decorationBox = { inner -> HintedField(titleHint, title.isEmpty(), GsdType.body, inner) },
                         )
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -125,19 +128,16 @@ class ShareActivity : ComponentActivity() {
                                 )
                             }
                         }
-                        Box {
-                            if (tagsRaw.isEmpty()) {
-                                Text(stringResource(R.string.share_tags_hint), style = GsdType.subhead, color = gsd.ink3)
-                            }
-                            BasicTextField(
-                                value = tagsRaw,
-                                onValueChange = { tagsRaw = it },
-                                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                                cursorBrush = gsd.cursor,
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                        val tagsHint = stringResource(R.string.share_tags_hint)
+                        BasicTextField(
+                            value = tagsRaw,
+                            onValueChange = { tagsRaw = it },
+                            textStyle = GsdType.subhead.copy(color = gsd.ink),
+                            cursorBrush = gsd.cursor,
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            decorationBox = { inner -> HintedField(tagsHint, tagsRaw.isEmpty(), GsdType.subhead, inner) },
+                        )
                         if (tags.isNotEmpty()) {
                             FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -159,7 +159,7 @@ class ShareActivity : ComponentActivity() {
                         if (draft.description.isNotEmpty()) {
                             Text(draft.description, style = GsdType.metadata, color = gsd.tint)
                         }
-                        error?.let { Text(it, style = GsdType.metadata, color = gsd.alert) }
+                        error?.let { Text(it, style = GsdType.metadata, color = gsd.alert, modifier = Modifier.announced()) }
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.align(Alignment.End),

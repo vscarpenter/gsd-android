@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -31,8 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
@@ -42,6 +43,7 @@ import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
 
 data class CaptureState(val text: String = "", val override: Quadrant? = null) {
     val parsed: ParsedCapture get() = CaptureParser.parse(text)
@@ -90,21 +92,18 @@ fun CaptureBarContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(modifier = Modifier.weight(1f)) {
-                if (state.text.isEmpty()) {
-                    Text(stringResource(R.string.capture_placeholder), style = GsdType.body, color = gsd.ink3)
-                }
-                BasicTextField(
-                    value = state.text,
-                    onValueChange = onTextChange,
-                    textStyle = GsdType.body.copy(color = gsd.ink),
-                    cursorBrush = gsd.cursor,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("capture_field"),
-                )
-            }
+            val hint = stringResource(R.string.capture_placeholder)
+            BasicTextField(
+                value = state.text,
+                onValueChange = onTextChange,
+                textStyle = GsdType.body.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+                singleLine = true,
+                modifier = Modifier.weight(1f).testTag("capture_field"),
+                decorationBox = { inner -> HintedField(hint, state.text.isEmpty(), GsdType.body, inner) },
+            )
             QuadrantChip(state, onCycleOverride)
         }
         val tags = state.parsed.tags
@@ -138,14 +137,19 @@ private fun QuadrantChip(state: CaptureState, onCycleOverride: () -> Unit) {
     val quadrant = state.effectiveQuadrant
     val accent = if (showAuto) gsd.ink3 else gsd.accent(quadrant)
     val description = stringResource(R.string.cd_capture_quadrant_chip)
+    // TalkBack hears where the task will land, not only the chip's name (review, Accessibility)
+    val landing = if (showAuto) stringResource(R.string.capture_auto) else quadrant.title
     Row(
         modifier = Modifier
             .clip(CircleShape)
             .background(gsd.surface2)
             .border(1.dp, gsd.hairlineStrong, CircleShape)
-            .clickable(onClick = onCycleOverride)
+            .clickable(role = Role.Button, onClick = onCycleOverride)
             .padding(horizontal = 10.dp, vertical = 6.dp)
-            .semantics { contentDescription = description },
+            .semantics {
+                contentDescription = description
+                stateDescription = landing
+            },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -158,7 +162,7 @@ private fun QuadrantChip(state: CaptureState, onCycleOverride: () -> Unit) {
         Text(
             if (showAuto) stringResource(R.string.capture_auto) else quadrant.title,
             style = GsdType.metadata,
-            color = accent,
+            color = if (showAuto) gsd.ink3 else gsd.accentInk(quadrant),
         )
     }
 }

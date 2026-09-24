@@ -66,7 +66,7 @@ class GsdWidget : GlanceAppWidget() {
 
     private val paper = ColorProvider(Color(0xFFF4F1E9), Color(0xFF17150F))
     private val ink = ColorProvider(Color(0xFF211E1A), Color(0xFFF1ECE2))
-    private val ink3 = ColorProvider(Color(0xFF797368), Color(0xFF948A79))
+    private val ink3 = ColorProvider(Color(0xFF6A655C), Color(0xFF948A79))
     private val rust = ColorProvider(Color(0xFFB23A2E), Color(0xFFE0705F))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {

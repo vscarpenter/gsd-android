@@ -152,6 +152,8 @@ GSD's brand is **Editorial · Calm · Focused** — magazine-like restraint, a s
 
 ### 5.1 Color — quadrant accents (the only strong color in the app)
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Accessibility section
+
 | Quadrant | Name | Light | Dark |
 |---|---|---|---|
 | Q1 `urgent-important` — **Do First** | Rust | `#B23A2E` | `#E0705F` |
@@ -170,7 +172,20 @@ GSD's brand is **Editorial · Calm · Focused** — magazine-like restraint, a s
 
 The one place accent **alpha** is used: the editor 2×2 picker's unselected cell border = accent at 35% opacity (selected = accent at 100% + wash fill).
 
+**Quadrant text inks** (`GsdColors.accentInk`). Text in a quadrant's color uses its text ink, never the raw pigment; fills, spines, borders, and icons keep the pigment. In light mode Ochre measured 4.47:1 on paper and 4.17:1 on its wash, and Slate 4.46:1 on sunken, so their text inks are darker: the web's `--q3-ink` and `--q4-ink`. Every other value is its own pigment.
+
+| Quadrant | Text ink light | Text ink dark |
+|---|---|---|
+| Q1 Rust | `#B23A2E` | `#E0705F` |
+| Q2 Tide | `#2C6680` | `#6FAACB` |
+| Q3 Ochre | `#74591C` | `#CFB266` |
+| Q4 Slate | `#615B54` | `#A9A096` |
+
+This supersedes the "Android follows iOS" note in `docs/2026-08-29-cross-platform-parity-spec.md`, which kept raw pigment for text. iOS still draws raw pigment and should take the same inks.
+
 ### 5.2 Color — the "warm paper" neutral ramp
+
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Accessibility section
 
 | Token | Purpose | Light | Dark |
 |---|---|---|---|
@@ -181,23 +196,25 @@ The one place accent **alpha** is used: the editor 2×2 picker's unselected cell
 | `hairline` | separators, card borders | `#E3DDD0` | `#322D24` |
 | `hairlineStrong` | stronger borders, unselected rings | `#D8D1C1` | `#423B2F` |
 | `ink` | primary text | `#211E1A` | `#F1ECE2` |
-| `ink2` | secondary text | `#6E6760` | `#A79F92` |
-| `ink3` | tertiary text, quiet icons | `#797368` | `#948A79` |
+| `ink2` | secondary text | `#5C5751` | `#A79F92` |
+| `ink3` | tertiary text, quiet icons | `#6A655C` | `#948A79` |
 | `inkOnAccent` | glyph on a filled accent | `#FFFFFF` | `#17150F` |
 | `shadow` | warm-tinted card shadow ink | `#282116` | `#000000` |
 
+Light `ink2` and `ink3` were `#6E6760` and `#797368`, and `ink3` measured 4.17:1 on paper and 3.81:1 on sunken. Every text ink now reaches 4.5:1 on `paper`, `sunken`, `surface`, and `surface2` in both modes, and `ink2` stays darker than `ink3`. `ContrastTest` checks the token values.
+
 ### 5.3 Color — functional
 
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 10 and 23
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 10 and 23, and the Accessibility section
 
 | Token | Purpose | Light | Dark |
 |---|---|---|---|
-| `success` | completion, 100% progress | `#3E7D52` | `#6FB07F` |
+| `success` | completion, 100% progress (light was `#3E7D52`, 4.37:1 as text on paper) | `#39724B` | `#6FB07F` |
 | `alert` | overdue, delete, destructive | `#B23A2E` | `#E0705F` |
 | `alertWash` | field behind alert text | `#F4E4E0` | `#3A211D` |
 | `tint` | the single interactive tint (links, actions, the text caret in every field) = Tide | `#2C6680` | `#6FAACB` |
 
-Sync-status semantics: error = `alert`; soft health warning = **Ochre** ("attention, not alarm"); pending/progress = default ink.
+Sync-status semantics: error = `alert`; soft health warning = **Ochre** ("attention, not alarm"), its text in the Ochre text ink (§5.1); pending/progress = default ink.
 
 **Material 3 `ColorScheme` mapping** (so stock components inherit correctly): `primary = tint`, `background = paper`, `surface = surface`, `surfaceVariant = sunken`, `outline = hairlineStrong`, `outlineVariant = hairline`, `error = alert`, `onBackground/onSurface = ink`, `onSurfaceVariant = ink2`, `onPrimary = inkOnAccent`. Set **tonal elevation to 0** everywhere (no elevation tinting) and expose the full GSD token set via a `CompositionLocal` alongside `MaterialTheme`. `secondary` and `tertiary` = `tint`; `primaryContainer` and `tertiaryContainer` = `tideWash` (the date and time pickers' selected fields); `errorContainer` = `alertWash`; every surface and container role maps to a GSD neutral. An unmapped role keeps Material's baseline purple, which is how `secondary` once colored the selected navigation label. **Shapes and type:** `MaterialTheme` also takes the §5.5 shape scale (chips full pills; menus and snackbars 12dp; dialogs, sheets, and pickers 26dp) and the §5.4 type scale (Newsreader for display and headline roles, the system sans for the rest, dialog titles in Card title), so stock components match the hand-built ones.
 
@@ -322,7 +339,7 @@ The brand mark is a **2×2 grid of four rounded pigment tiles with a white check
 ### 5.10 Key component looks
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 32
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 32, and the Accessibility section
 
 - **Capture bar:** a pinned pill — `surface` fill, `hairline` border, the soft card shadow — sitting on `paper`. Placeholder: `Capture a task…  (!!  *  #tag)` in `ink3`. Trailing **quadrant chip** (see §8.2). Parsed `#tag` chips appear beneath in neutral `sunken`/`ink2` (they only take quadrant color once on a card). A quiet "Details" text button in `tint` opens the full editor.
 - **Quadrant header:** a fixed 26dp icon column (shared left edge) with the accent-colored quadrant symbol, the serif 20sp title in the pigment, and a trailing live active-count in monospaced digits (`ink2`).
@@ -333,7 +350,7 @@ The brand mark is a **2×2 grid of four rounded pigment tiles with a white check
   - Smart views: Overdue Backlog (`check_circle` in `success`) *"Nothing overdue"* · "You're all caught up."; This Week's Wins (`emoji_events`) *"No wins yet this week"* · "Completed tasks from the last 7 days show here."; any other view (its own icon) *"Nothing here yet"* · `Tasks matching "<view name>" will appear here.`
   - Sync history (`history`): *"No syncs yet"* · "Each sync from this device shows here, with what it sent and received."
   - Search miss (`search`): `No tasks match "<query>"` · "Try a different word, tag, or quadrant."
-- **Sync status chip:** quiet-until-it-matters — **hidden entirely** when idle, healthy, and nothing pending; spinner while syncing (static sync glyph under reduced motion); pending count with sync glyph; `sync_problem` in `alert` on error, in Ochre for soft health warnings.
+- **Sync status chip:** quiet-until-it-matters — **hidden entirely** when idle, healthy, and nothing pending; spinner while syncing (static sync glyph under reduced motion); pending count with sync glyph; `sync_problem` in `alert` on error, in Ochre for soft health warnings. TalkBack reads what it shows: "Syncing", "N changes waiting to sync", or "Some changes couldn't sync"; it used to say "Sync status" whatever it showed.
 - **Status badge:** a small capsule beside a title — `GsdType.caption` semibold, single line, 8dp × 3dp padding, pill shape. **Two styles only**, by design (color is rationed, so only overdue earns the alert pigment): *neutral* — `ink2` on `sunken`; *alert* — `alert` on `alertWash`. Used by the Dashboard's upcoming rows (§8.15).
 - **Loading skeletons:** first-frame silhouettes shown while a surface's task state is still `null` (§8.1, §8.13, §8.15) — never a spinner, never a minimum display time. Built from one primitive, `SkeletonBlock(height, width = null, shape = GsdShapes.small)`: a `sunken`-filled rounded rectangle that fills the available width when `width` is null. `Modifier.skeletonShimmer()` sweeps **one** light band across the whole composition left→right — band width 50 % of the container, a horizontal gradient `transparent → surface @ 75 % → transparent` (the raised `surface` tone, not white: a white band reads as glare on warm paper and vanishes in dark mode), **1600 ms** linear sweep with a **600 ms** delay before each pass (including the first, so layout settles before anything moves), repeating. The band is masked to the placeholder shapes (`CompositingStrategy.Offscreen` + `BlendMode.SrcIn`) so it never streaks across gaps, and it draws only — it never intercepts touch. Apply it **once**, to the outermost skeleton container. Every skeleton is **one** semantics node (`clearAndSetSemantics`) with `contentDescription` "Loading". Under reduced motion the band is not drawn at all — the skeleton is a static silhouette (§13.3).
 - **Onboarding:** 4 paged, skippable, editorial screens on `paper` (§8.19).
@@ -709,9 +726,11 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 
 ### 8.12 Archive
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Accessibility section
+
 **Behavior.** Completed tasks can move to the separate archive store (full task shape + `archivedAt`). **Manual:** archive a completed task; restore to active; delete permanently. **Auto:** when enabled, completed tasks with `completedAt` older than `archiveAfterDays` (30/60/90) move automatically — swept on launch and by the periodic maintenance job. **Archive transitions sync as active-record transitions:** archiving enqueues a *delete* of the remote active record; restoring enqueues a *create/update*. Archived tasks themselves never sync (§9.4's reconcile ignores the archive table).
 
-**Android reimagining.** Archive screen (Browse → Archive / drawer Library): dimmed (≈72% opacity) read-only cards; swipe to Restore (leading) or Delete-permanently (trailing, confirmed); search field; multi-select bulk bar; a toolbar menu exposing the auto-archive toggle + 30/60/90 picker + "Archive now".
+**Android reimagining.** Archive screen (Browse → Archive / drawer Library): read-only cards, drawn as completed cards (an `ink3` title, struck through) and not dimmed, since 72% opacity took their text and buttons under 4.5:1; swipe to Restore (leading) or Delete-permanently (trailing, confirmed); search field; multi-select bulk bar; a toolbar menu exposing the auto-archive toggle + 30/60/90 picker + "Archive now".
 
 ### 8.13 Smart Views & filters
 
@@ -768,11 +787,11 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 ### 8.15 Analytics dashboard
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy section
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy and Accessibility sections
 
 **Behavior (authoritative metric set — computed from the current task set, on demand, off the main thread):**
-- **Stat grid:** Active tasks, Completed tasks, Completion rate (completed ÷ total), total Tracked time. **No streaks, no badges — deliberately removed; do not add.**
-- **Completion trend:** for the selected window (**7 / 30 / 90** days), per-day counts of tasks *created* vs *completed* (line/area chart).
+- **Stat grid:** Active tasks, Completed tasks, Completion rate (completed ÷ total), total Tracked time. **No streaks, no badges — deliberately removed; do not add.** Each stat card is one TalkBack node that says its label before its value ("Active: 12").
+- **Completion trend:** for the selected window (**7 / 30 / 90** days), per-day counts of tasks *created* vs *completed* (line/area chart). The chart describes itself with the window's totals ("Last 7 days: 9 created, 6 completed").
 - **Quadrant distribution:** active-task count per quadrant (donut/bar in the quadrant pigments).
 - **Completion by quadrant:** `DashboardStats.quadrantStats` — **always four entries, Q1→Q4** (`Quadrant.entries` order), each a `QuadrantStat(quadrant, total, completed)` with `active = total - completed` and `completionRate = if (total == 0) 0f else completed / total`. **All-time, no window**: `total` counts every row in the quadrant, active or completed. The input is the active table only — archived and trashed rows never reach `Analytics.compute`, because the store observer reads `tasks`; that exclusion is by construction, matching iOS.
 - **Top tags:** per-tag totals (bar).
@@ -892,7 +911,7 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48 (review of #18)
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 31, and the Copy section
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 31, the Copy section, and the Accessibility section
 
 **Behavior.** Deleting an active task moves the full record to the trash store with `deletedAt = now`, rather than hard-deleting it. The remote `delete` is enqueued *before* the local move, in the same transaction — the enqueue-before-write invariant, extended; if the enqueue fails, the delete aborts. The store invariant is now three-state: a task id lives in exactly one of `tasks`, `archivedTasks`, `deletedTasks`.
 
@@ -903,7 +922,7 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 - Archiving is unaffected — a separate store; archive is for completed history, trash for deletions. Restoring from trash returns to active, never to archive.
 - Erase all data clears the trash too (§8.16).
 
-**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", "1 day left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete permanently (trailing, confirmed by a dialog titled `Delete "<title>" permanently?` over "This can't be undone."), a multi-select bulk bar (Restore / Delete permanently), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
+**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): read-only rows, not dimmed (§8.12), showing time remaining ("29 days left", "1 day left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete permanently (trailing, confirmed by a dialog titled `Delete "<title>" permanently?` over "This can't be undone."), a multi-select bulk bar (Restore / Delete permanently), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
 
 ### 8.21 Account switching, account deletion, recovery
 
@@ -1180,12 +1199,16 @@ Cold start to interactive quickly (baseline profiles); the matrix smooth with hu
 ### 13.3 Accessibility (baseline — required)
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
-> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 12
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 12, and the Accessibility section
 
 - **TalkBack:** every interactive element labeled; cards expose a coherent reading order (title, quadrant, due, status) and **custom accessibility actions** for complete/snooze/edit/delete (swipe gestures are not the only path). Composite decorations collapse to a single node rather than reading their parts: a loading skeleton is one node labelled "Loading" (§5.10); the completion rings are one node ("Completion rings, {P}% of all tasks complete"); each rings legend cell is its own node reading "{Quadrant title}: {P}% complete" or "{Quadrant title}: no tasks" (§8.15).
 - **Font scale:** `sp` everywhere; layouts reflow at 2× / non-linear scaling; no clipped fixed-height text. Every row of chips or tags wraps onto more lines (a `FlowRow`) instead of squeezing its last chips into narrow columns: the editor's due, repeat, and tag chips, card and capture tags, the share sheet, feedback, the smart view editor, Dashboard's range chips, and the bulk tag dialog.
 - **Reduced motion:** confetti and non-essential animation suppressed when animations are disabled (§5.8) — one gate, `ValueAnimator.areAnimatorsEnabled()`, for all of it. It also suppresses the **rings grow-in** (`growth` is 1 from the first frame, §8.15) and the **skeleton shimmer** (the sweeping band is not drawn at all; the silhouette stays static, §5.10). Suppression means *no animation*, not a faster one.
-- **Contrast:** the quadrant accents meet WCAG **AA** against their card backgrounds in both modes (the §5.1 values are pre-verified — don't "brighten" them).
+- **Contrast:** every text color meets WCAG **AA** (4.5:1) on the surfaces it sits on, in both modes; `ContrastTest` checks the token values. Text in a quadrant's color uses its text ink (§5.1). Nothing dims text with opacity.
+- **Text fields:** each field's hint sits inside the field's decoration box, so the field merges it and TalkBack reads it as the field's name, as Material's fields do (the hint beside the field was read as loose text and the field as an unnamed edit box). A field with no hint got one: the editor's "Task title" and "Add notes", and the erase confirmation's "Type RESET".
+- **Headings and live regions:** section captions, the quadrant headers, and screen titles are headings, and a caption is read as written, not in capitals. Errors and results that appear after an action (save errors, sign-in and account-deletion outcomes, feedback results, share errors) are polite live regions.
+- **Roles and state:** every clickable row has a role. The editor's quadrant picker is a radio group; subtasks, roadmap votes, and select-mode cards are checkboxes with their state; the capture chip states where the task will land. A badge reads once ("Blocked by 1", not then "1").
+- **Custom actions:** a card offers Complete (or Uncomplete), Edit, Snooze 1 hour, and Delete; a card in select mode offers none.
 - **Touch targets ≥ 48dp**; full keyboard operability on hardware keyboards.
 
 ### 13.4 Privacy & security

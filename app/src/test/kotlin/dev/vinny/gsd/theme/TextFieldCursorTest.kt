@@ -8,7 +8,8 @@ import kotlin.test.assertTrue
 /**
  * Review finding 10: BasicTextField draws a black caret unless told otherwise, and black is invisible
  * on dark paper. The caret has no semantics a UI test can read, so this reads the source instead:
- * every BasicTextField in :app must pass a cursorBrush.
+ * every BasicTextField in :app must pass a cursorBrush. It also checks every field for a decoration
+ * box, where its hint names it for TalkBack (review, Accessibility).
  */
 class TextFieldCursorTest {
     private val sources = File("src/main/kotlin")
@@ -40,5 +41,14 @@ class TextFieldCursorTest {
             calls(file.readText()).filter { "cursorBrush" !in it }.map { file.name }
         }.toList()
         assertEquals(emptyList(), missing)
+    }
+
+    /** A hint beside a field was read as loose text and the field as an unnamed edit box. */
+    @Test
+    fun everyTextFieldCarriesItsHintInside() {
+        val unnamed = sources.walkTopDown().filter { it.extension == "kt" }.flatMap { file ->
+            calls(file.readText()).filter { "decorationBox" !in it }.map { file.name }
+        }.toList()
+        assertEquals(emptyList(), unnamed)
     }
 }

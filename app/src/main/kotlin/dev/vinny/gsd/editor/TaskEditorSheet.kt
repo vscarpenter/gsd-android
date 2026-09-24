@@ -3,7 +3,6 @@ package dev.vinny.gsd.editor
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -14,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -47,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -63,6 +65,9 @@ import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
+import dev.vinny.gsd.ui.SectionHeading
+import dev.vinny.gsd.ui.announced
 import dev.vinny.gsd.ui.validationMessage
 import kotlinx.coroutines.launch
 
@@ -189,7 +194,7 @@ fun EditorContent(
                 it,
                 style = GsdType.metadata,
                 color = gsd.alert,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp).announced(),
             )
         }
         Column(
@@ -249,6 +254,7 @@ private fun EditorHeader(isNew: Boolean, canSave: Boolean, onSave: () -> Unit, o
 private fun EditorSections(draft: Task, onEdit: ((Task) -> Task) -> Unit, allTasks: List<Task>) {
     val gsd = LocalGsdColors.current
     SectionLabel(R.string.editor_section_title)
+    val titleHint = stringResource(R.string.editor_title_hint)
     BasicTextField(
         value = draft.title,
         onValueChange = { new -> onEdit { it.copy(title = new) } },
@@ -260,6 +266,7 @@ private fun EditorSections(draft: Task, onEdit: ((Task) -> Task) -> Unit, allTas
             .background(gsd.sunken)
             .padding(12.dp)
             .testTag("editor_title"),
+        decorationBox = { inner -> HintedField(titleHint, draft.title.isEmpty(), GsdType.body, inner) },
     )
 
     SectionLabel(R.string.editor_section_quadrant)
@@ -269,6 +276,7 @@ private fun EditorSections(draft: Task, onEdit: ((Task) -> Task) -> Unit, allTas
     TagsEditor(draft, onEdit)
 
     SectionLabel(R.string.editor_section_notes)
+    val notesHint = stringResource(R.string.editor_notes_hint)
     BasicTextField(
         value = draft.description,
         onValueChange = { new -> onEdit { it.copy(description = new) } },
@@ -280,6 +288,7 @@ private fun EditorSections(draft: Task, onEdit: ((Task) -> Task) -> Unit, allTas
             .background(gsd.sunken)
             .padding(12.dp)
             .testTag("editor_notes"),
+        decorationBox = { inner -> HintedField(notesHint, draft.description.isEmpty(), GsdType.body, inner) },
     )
 
     val links = detectLinks(draft.description)
@@ -319,11 +328,7 @@ internal fun detectLinks(notes: String): List<String> =
 
 @Composable
 private fun SectionLabel(labelRes: Int) {
-    Text(
-        stringResource(labelRes).uppercase(),
-        style = GsdType.caption,
-        color = LocalGsdColors.current.ink3,
-    )
+    SectionHeading(stringResource(labelRes))
 }
 
 /** 2×2 picker mirroring the matrix (spec §8.3): selected = accent border + wash fill. */
@@ -334,7 +339,8 @@ private fun QuadrantPicker(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
         listOf(Quadrant.DO_FIRST, Quadrant.SCHEDULE),
         listOf(Quadrant.DELEGATE, Quadrant.ELIMINATE),
     )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // One radio group: each cell says whether it is the chosen quadrant (review, Accessibility)
+    Column(modifier = Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { quadrant ->
@@ -343,7 +349,7 @@ private fun QuadrantPicker(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                     Text(
                         quadrant.title,
                         style = GsdType.subhead,
-                        color = if (selected) accent else gsd.ink2,
+                        color = if (selected) gsd.accentInk(quadrant) else gsd.ink2,
                         modifier = Modifier
                             .weight(1f)
                             .clip(GsdShapes.small)
@@ -353,7 +359,7 @@ private fun QuadrantPicker(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                                 color = accent.copy(alpha = if (selected) 1f else 0.35f),
                                 shape = GsdShapes.small,
                             )
-                            .clickable {
+                            .selectable(selected = selected, role = Role.RadioButton) {
                                 onEdit { it.copy(urgent = quadrant.urgent, important = quadrant.important) }
                             }
                             .padding(12.dp),
@@ -382,7 +388,7 @@ private fun TagsEditor(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                     InputChip(
                         selected = false,
                         onClick = { onEdit { it.copy(tags = it.tags - tag) } },
-                        label = { Text("#$tag", style = GsdType.metadata, color = gsd.accent(draft.quadrant)) },
+                        label = { Text("#$tag", style = GsdType.metadata, color = gsd.accentInk(draft.quadrant)) },
                         trailingIcon = {
                             Icon(
                                 Icons.Outlined.Close,
@@ -406,9 +412,7 @@ private fun TagsEditor(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                 modifier = Modifier.editorField(gsd.sunken),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                if (pending.isEmpty()) {
-                    Text(stringResource(R.string.editor_tag_hint), style = GsdType.subhead, color = gsd.ink3)
-                }
+                val hint = stringResource(R.string.editor_tag_hint)
                 BasicTextField(
                     value = pending,
                     onValueChange = { new ->
@@ -425,6 +429,7 @@ private fun TagsEditor(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                     keyboardActions = KeyboardActions(onDone = { commit() }),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("editor_tag_input"),
+                    decorationBox = { inner -> HintedField(hint, pending.isEmpty(), GsdType.subhead, inner) },
                 )
             }
         }

@@ -51,6 +51,8 @@ import dev.vinny.gsd.store.ImportMode
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
+import dev.vinny.gsd.ui.SectionHeading
 import kotlinx.coroutines.launch
 
 /** The settings surface (spec §8.17). */
@@ -210,6 +212,7 @@ fun SettingsScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.erase_body), style = GsdType.body, color = gsd.ink2)
+                    val hint = stringResource(R.string.erase_confirm_hint)
                     BasicTextField(
                         value = confirmText,
                         onValueChange = { confirmText = it },
@@ -217,6 +220,7 @@ fun SettingsScreen(
                         cursorBrush = gsd.cursor,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().testTag("erase_confirm_field"),
+                        decorationBox = { inner -> HintedField(hint, confirmText.isEmpty(), GsdType.body, inner) },
                     )
                 }
             },
@@ -238,12 +242,7 @@ fun SettingsScreen(
 
 @Composable
 internal fun GroupLabel(labelRes: Int) {
-    Text(
-        stringResource(labelRes).uppercase(),
-        style = GsdType.caption,
-        color = LocalGsdColors.current.ink3,
-        modifier = Modifier.padding(top = 12.dp),
-    )
+    SectionHeading(stringResource(labelRes), Modifier.padding(top = 12.dp))
 }
 
 @Composable

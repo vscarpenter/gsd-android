@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -62,7 +63,7 @@ class BrowseTest {
             }
         }
         rule.onNodeWithText("Archive").assertIsDisplayed()
-        rule.onNodeWithText("PINNED").assertIsDisplayed()
+        rule.onNode(hasText("Pinned") and isHeading()).assertIsDisplayed() // review, Accessibility
         rule.onNodeWithText("Today's Focus").assertIsDisplayed()
         // Review, Copy: a view's menu button announced "Task options"
         rule.onNodeWithContentDescription("Today's Focus options").assertIsDisplayed()

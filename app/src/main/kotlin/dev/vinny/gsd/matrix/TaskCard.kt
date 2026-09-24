@@ -45,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -153,7 +154,7 @@ fun TaskCard(
                             Text(
                                 "#$tag",
                                 style = GsdType.metadata,
-                                color = accent,
+                                color = gsd.accentInk(task.quadrant),
                                 modifier = Modifier
                                     .clip(CircleShape)
                                     .background(gsd.wash(task.quadrant))
@@ -221,7 +222,8 @@ private fun MetadataRow(task: Task, badges: TaskBadges) {
             val cd = stringResource(R.string.cd_blocked_by, badges.blocked)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.semantics { contentDescription = cd },
+                // One description; the count beside the lock was read again after it (review, Accessibility)
+                modifier = Modifier.clearAndSetSemantics { contentDescription = cd },
             ) {
                 Icon(Icons.Outlined.Lock, contentDescription = null, tint = gsd.ink2, modifier = Modifier.size(14.dp))
                 Text("${badges.blocked}", style = GsdType.metadata, color = gsd.ink2)
@@ -231,7 +233,7 @@ private fun MetadataRow(task: Task, badges: TaskBadges) {
             val cd = stringResource(R.string.cd_blocking, badges.blocking)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.semantics { contentDescription = cd },
+                modifier = Modifier.clearAndSetSemantics { contentDescription = cd },
             ) {
                 Icon(
                     Icons.Outlined.ArrowCircleRight,

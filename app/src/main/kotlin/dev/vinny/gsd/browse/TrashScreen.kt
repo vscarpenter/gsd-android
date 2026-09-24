@@ -30,7 +30,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -250,7 +249,8 @@ private fun TrashRow(
 ) {
     val gsd = LocalGsdColors.current
     val (label, color) = trashRetentionLabel(deletedAt, now)
-    Column(modifier = Modifier.alpha(0.72f)) {
+    // Not dimmed: 72% alpha took the text and buttons under AA (review, Accessibility)
+    Column {
         TaskCard(task = task, onToggleComplete = null, onClick = onClick)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(label, style = GsdType.metadata, color = color, modifier = Modifier.weight(1f))

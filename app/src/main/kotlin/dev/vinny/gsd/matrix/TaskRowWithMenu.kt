@@ -18,6 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.ShareText
@@ -91,11 +94,29 @@ fun TaskRowWithMenu(
     var menuOpen by remember { mutableStateOf(false) }
     var snoozeOpen by remember { mutableStateOf(false) }
     var moveOpen by remember { mutableStateOf(false) }
+    // TalkBack's actions for the card (spec §13.3), so the swipes and the menu are not the only way
+    val completeLabel = stringResource(if (task.completed) R.string.menu_uncomplete else R.string.menu_complete)
+    val editLabel = stringResource(R.string.menu_edit)
+    val snoozeLabel = stringResource(R.string.action_snooze_hour)
+    val deleteLabel = stringResource(R.string.menu_delete)
+    val cardActions = if (selected == null) {
+        Modifier.semantics {
+            customActions = listOf(
+                CustomAccessibilityAction(completeLabel) { actions.onToggleComplete(); true },
+                CustomAccessibilityAction(editLabel) { actions.onEdit(); true },
+                CustomAccessibilityAction(snoozeLabel) { actions.onSnooze(QuickSnooze); true },
+                CustomAccessibilityAction(deleteLabel) { actions.onDelete(); true },
+            )
+        }
+    } else {
+        Modifier
+    }
     Box(modifier = modifier) {
         TaskCard(
             task = task,
             onToggleComplete = actions.onToggleComplete,
             onClick = actions.onEdit,
+            modifier = cardActions,
             badges = badges,
             // Select mode turns the menu off, and a card with no menu draws no button.
             onOpenMenu = if (selected == null) { { menuOpen = true } } else null,

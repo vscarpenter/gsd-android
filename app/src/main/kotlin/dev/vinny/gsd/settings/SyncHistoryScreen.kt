@@ -57,7 +57,7 @@ fun SyncHistoryScreen(container: AppContainer, modifier: Modifier = Modifier) {
                             style = GsdType.metadata,
                             color = when (entry.status) {
                                 "error" -> gsd.alert
-                                "partial" -> gsd.ochre
+                                "partial" -> gsd.ochreInk
                                 else -> gsd.success
                             },
                         )

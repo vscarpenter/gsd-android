@@ -44,6 +44,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -355,7 +357,8 @@ internal fun QuadrantHeader(section: QuadrantSectionState, modifier: Modifier = 
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(section.quadrant)
     Row(
-        modifier = modifier.fillMaxWidth(),
+        // One heading, "Do First, 3", so TalkBack can jump from quadrant to quadrant (review, Accessibility)
+        modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) { heading() },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -365,7 +368,7 @@ internal fun QuadrantHeader(section: QuadrantSectionState, modifier: Modifier = 
         Text(
             section.quadrant.title,
             style = GsdType.quadrantTitle,
-            color = accent,
+            color = gsd.accentInk(section.quadrant),
             modifier = Modifier.weight(1f),
         )
         Text(

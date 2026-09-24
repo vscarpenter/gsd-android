@@ -37,6 +37,8 @@
     <string name="editor_section_notes">Notes</string>
     <string name="editor_section_links">Links</string>
     <string name="editor_tag_hint">Add tag</string>
+    <string name="editor_title_hint">Task title</string>
+    <string name="editor_notes_hint">Add notes</string>
     <string name="cd_remove_tag">Remove tag %1$s</string>
     <string name="snackbar_deleted">Deleted \"%1$s\"</string>
     <string name="snackbar_undo">Undo</string>
@@ -115,6 +117,7 @@
     <string name="menu_share">Share</string>
     <string name="menu_move_to">Move to</string>
     <string name="menu_delete">Delete</string>
+    <string name="action_snooze_hour">Snooze 1 hour</string>
     <string name="cd_blocked_by">Blocked by %1$d</string>
     <string name="cd_blocking">Blocking %1$d</string>
     <string name="card_due_overdue">Overdue</string>
@@ -241,6 +244,11 @@
     <string name="dashboard_rings_legend_none">%1$s: no tasks</string>
     <string name="dashboard_badge_today">Today</string>
     <string name="dashboard_badge_overdue">Overdue</string>
+    <string name="dashboard_stat_a11y">%1$s: %2$s</string>
+    <plurals name="dashboard_trend_a11y">
+        <item quantity="one">Last %1$d day: %2$d created, %3$d completed</item>
+        <item quantity="other">Last %1$d days: %2$d created, %3$d completed</item>
+    </plurals>
     <string name="settings_sharing">Sharing</string>
     <string name="settings_fetch_titles">Fetch titles for shared links</string>
     <string name="settings_fetch_titles_footer">Fetching a page title performs a network request.</string>
@@ -293,6 +301,7 @@
     <string name="erase_title">Erase all data?</string>
     <string name="erase_body">Type RESET to confirm. This clears every task, the archive, and custom views, so consider exporting first.</string>
     <string name="erase_confirm">Erase</string>
+    <string name="erase_confirm_hint">Type RESET</string>
     <string name="onboarding_welcome_title">Get the right things done.</string>
     <string name="onboarding_welcome_body">A calm place to sort what\'s urgent and important, and let go of what isn\'t.</string>
     <string name="onboarding_matrix_title">Four quadrants, one decision.</string>
@@ -412,7 +421,12 @@
     <string name="health_expired">Session expired. Sign in again to keep syncing.</string>
     <string name="health_failed">Some changes couldn\'t sync. They\'ll retry automatically.</string>
     <string name="health_stale">Sync is running behind. A change has waited over an hour.</string>
-    <string name="cd_sync_status">Sync status</string>
+    <string name="cd_sync_failed">Some changes couldn\'t sync</string>
+    <string name="cd_sync_running">Syncing</string>
+    <plurals name="cd_sync_pending">
+        <item quantity="one">%1$d change waiting to sync</item>
+        <item quantity="other">%1$d changes waiting to sync</item>
+    </plurals>
     <string name="history_title">Sync history</string>
     <string name="history_empty">No syncs yet</string>
     <string name="history_empty_body">Each sync from this device shows here, with what it sent and received.</string>

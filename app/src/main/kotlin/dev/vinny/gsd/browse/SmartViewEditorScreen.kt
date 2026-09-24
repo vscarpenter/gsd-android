@@ -1,7 +1,6 @@
 package dev.vinny.gsd.browse
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -39,6 +38,8 @@ import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
+import dev.vinny.gsd.ui.SectionHeading
 import kotlinx.coroutines.launch
 
 /** Create/edit a custom smart view (spec §8.13): name, curated icon, criteria controls. */
@@ -71,26 +72,23 @@ fun SmartViewEditorScreen(
         modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Box {
-            if (name.isEmpty()) {
-                Text(stringResource(R.string.view_editor_name_hint), style = GsdType.body, color = gsd.ink3)
-            }
-            BasicTextField(
-                value = name,
-                onValueChange = { name = it.take(60) },
-                textStyle = GsdType.body.copy(color = gsd.ink),
-                cursorBrush = gsd.cursor,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().testTag("view_name"),
-            )
-        }
+        val nameHint = stringResource(R.string.view_editor_name_hint)
+        BasicTextField(
+            value = name,
+            onValueChange = { name = it.take(60) },
+            textStyle = GsdType.body.copy(color = gsd.ink),
+            cursorBrush = gsd.cursor,
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("view_name"),
+            decorationBox = { inner -> HintedField(nameHint, name.isEmpty(), GsdType.body, inner) },
+        )
 
-        Text(stringResource(R.string.view_editor_icon).uppercase(), style = GsdType.caption, color = gsd.ink3)
+        SectionHeading(stringResource(R.string.view_editor_icon))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             curatedCustomIcons.forEach { token -> IconChoice(token, icon == token) { icon = token } }
         }
 
-        Text(stringResource(R.string.view_editor_status).uppercase(), style = GsdType.caption, color = gsd.ink3)
+        SectionHeading(stringResource(R.string.view_editor_status))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(
                 FilterStatus.ALL to R.string.status_all,
@@ -105,7 +103,7 @@ fun SmartViewEditorScreen(
             }
         }
 
-        Text(stringResource(R.string.view_editor_quadrants).uppercase(), style = GsdType.caption, color = gsd.ink3)
+        SectionHeading(stringResource(R.string.view_editor_quadrants))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Quadrant.entries.forEach { quadrant ->
                 FilterChip(
@@ -124,7 +122,7 @@ fun SmartViewEditorScreen(
             }
         }
 
-        Text(stringResource(R.string.view_editor_toggles).uppercase(), style = GsdType.caption, color = gsd.ink3)
+        SectionHeading(stringResource(R.string.view_editor_toggles))
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             ConditionChip(R.string.cond_overdue, criteria.overdue) { criteria = criteria.copy(overdue = it) }
             ConditionChip(R.string.cond_due_today, criteria.dueToday) { criteria = criteria.copy(dueToday = it) }

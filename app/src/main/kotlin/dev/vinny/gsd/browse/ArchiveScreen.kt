@@ -26,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
@@ -151,7 +150,8 @@ fun ArchiveContent(
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(visible, key = { it.id }) { task ->
-                        Column(modifier = reorderMotion().alpha(0.72f)) {
+                        // Not dimmed: 72% alpha took the text and buttons under AA (review, Accessibility)
+                        Column(modifier = reorderMotion()) {
                             TaskCard(task = task, onToggleComplete = null, onClick = {})
                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 TextButton(onClick = { onRestore(task.id) }) {

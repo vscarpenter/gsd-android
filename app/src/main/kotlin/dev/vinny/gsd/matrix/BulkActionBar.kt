@@ -31,6 +31,7 @@ import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -120,6 +121,7 @@ fun BulkActionBar(
                 androidx.compose.foundation.layout.Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    val hint = stringResource(R.string.bulk_add_tag)
                     BasicTextField(
                         value = tag,
                         onValueChange = { tag = it },
@@ -127,6 +129,7 @@ fun BulkActionBar(
                         cursorBrush = gsd.cursor,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().testTag("bulk_tag_input"),
+                        decorationBox = { inner -> HintedField(hint, tag.isEmpty(), GsdType.body, inner) },
                     )
                     if (selectionTags.isNotEmpty()) {
                         Text(stringResource(R.string.bulk_remove_tag_hint), style = GsdType.metadata, color = gsd.ink3)

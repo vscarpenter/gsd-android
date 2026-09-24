@@ -47,8 +47,10 @@ class DashboardTest {
                 )
             }
         }
-        rule.onNodeWithText("ACTIVE").assertIsDisplayed()
-        rule.onNodeWithText("50%").assertIsDisplayed()
+        // Review, Accessibility: a stat card is one node that says its label before its value
+        rule.onNodeWithContentDescription("Active: 1").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Completion: 50%").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Last 7 days: 2 created, 1 completed").assertExists()
         rule.onNodeWithText("1 overdue. Review the backlog.").performClick()
         assertEquals(true, overdueOpened)
     }

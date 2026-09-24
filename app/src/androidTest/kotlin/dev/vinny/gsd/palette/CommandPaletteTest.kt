@@ -46,7 +46,7 @@ class CommandPaletteTest {
         views = BuiltInSmartViews.all
         rule.waitForIdle()
 
-        rule.onNodeWithText("SMART VIEWS").assertIsDisplayed()
+        rule.onNodeWithText("Smart Views").assertIsDisplayed() // a heading, read as written
         rule.onNodeWithText(BuiltInSmartViews.all.first().name).assertIsDisplayed()
     }
 

@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -82,6 +83,7 @@ import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.EmptyState
 import dev.vinny.gsd.ui.SearchField
+import dev.vinny.gsd.ui.SectionHeading
 import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
@@ -219,7 +221,7 @@ fun BrowseContent(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenArchive).padding(vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenArchive).padding(vertical = 12.dp),
                     ) {
                         Icon(Icons.Outlined.Inventory2, contentDescription = null, tint = gsd.ink2)
                         Text(stringResource(R.string.browse_archive), style = GsdType.cardTitle, color = gsd.ink)
@@ -229,7 +231,7 @@ fun BrowseContent(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTrash).padding(vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenTrash).padding(vertical = 12.dp),
                     ) {
                         Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = gsd.ink2)
                         Text(
@@ -252,7 +254,7 @@ fun BrowseContent(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onNewView).padding(vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onNewView).padding(vertical = 12.dp),
                     ) {
                         Icon(Icons.Outlined.Add, contentDescription = null, tint = gsd.tint)
                         Text(stringResource(R.string.browse_new_view), style = GsdType.body, color = gsd.tint)
@@ -324,12 +326,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(
 ) {
     if (rows.isEmpty()) return
     item(key = "header-$labelRes") {
-        Text(
-            stringResource(labelRes).uppercase(),
-            style = GsdType.caption,
-            color = LocalGsdColors.current.ink3,
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        SectionHeading(stringResource(labelRes), Modifier.padding(top = 12.dp))
     }
     items(rows, key = { it.view.id }) { row ->
         SmartViewRow(row, onOpenView, onTogglePin, onEditView, onDeleteView, modifier = reorderMotion())
@@ -350,7 +347,7 @@ private fun SmartViewRow(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = modifier.fillMaxWidth().clickable { onOpenView(row.view.id) }.padding(vertical = 8.dp),
+        modifier = modifier.fillMaxWidth().clickable(role = Role.Button) { onOpenView(row.view.id) }.padding(vertical = 8.dp),
     ) {
         Icon(
             smartViewIcons[row.view.icon] ?: Icons.Outlined.Bolt,

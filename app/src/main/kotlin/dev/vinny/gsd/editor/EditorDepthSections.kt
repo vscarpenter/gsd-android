@@ -68,6 +68,7 @@ import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
 import dev.vinny.gsd.ui.formatTimeOfDay
 import java.time.Duration
 import java.time.Instant
@@ -228,7 +229,7 @@ internal fun ReminderSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     Box {
         Text(
             reminderLabel(draft.notifyBefore), style = GsdType.body, color = gsd.tint,
-            modifier = Modifier.clickable { open = true }.testTag("reminder_row").padding(vertical = 4.dp),
+            modifier = Modifier.clickable(role = Role.Button) { open = true }.testTag("reminder_row").padding(vertical = 4.dp),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEach { minutes ->
@@ -325,9 +326,7 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
             Text(stringResource(R.string.subtasks_at_limit), style = GsdType.metadata, color = gsd.ink3)
         } else {
             Box(modifier = Modifier.editorField(gsd.sunken), contentAlignment = Alignment.CenterStart) {
-                if (pending.isEmpty()) {
-                    Text(stringResource(R.string.subtask_add_hint), style = GsdType.subhead, color = gsd.ink3)
-                }
+                val hint = stringResource(R.string.subtask_add_hint)
                 BasicTextField(
                     value = pending,
                     onValueChange = { new ->
@@ -344,6 +343,7 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                     textStyle = GsdType.subhead.copy(color = gsd.ink),
                     cursorBrush = gsd.cursor,
                     modifier = Modifier.fillMaxWidth().testTag("subtask_input"),
+                    decorationBox = { inner -> HintedField(hint, pending.isEmpty(), GsdType.subhead, inner) },
                 )
             }
         }
@@ -360,23 +360,22 @@ internal fun EstimateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(modifier = Modifier.weight(1f)) {
-                if (draft.estimatedMinutes == null) {
-                    Text(stringResource(R.string.estimate_hint), style = GsdType.subhead, color = gsd.ink3)
-                }
-                BasicTextField(
-                    value = draft.estimatedMinutes?.toString().orEmpty(),
-                    onValueChange = { raw ->
-                        val minutes = raw.filter(Char::isDigit).take(MAX_ESTIMATE_DIGITS).toIntOrNull()
-                        onEdit { it.copy(estimatedMinutes = minutes) }
-                    },
-                    textStyle = GsdType.body.copy(color = gsd.ink),
-                    cursorBrush = gsd.cursor,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth().testTag("estimate_input"),
-                )
-            }
+            val hint = stringResource(R.string.estimate_hint)
+            BasicTextField(
+                value = draft.estimatedMinutes?.toString().orEmpty(),
+                onValueChange = { raw ->
+                    val minutes = raw.filter(Char::isDigit).take(MAX_ESTIMATE_DIGITS).toIntOrNull()
+                    onEdit { it.copy(estimatedMinutes = minutes) }
+                },
+                textStyle = GsdType.body.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                modifier = Modifier.weight(1f).testTag("estimate_input"),
+                decorationBox = { inner ->
+                    HintedField(hint, draft.estimatedMinutes == null, GsdType.subhead, inner)
+                },
+            )
             draft.estimatedMinutes?.let { minutes ->
                 Text(stringResource(R.string.estimate_unit), style = GsdType.body, color = gsd.ink2)
                 if (minutes >= 60) {
@@ -424,7 +423,7 @@ internal fun SnoozeSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
             label,
             style = GsdType.body,
             color = gsd.tint,
-            modifier = Modifier.clickable { open = true }.testTag("snooze_row").padding(vertical = 4.dp),
+            modifier = Modifier.clickable(role = Role.Button) { open = true }.testTag("snooze_row").padding(vertical = 4.dp),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             snoozePresets.forEach { (duration, labelRes) ->
@@ -466,18 +465,15 @@ internal fun DependenciesSection(draft: Task, allTasks: List<Task>, onEdit: ((Ta
                 }
             }
         }
-        Box {
-            if (query.isEmpty()) {
-                Text(stringResource(R.string.dependency_search_hint), style = GsdType.subhead, color = gsd.ink3)
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = { query = it },
-                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                cursorBrush = gsd.cursor,
-                modifier = Modifier.fillMaxWidth().testTag("dependency_search"),
-            )
-        }
+        val hint = stringResource(R.string.dependency_search_hint)
+        BasicTextField(
+            value = query,
+            onValueChange = { query = it },
+            textStyle = GsdType.subhead.copy(color = gsd.ink),
+            cursorBrush = gsd.cursor,
+            modifier = Modifier.fillMaxWidth().testTag("dependency_search"),
+            decorationBox = { inner -> HintedField(hint, query.isEmpty(), GsdType.subhead, inner) },
+        )
         if (query.isNotEmpty()) {
             allTasks
                 .filter { it.id != draft.id && it.id !in draft.dependencies }
@@ -490,7 +486,7 @@ internal fun DependenciesSection(draft: Task, allTasks: List<Task>, onEdit: ((Ta
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(GsdShapes.small)
-                            .clickable(enabled = !cycles) {
+                            .clickable(enabled = !cycles, role = Role.Button) {
                                 onEdit { it.copy(dependencies = it.dependencies + candidate.id) }
                                 query = ""
                             }

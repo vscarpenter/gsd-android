@@ -25,6 +25,7 @@ import dev.vinny.gsd.sync.DeleteAccountOutcome
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.SignInButton
+import dev.vinny.gsd.ui.announced
 import kotlinx.coroutines.launch
 
 /**
@@ -84,12 +85,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(R.string.settings_account).uppercase(),
-            style = GsdType.caption,
-            color = gsd.ink3,
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        GroupLabel(R.string.settings_account)
         if (!signedIn) {
             SignedOutAccount(sessionExpired, signInError) { launchProvider(it) }
         } else {
@@ -109,7 +105,7 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
                 color = gsd.ink2,
             )
             if (failed > 0) {
-                Text(stringResource(R.string.health_failed), style = GsdType.metadata, color = gsd.ochre)
+                Text(stringResource(R.string.health_failed), style = GsdType.metadata, color = gsd.ochreInk)
             }
             ActionRow(R.string.account_sync_now) { container.syncCoordinator.requestSync(true) }
             ActionRow(R.string.account_sync_history, onClick = onOpenHistory)
@@ -121,7 +117,9 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
         // Rendered outside the signed-in branch: a local-erase failure after a successful
         // remote delete flips signedIn to false before this recomposes, so the message must
         // survive that transition to stay visible.
-        deletionMessage?.let { Text(stringResource(it), style = GsdType.subhead, color = gsd.alert) }
+        deletionMessage?.let {
+            Text(stringResource(it), style = GsdType.subhead, color = gsd.alert, modifier = Modifier.announced())
+        }
     }
 
     if (deleteOpen) {
@@ -152,12 +150,12 @@ internal fun SignedOutAccount(sessionExpired: Boolean, signInError: String?, onP
     val gsd = LocalGsdColors.current
     if (sessionExpired) {
         // Ochre, not alert: nothing was lost, the user only needs to sign in again (spec §5.3)
-        Text(stringResource(R.string.health_expired), style = GsdType.metadata, color = gsd.ochre)
+        Text(stringResource(R.string.health_expired), style = GsdType.metadata, color = gsd.ochreInk)
     }
     // Buttons, not bare text links (finding 29)
     SignInButton(stringResource(R.string.sign_in_google), onClick = { onProvider("google") })
     SignInButton(stringResource(R.string.sign_in_apple), onClick = { onProvider("apple") })
     SignInButton(stringResource(R.string.sign_in_github), onClick = { onProvider("github") })
-    signInError?.let { Text(it, style = GsdType.metadata, color = gsd.alert) }
+    signInError?.let { Text(it, style = GsdType.metadata, color = gsd.alert, modifier = Modifier.announced()) }
     Text(stringResource(R.string.account_privacy_hint), style = GsdType.metadata, color = gsd.ink3)
 }

@@ -211,7 +211,7 @@ private fun AxisTile(quadrant: Quadrant, modifier: Modifier) {
     Text(
         quadrant.title,
         style = GsdType.quadrantTitle.copy(fontSize = 15.sp),
-        color = gsd.accent(quadrant),
+        color = gsd.accentInk(quadrant),
         modifier = modifier
             .heightIn(min = 62.dp)
             .clip(GsdShapes.small)

@@ -10,9 +10,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
 import dev.vinny.gsd.theme.GsdType
@@ -31,10 +33,15 @@ fun SyncStatusChip(state: SyncChipState, modifier: Modifier = Modifier) {
     if (!state.signedIn) return
     if (!state.syncing && state.pending == 0 && state.failed == 0) return
     val gsd = LocalGsdColors.current
-    val description = stringResource(R.string.cd_sync_status)
+    // What the chip shows, in words; it said "Sync status" whatever it showed (review, Accessibility)
+    val description = when {
+        state.failed > 0 -> stringResource(R.string.cd_sync_failed)
+        state.syncing -> stringResource(R.string.cd_sync_running)
+        else -> pluralStringResource(R.plurals.cd_sync_pending, state.pending, state.pending)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.semantics { contentDescription = description },
+        modifier = modifier.testTag("sync_chip").clearAndSetSemantics { contentDescription = description },
     ) {
         when {
             state.failed > 0 -> Icon(

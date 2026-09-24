@@ -80,12 +80,7 @@ internal fun NotificationsGroup(container: AppContainer) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(R.string.settings_notifications).uppercase(),
-            style = GsdType.caption,
-            color = gsd.ink3,
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        GroupLabel(R.string.settings_notifications)
         SwitchRow(R.string.settings_enable_reminders, settings.enabled) { enabled ->
             update { it.copy(enabled = enabled) }
             // Contextual permission ask on first enablement (spec §11.2)
@@ -147,7 +142,7 @@ internal fun NotificationsGroup(container: AppContainer) {
         }
         if (!exactAllowed) {
             // Denied by default on Android 14 and later, and the listing promises on-time reminders (finding 8)
-            Text(stringResource(R.string.settings_exact_degraded), style = GsdType.metadata, color = gsd.ochre)
+            Text(stringResource(R.string.settings_exact_degraded), style = GsdType.metadata, color = gsd.ochreInk)
             LinkRow(stringResource(R.string.settings_exact_allow)) {
                 context.startActivity(
                     Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")),
