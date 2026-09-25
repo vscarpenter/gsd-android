@@ -71,7 +71,7 @@ class SettingsPolishTest {
     }
 
     @Test
-    fun quietHoursCanBeSetAndPrintInTheUsersClock() = runBlocking {
+    fun quietHoursCanBeSetAndPrintInTheUsersClock() = runBlocking<Unit> {
         container.notificationSettingsStore.update {
             it.copy(quietHoursStart = java.time.LocalTime.of(22, 0), quietHoursEnd = java.time.LocalTime.of(7, 0))
         }
