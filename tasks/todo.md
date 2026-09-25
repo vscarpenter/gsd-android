@@ -4,11 +4,9 @@
 
 Every numbered finding in `docs/play/2026-09-20-polish-review.md` that code can fix is now fixed, along with
 the copy and accessibility sections, the follow-ups, "Worth a look", and the backlog. The work is on
-`claude/festive-pascal-b4c4mb`, draft PR #29. **None of it has been compiled yet.** The session
-container could not reach Google's Maven repository (`dl.google.com` answered 403), so the Android modules
-never built there. The `:core:model` suite (181), the `:core:sync` suite (102), and a standalone JVM build of
-the plain-Kotlin `:app` files and their tests (55) did run, green. The first full build and the full gates
-belong to the owner, before PR #29 merges; see "Resuming From Here (2026-09-24)" below.
+`claude/festive-pascal-b4c4mb`, PR #29, merged 2026-09-24 before its first build. Later that day, main
+failed to compile. `5ac9e59` and `aaa73fa` on `fix/compile-after-29` fix the build and four tests, and every
+gate is green there, including `connectedAndroidTest` on `gsd-test` (226 app tests, 65 store tests).
 
 What is still open: the path to production (section A), the TalkBack pass on a device (H), the owner and
 device items in K and L, the sibling repos' items (M), and the follow-ups this pass turned up (N). A number
@@ -322,9 +320,9 @@ in front of an item is its finding number in the review, which holds the evidenc
 - [ ] Find out what deletes the `.img` files from the SDK system images. The `google_apis_playstore` image is
       still broken.
 - [ ] `gsd-shot`: remove the leftover "Today's Focus" widget from its home screen.
-- [ ] Delete `/tmp/claude-s3-run.txt`, a stray file from the S3 session.
-- [ ] `app/build/outputs` holds a release APK built from a fix branch at versionCode 9. It is not the Play
-      artifact.
+- [x] Delete `/tmp/claude-s3-run.txt`, a stray file from the S3 session. Gone by 2026-09-24.
+- [x] `app/build/outputs` holds a release APK built from a fix branch at versionCode 9. It is not the Play
+      artifact. Moot by 2026-09-24: later builds replaced it.
 
 ### M. Not Android's to fix (upstream)
 
@@ -341,9 +339,11 @@ in front of an item is its finding number in the review, which holds the evidenc
 
 ### N. Found on 2026-09-24, while fixing the rest
 
-- [ ] Compile PR #29 and run every gate: `:core:model:test`, `testDebugUnitTest`, `connectedAndroidTest` on
+- [x] Compile PR #29 and run every gate: `:core:model:test`, `testDebugUnitTest`, `connectedAndroidTest` on
       `gsd-test`, `:app:assembleDebug`, and `:app:assembleRelease`. Nothing on the branch was compiled, so expect
       small compile errors. Every API it uses was checked against the androidx sources, but not built.
+      Done 2026-09-24 on `fix/compile-after-29`: `5ac9e59` fixes two compile errors in `:app` and four test files;
+      `aaa73fa` fixes four instrumented tests that could not pass. Every gate green.
 - [ ] Settings never shows the offline and stale-queue health messages that spec 9.7 lists. `Health.evaluate`
       in `:core:sync` has no caller, and `health_offline` and `health_stale` are unused strings.
 - [ ] The Sync history screen lists runs but not the totals spec 8.17 names.

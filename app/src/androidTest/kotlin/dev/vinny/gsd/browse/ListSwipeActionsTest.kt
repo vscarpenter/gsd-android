@@ -1,13 +1,16 @@
 package dev.vinny.gsd.browse
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import dev.vinny.gsd.GsdApp
 import dev.vinny.gsd.model.Task
@@ -72,10 +75,10 @@ class ListSwipeActionsTest {
     }
 
     @Test
-    fun aTrailingSwipeOnASmartViewListDeletesTheTask() {
+    fun aTrailingSwipeOnASmartViewListOffersDelete() {
         showTodaysFocus()
 
-        rule.onNode(row).performTouchInput { swipeLeft() }
+        swipeOpenAndTapDelete()
 
         rule.waitUntil(5_000) { stored() == null }
     }
@@ -90,12 +93,23 @@ class ListSwipeActionsTest {
     }
 
     @Test
-    fun aTrailingSwipeOnBrowseSearchResultsDeletesTheTask() {
+    fun aTrailingSwipeOnBrowseSearchResultsOffersDelete() {
         showBrowseSearchResults()
 
-        rule.onNode(row).performTouchInput { swipeLeft() }
+        swipeOpenAndTapDelete()
 
         rule.waitUntil(5_000) { stored() == null }
+    }
+
+    /** A part swipe opens Snooze and Delete (spec 8.1); a full one would snooze. */
+    private fun swipeOpenAndTapDelete() {
+        rule.onNode(row).performTouchInput {
+            down(centerRight)
+            moveBy(Offset(-100.dp.toPx(), 0f)) // past half of the two buttons, short of a full swipe
+            up()
+        }
+        rule.waitUntil(5_000) { rule.onAllNodes(hasText("Delete")).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithText("Delete").performClick()
     }
 
     private fun showTodaysFocus() {

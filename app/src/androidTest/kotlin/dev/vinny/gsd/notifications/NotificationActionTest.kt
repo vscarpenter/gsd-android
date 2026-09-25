@@ -32,11 +32,13 @@ class NotificationActionTest {
     fun aFailedWriteIsReportedAndNotThrown(): Unit = runBlocking {
         val db = newDb()
         val store = TaskStore(db, Clock.fixed(now, ZoneOffset.UTC))
-        db.close() // every write now fails, the way a broken database would
+        // Room reopens a closed database on the next query, so close() would not break it. A missing table does.
+        db.openHelper.writableDatabase.execSQL("DROP TABLE tasks")
 
         val done = runNotificationAction(NotificationActionReceiver.ACTION_COMPLETE, "gone-task", store, now)
 
         assertFalse(done)
+        db.close()
     }
 
     @Test
