@@ -310,8 +310,9 @@ in front of an item is its finding number in the review, which holds the evidenc
 - [x] Origin no longer has `fix/task-menu-everywhere`. It was gone at a fetch late on 2026-09-20.
 - [x] Local branch cleanup. Done 2026-09-21 on the owner's word: six merged local branches deleted after
       `git branch --merged main` listed each one.
-- [ ] `origin/docs/record-production-application` (#25) is still on origin. Deleting it waits for the owner's
+- [x] `origin/docs/record-production-application` (#25) is still on origin. Deleting it waits for the owner's
       word; the ask was for local branches.
+      Done 2026-09-24 on the owner's word, after a check that #25 merged and main held every commit.
 - [x] Widen `--allowedTools` in `.github/workflows/claude-code-review.yml`. Four of seven reviews ended in 15
       seconds with a green check and no review.
       Done 2026-09-24 on `claude/festive-pascal-b4c4mb` (#29), `887d822`: the plugin may run the read-only gh commands it needs.
@@ -347,8 +348,9 @@ in front of an item is its finding number in the review, which holds the evidenc
 - [ ] Settings never shows the offline and stale-queue health messages that spec 9.7 lists. `Health.evaluate`
       in `:core:sync` has no caller, and `health_offline` and `health_stale` are unused strings.
 - [ ] The Sync history screen lists runs but not the totals spec 8.17 names.
-- [ ] The capture bar drops a validation error silently: `MatrixScreen` passes `onError = {}`. An over-long
+- [x] The capture bar drops a validation error silently: `MatrixScreen` passes `onError = {}`. An over-long
       title in the bar does nothing when submitted.
+      Done 2026-09-24 on `fix/capture-validation-error`: the reason shows under the field and clears on the next edit.
 - [ ] Trash's select button is a plain `IconButton`, so TalkBack hears no on or off state. Matrix uses an
       `IconToggleButton`.
 - [ ] iOS should take the quadrant text inks from spec 5.1. Android now draws Ochre and Slate text in the web's
