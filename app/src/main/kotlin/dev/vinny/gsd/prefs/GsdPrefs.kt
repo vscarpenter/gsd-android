@@ -13,6 +13,12 @@ import kotlinx.coroutines.flow.map
 
 enum class ThemePref { SYSTEM, LIGHT, DARK }
 
+/**
+ * A sign-in whose owner is not confirmed yet: the "Different account" prompt is open (spec §8.21).
+ * Only the token survives a restart otherwise, so a rebuilt prompt would know no email or provider.
+ */
+data class PendingSignIn(val id: String, val email: String?, val provider: String?)
+
 /** Lightweight preferences (spec §6.7 / §7.7): DataStore-backed, observed as Flows. */
 class GsdPrefs(private val dataStore: DataStore<Preferences>) {
     private object Keys {
@@ -23,6 +29,9 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
         val lastOwnerId = stringPreferencesKey("lastOwnerId")
         val lastOwnerEmail = stringPreferencesKey("lastOwnerEmail")
         val lastAuthProvider = stringPreferencesKey("lastAuthProvider")
+        val pendingSignInId = stringPreferencesKey("pendingSignInId")
+        val pendingSignInEmail = stringPreferencesKey("pendingSignInEmail")
+        val pendingSignInProvider = stringPreferencesKey("pendingSignInProvider")
         val feedbackSubmissionId = stringPreferencesKey("feedbackSubmissionId")
         val feedbackSentiment = stringPreferencesKey("feedbackSentiment")
         val feedbackCategory = stringPreferencesKey("feedbackCategory")
@@ -45,6 +54,32 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
     suspend fun setLastAuthProvider(provider: String?) {
         dataStore.edit { prefs ->
             if (provider == null) prefs.remove(Keys.lastAuthProvider) else prefs[Keys.lastAuthProvider] = provider
+        }
+    }
+
+    val pendingSignIn: Flow<PendingSignIn?> = dataStore.data.map { prefs ->
+        prefs[Keys.pendingSignInId]?.let { id ->
+            PendingSignIn(id, prefs[Keys.pendingSignInEmail], prefs[Keys.pendingSignInProvider])
+        }
+    }
+
+    suspend fun setPendingSignIn(signIn: PendingSignIn) {
+        dataStore.edit { prefs ->
+            prefs[Keys.pendingSignInId] = signIn.id
+            if (signIn.email == null) prefs.remove(Keys.pendingSignInEmail) else prefs[Keys.pendingSignInEmail] = signIn.email
+            if (signIn.provider == null) {
+                prefs.remove(Keys.pendingSignInProvider)
+            } else {
+                prefs[Keys.pendingSignInProvider] = signIn.provider
+            }
+        }
+    }
+
+    suspend fun clearPendingSignIn() {
+        dataStore.edit { prefs ->
+            prefs.remove(Keys.pendingSignInId)
+            prefs.remove(Keys.pendingSignInEmail)
+            prefs.remove(Keys.pendingSignInProvider)
         }
     }
 

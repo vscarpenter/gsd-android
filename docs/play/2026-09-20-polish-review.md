@@ -297,6 +297,44 @@ These came from the release-readiness pass. I confirmed the code but did not rep
 6. Work through the polish table, starting with onboarding, the Field Guide, and the shared top bar.
 7. Re-run the accessibility audit on a device with TalkBack once the semantics land, and correct `accessibility-audit.md`.
 
+## Status, 2026-09-24
+
+Every finding that code can fix is fixed on `claude/festive-pascal-b4c4mb`, draft PR #29, one commit per fix, each with its spec amendment. None of it has been compiled yet: the session container could not reach Google's Maven repository, so only the JVM suites ran (green). `tasks/todo.md` names the commit for each item.
+
+| Finding | Commit |
+|---|---|
+| 6 and 7 (pickers, the permission ask) | `e7e23cc` |
+| 8 (exact alarms), and the time zone receiver | `4102ab0` |
+| 9 and 41 (share sheet, title fetch), and styled shared text | `2ac911e` |
+| 10 (caret) | `4d36835` |
+| 11, 36, 37, 38 (insets, paper, drawer, status bar icons) | `dbc030c` |
+| 12 (chip rows wrap) | `024e391` |
+| 13 (select mode) | `767d0fd` |
+| 14 (grid menu) | `03fee2c` |
+| 15 (privacy link) | `669fc77` |
+| 16 and 42 (cloud backup excluded, moved device ids) | `8e12b5e` |
+| 17 (data safety answers) | `701503a` |
+| 19 and 20 (onboarding, Field Guide, About) | `e46fbb4` |
+| 21 (top bars) | `bc2b686` |
+| 22 (Browse search) | `8614139` |
+| 23 and 24 (Material roles, shapes, type) | `6b3b49b` |
+| 25 (Save and discard) | `f489b8d` |
+| 26 (palette) | `b58d92c` |
+| 27 (notification icon) | `ccb1a79` |
+| 28 (shortcut icons, widget preview) | `a5564bf` |
+| 29 (Settings) | `b1701ae` |
+| 30 (editor details) | `bf437c6` |
+| 31 (menu and delete dialogs) | `78702ba` |
+| 32 (empty states) | `1f85ac8` |
+| 33 (list motion) | `c5a67f0` |
+| 34 and 35 (spine, title cap) | `6c08093` |
+| 39 and 40 (export, import, and erase survive rotation) | `41032e0` |
+| Copy section | `4e37c4e`, `b397687`, `c1648c5` |
+| Accessibility section | `5c23b6d` |
+| "Also worth a look" | `96a86f2`, `71921a3`, `4102ab0`, `1edccbb`, `8cd4c0e`, `2ac911e`, `9cf5221` |
+
+Still open: 17's privacy page and Console form (owner steps; the page lives in the web repo), the TalkBack walkthrough on a device, and the release smoke. One decision is worth the owner's eye: quadrant text now uses the web's darker Ochre and Slate inks for AA, which supersedes the August parity note that kept raw pigment on both native clients. iOS still draws raw pigment.
+
 ## Emulator state after this review
 
 - `gsd-shot` now runs the 0.9.0 debug build. Its seeded tasks are intact, and the Trash is empty.

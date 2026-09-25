@@ -1,9 +1,11 @@
 package dev.vinny.gsd.browse
 
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -16,6 +18,7 @@ import dev.vinny.gsd.model.BuiltInSmartViews
 import dev.vinny.gsd.model.Subtask
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdTheme
+import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.ZoneOffset
 import org.junit.Rule
@@ -60,8 +63,10 @@ class BrowseTest {
             }
         }
         rule.onNodeWithText("Archive").assertIsDisplayed()
-        rule.onNodeWithText("PINNED").assertIsDisplayed()
+        rule.onNode(hasText("Pinned") and isHeading()).assertIsDisplayed() // review, Accessibility
         rule.onNodeWithText("Today's Focus").assertIsDisplayed()
+        // Review, Copy: a view's menu button announced "Task options"
+        rule.onNodeWithContentDescription("Today's Focus options").assertIsDisplayed()
         rule.onNode(hasScrollAction()).performScrollToNode(hasText("New Smart View"))
         rule.onNodeWithText("New Smart View").assertIsDisplayed()
         rule.onNode(hasScrollAction()).performScrollToNode(hasText("Today's Focus"))
@@ -78,6 +83,20 @@ class BrowseTest {
             }
         }
         rule.onNodeWithText("Nothing overdue").assertIsDisplayed()
+        rule.onNodeWithText("You're all caught up.").assertIsDisplayed() // finding 32: headline plus sentence
+    }
+
+    /** Review finding 32: a custom view's empty state read only "Nothing here". */
+    @Test
+    fun aCustomViewsEmptyStateNamesTheView() {
+        val custom = BuiltInSmartViews.all.first { it.id == "today-focus" }.copy(id = "custom-errands", name = "Errands")
+        rule.setContent {
+            GsdTheme {
+                ViewListContent(view = custom, allTasks = emptyList(), rowActions = { TaskRowActions() })
+            }
+        }
+        rule.onNodeWithText("Nothing here yet").assertIsDisplayed()
+        rule.onNodeWithText("Tasks matching \"Errands\" will appear here.").assertIsDisplayed()
     }
 
     @Test
@@ -89,7 +108,20 @@ class BrowseTest {
             }
         }
         rule.onNodeWithContentDescription("Loading").assertIsDisplayed()
-        rule.onNodeWithText("Nothing here").assertDoesNotExist()
+        rule.onNodeWithText("Nothing overdue").assertDoesNotExist()
+    }
+
+    /** Review finding 22: the search field read as a label, stood 37 dp tall, and had no clear button. */
+    @Test
+    fun theSearchFieldIsATallFieldWithAClearButton() {
+        content(buildBrowseState(BuiltInSmartViews.all, emptyList(), emptyList(), t0, ZoneOffset.UTC), emptyList())
+        rule.onNodeWithTag("browse_search").assertHeightIsAtLeast(48.dp)
+
+        rule.onNodeWithTag("browse_search").performTextInput("milk")
+        rule.onNodeWithText("Archive").assertDoesNotExist()
+        rule.onNodeWithContentDescription("Clear search").performClick()
+
+        rule.onNodeWithText("Archive").assertIsDisplayed()
     }
 
     private fun content(state: BrowseState, tasks: List<Task>, onOpen: (String) -> Unit = {}) = rule.setContent {

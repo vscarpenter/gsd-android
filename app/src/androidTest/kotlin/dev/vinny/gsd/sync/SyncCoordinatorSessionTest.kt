@@ -40,8 +40,13 @@ private class MemoryTokenStore(var stored: String?) : TokenStore {
  * guest that gets an empty listing (the list rule filters, it does not reject).
  */
 private class SessionRemote(private val token: () -> String?, private val task: Task) : SyncRemote {
+    /** A token the server revoked before it expired: the app still holds it, the server rejects it. */
+    @Volatile var tokenRevoked = false
+
+    private fun guest() = token() == null || tokenRevoked
+
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
-        val items = if (token() == null) emptyList() else listOf(WireMapper.push(task, "other-device", "user-1"))
+        val items = if (guest()) emptyList() else listOf(WireMapper.push(task, "other-device", "user-1"))
         return TaskListPage(
             page = 1, totalPages = 1, items = items,
             updatedStamps = items.map { PbDates.formatSpace(task.updatedAt) },
@@ -51,7 +56,7 @@ private class SessionRemote(private val token: () -> String?, private val task: 
     override suspend fun updateTask(recordId: String, wire: WireTask): WireTask = wire
     override suspend fun deleteTask(recordId: String) = Unit
     override suspend fun confirmIdentity(ownerId: String) {
-        if (token() == null) throw PocketBaseApi.Unauthorized(401)
+        if (guest()) throw PocketBaseApi.Unauthorized(401)
     }
 }
 
@@ -97,7 +102,12 @@ class SyncCoordinatorSessionTest {
     // 30 days out: well past the 7-day refresh window, so nothing here touches the network
     private val healthyToken get() = jwt("user-1", clock.instant().plusSeconds(30L * 24 * 3600))
 
-    private class Fixture(val coordinator: SyncCoordinator, val tokens: CachedTokenStore, val local: RoomSyncLocalStore)
+    private class Fixture(
+        val coordinator: SyncCoordinator,
+        val tokens: CachedTokenStore,
+        val local: RoomSyncLocalStore,
+        val remote: SessionRemote,
+    )
 
     /** A signed-in coordinator whose one task is already on the server (no queue row). */
     private suspend fun signedInFixture(): Fixture {
@@ -105,10 +115,8 @@ class SyncCoordinatorSessionTest {
         val tokens = CachedTokenStore(MemoryTokenStore(healthyToken))
         val auth = AuthManager(PocketBaseApi("http://127.0.0.1:9", { tokens.cachedToken() }), tokens, clock)
         val local = RoomSyncLocalStore(db)
-        val engine = SyncEngine(
-            SessionRemote({ tokens.cachedToken() }, synced), local, clock,
-            throttleMs = 0, ownerId = { auth.currentUserId() },
-        )
+        val remote = SessionRemote({ tokens.cachedToken() }, synced)
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { auth.currentUserId() })
         val coordinator = SyncCoordinator(
             context, engine, auth, tokens, db, local,
             SseClient("http://127.0.0.1:9", { tokens.cachedToken() }),
@@ -117,7 +125,7 @@ class SyncCoordinatorSessionTest {
         local.upsertFromRemote(synced) // written the way a pull writes it
         coordinator.start()
         awaitSignedIn(coordinator, true)
-        return Fixture(coordinator, tokens, local)
+        return Fixture(coordinator, tokens, local, remote)
     }
 
     /** What a definitive refresh rejection does (AuthManager.ensureFreshToken), followed by the next run. */
@@ -146,5 +154,23 @@ class SyncCoordinatorSessionTest {
         fixture.coordinator.confirmOwner(AuthResult(healthyToken, AuthRecord("user-1")), eraseLocalFirst = false)
 
         assertFalse(fixture.coordinator.sessionExpired.value)
+    }
+
+    /**
+     * Review follow-up S1: a token the server revoked with more than 7 days left never reaches the
+     * refresh, so the identity check's 401 must end the session. The token goes too, or a restart
+     * would find it and sign back in to a dead session.
+     */
+    @Test
+    fun aRevokedTokenSignsOutAndIsForgotten() = runBlocking {
+        val fixture = signedInFixture()
+        fixture.remote.tokenRevoked = true
+
+        fixture.coordinator.requestSync(true)
+        awaitSignedIn(fixture.coordinator, false)
+
+        assertTrue(fixture.coordinator.sessionExpired.value)
+        assertEquals(null, fixture.tokens.token())
+        assertEquals(listOf("synced-task"), fixture.local.activeTasks().map { it.id })
     }
 }

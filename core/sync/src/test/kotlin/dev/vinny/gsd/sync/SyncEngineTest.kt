@@ -199,6 +199,61 @@ class SyncEngineTest {
         assertEquals("error", result.status)
     }
 
+    /**
+     * "Worth a look" in the 2026-09-20 review: every run listed the whole collection twice. The push's
+     * index is for the queue, so a run with nothing queued lists it once, for reconciliation (§9.5).
+     */
+    @Test
+    fun `a run with nothing queued lists the whole collection once`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        local.savedCursor = "2026-07-19 11:00:00.000Z" // so the pull's listing is not a full one
+        local.tasks["synced"] = task("synced")
+        remote.createTask(WireMapper.push(task("synced"), "other-device", "user-1"))
+        var fullListings = 0
+        remote.listResponder = { _, cursor ->
+            if (cursor == "1970-01-01 00:00:00.000Z") fullListings++
+            val items = remote.records.entries.map { it.value.copy(id = it.key) }
+            TaskListPage(page = 1, totalPages = 1, items = items, updatedStamps = items.map { PbDates.formatSpace(now) })
+        }
+
+        engine(remote, local).runSync(false)
+
+        assertEquals(1, fullListings)
+    }
+
+    @Test
+    fun `a run with something queued still takes the index for its push`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        local.savedCursor = "2026-07-19 11:00:00.000Z"
+        val edited = task("edited")
+        local.tasks["edited"] = edited
+        local.queue += queueItem(1, edited, SyncOp.CREATE)
+        var fullListings = 0
+        remote.listResponder = { _, cursor ->
+            if (cursor == "1970-01-01 00:00:00.000Z") fullListings++
+            val items = remote.records.entries.map { it.value.copy(id = it.key) }
+            TaskListPage(page = 1, totalPages = 1, items = items, updatedStamps = items.map { PbDates.formatSpace(now) })
+        }
+
+        engine(remote, local).runSync(false)
+
+        assertEquals(2, fullListings) // one for the push, and a fresh one for reconciliation
+        assertEquals(1, remote.records.size)
+    }
+
+    /**
+     * Review follow-up S1: a token the server rejects is a dead session, even with more than 7 days
+     * before it expires, so the run says so and the coordinator signs the user out.
+     */
+    @Test
+    fun `a rejected identity check ends the session`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.rejectIdentity = true
+        local.tasks["synced"] = task("synced")
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+    }
+
     @Test
     fun `an unconfirmed session abandons nothing to trash`() = runTest {
         val local = FakeLocal(); val remote = FakeRemote()

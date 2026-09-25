@@ -122,4 +122,86 @@ class ReminderPlannerTest {
             ReminderPlanner.fireTime(task(dueDate = duringDue), quiet, now, zone),
         )
     }
+
+    private fun dueIn(hours: Long, id: String) = task(dueDate = now.plusSeconds(hours * 3600)).copy(id = id)
+
+    /** Android refuses more than 500 concurrent alarms per app, so a large import must not ask for one per task. */
+    @Test
+    fun `soonest keeps the nearest fire times up to the limit`() {
+        val tasks = listOf(dueIn(5, "e"), dueIn(1, "a"), dueIn(4, "d"), dueIn(2, "b"), dueIn(3, "c"))
+
+        val planned = ReminderPlanner.soonest(tasks, settings, now, zone, limit = 3)
+
+        assertEquals(setOf("a", "b", "c"), planned.keys)
+    }
+
+    @Test
+    fun `a task with no fire time never takes a slot`() {
+        val done = listOf(dueIn(1, "x").copy(completed = true), dueIn(1, "y").copy(completed = true))
+        val open = listOf(dueIn(8, "a"), dueIn(9, "b"))
+
+        val planned = ReminderPlanner.soonest(done + open, settings, now, zone, limit = 2)
+
+        assertEquals(setOf("a", "b"), planned.keys)
+    }
+
+    /** Equal fire times break by id, so every resync picks the same tasks and no alarm flaps. */
+    @Test
+    fun `equal fire times break by id`() {
+        val tasks = listOf(dueIn(2, "c"), dueIn(2, "a"), dueIn(2, "b"))
+
+        val planned = ReminderPlanner.soonest(tasks, settings, now, zone, limit = 2)
+
+        assertEquals(setOf("a", "b"), planned.keys)
+    }
+}
+
+/** Review finding 7: reminders default to on, so the ask on the Settings switch never ran. */
+class ReminderPermissionTest {
+    private val now = Instant.parse("2026-07-19T12:00:00.000Z")
+    private val fresh = ReminderSettings(enabled = true, permissionAsked = false)
+    private val noDate = Task(title = "t", urgent = false, important = false, createdAt = now, updatedAt = now)
+    private val dated = noDate.copy(dueDate = now.plusSeconds(86_400))
+
+    @Test
+    fun `asks when an edit first gives a task a due date`() =
+        assertEquals(true, ReminderPermission.shouldAsk(fresh, granted = false, before = noDate, after = dated))
+
+    @Test
+    fun `asks when an edit changes the reminder on a dated task`() =
+        assertEquals(true, ReminderPermission.shouldAsk(fresh, false, dated, dated.copy(notifyBefore = 60)))
+
+    @Test
+    fun `never asks twice`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh.copy(permissionAsked = true), false, noDate, dated))
+
+    @Test
+    fun `never asks once granted`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, granted = true, before = noDate, after = dated))
+
+    @Test
+    fun `never asks while reminders are off`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh.copy(enabled = false), false, noDate, dated))
+
+    @Test
+    fun `never asks for a task whose reminders are off`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, false, noDate, dated.copy(notificationEnabled = false)))
+
+    @Test
+    fun `never asks for an edit that leaves the due date and reminder alone`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, false, dated, dated.copy(title = "renamed")))
+
+    @Test
+    fun `never asks when an edit removes the due date`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, false, dated, noDate))
+
+    /** Review, "Also worth a look": stored quiet hours went through LocalTime.parse unchecked. */
+    @Test
+    fun `quiet hours keep both times only when both parse`() {
+        assertEquals(LocalTime.of(22, 0) to LocalTime.of(7, 0), QuietHours.parse("22:00", "07:00"))
+        assertEquals(null to null, QuietHours.parse("25:00", "07:00"))
+        assertEquals(null to null, QuietHours.parse("22:00", "7am"))
+        assertEquals(null to null, QuietHours.parse("22:00", null))
+        assertEquals(null to null, QuietHours.parse(null, null))
+    }
 }

@@ -5,8 +5,9 @@
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:maxResizeWidth="360dp"
-    android:maxResizeHeight="220dp"
+    android:maxResizeHeight="360dp"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen"
-    android:description="@string/widget_title" />
+    android:previewLayout="@layout/widget_preview"
+    android:description="@string/widget_description" />

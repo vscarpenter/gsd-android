@@ -1,15 +1,19 @@
 package dev.vinny.gsd.matrix
 
+import android.animation.ValueAnimator
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
@@ -26,6 +30,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import dev.vinny.gsd.ui.reorderMotion
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +44,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -73,6 +83,17 @@ fun MatrixScreen(
     var paletteVisible by remember { mutableStateOf(false) }
     ConsumeWhileResumed(container.palette.openRequests) { paletteVisible = true }
     ConsumeWhileResumed(container.palette.newTaskRequests) { editorViewModel.openNew(null) }
+    val listState = rememberLazyListState()
+    // gsd://quadrant/<id> and Ctrl+1 to Ctrl+4 (§6.4, §6.6). The grid shows all four quadrants at once.
+    ConsumeWhileResumed(container.palette.quadrantRequests) { quadrant ->
+        if (expanded) return@ConsumeWhileResumed
+        // A cold start's request waits for the first snapshot and the list's first layout
+        viewModel.sections.filterNotNull().first()
+        val laidOut = snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
+        val rows = viewModel.sections.value.orEmpty().map { it.quadrant to it.tasks.size }
+        val index = quadrantHeaderIndex(rows, quadrant).coerceAtMost(laidOut - 1)
+        if (ValueAnimator.areAnimatorsEnabled()) listState.animateScrollToItem(index) else listState.scrollToItem(index)
+    }
     val appContext = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(Unit) {
         container.palette.openTaskRequests.collect { taskId ->
@@ -96,6 +117,7 @@ fun MatrixScreen(
                 onToggleShowCompleted = { scope.launch { container.prefs.setShowCompleted(!showCompleted) } },
                 onSearch = { paletteVisible = true },
                 onToggleSelectMode = viewModel::toggleSelectionMode,
+                selectMode = selectionMode,
                 syncChip = {
                     val signedIn by container.syncCoordinator.signedIn.collectAsStateWithLifecycle()
                     val syncing by container.syncCoordinator.syncing.collectAsStateWithLifecycle()
@@ -144,7 +166,8 @@ fun MatrixScreen(
                     onEdit = { editorViewModel.openExisting(task.id) },
                 )
             }
-            if (selectionMode && selection.isNotEmpty()) {
+            // Shown as soon as select mode is on, so an empty selection still says the mode is on (finding 13)
+            if (selectionMode) {
                 val selectedTags = sections.orEmpty().flatMap { it.tasks }
                     .filter { it.id in selection }
                     .flatMap { it.tags }
@@ -166,6 +189,8 @@ fun MatrixScreen(
                         onOpen = editorViewModel::openExisting,
                         onDropToQuadrant = actions::moveToQuadrant,
                         onDelete = { actions.delete(it.id) },
+                        rowActions = rowActions,
+                        selection = selection.takeIf { selectionMode },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -176,7 +201,8 @@ fun MatrixScreen(
                     onOpen = editorViewModel::openExisting,
                     onDelete = { actions.delete(it.id) },
                     rowActions = rowActions,
-                    menuEnabled = !selectionMode,
+                    selection = selection.takeIf { selectionMode },
+                    listState = listState,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -184,7 +210,8 @@ fun MatrixScreen(
         ConfettiOverlay(trigger = celebration.confettiTrigger)
         SnackbarHost(
             hostState = snackbarHost,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            // Above the keyboard, which the capture bar often has open
+            modifier = Modifier.align(Alignment.BottomCenter).imePadding(),
         )
     }
     val lastBulk by viewModel.lastBulkResult.collectAsStateWithLifecycle()
@@ -199,7 +226,11 @@ fun MatrixScreen(
     }
     UndoDeleteEffect(actions, snackbarHost)
     if (editorDraft != null) {
-        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+        TaskEditorSheet(
+            viewModel = editorViewModel,
+            reminderSettings = container.notificationSettingsStore,
+            onDismiss = {},
+        )
     }
     if (paletteVisible) {
         val allTasks by editorViewModel.allTasks.collectAsStateWithLifecycle()
@@ -243,7 +274,10 @@ fun MatrixScreen(
     }
 }
 
-/** Compact-width matrix: a vertical stack of quadrant sections (spec §6.1). */
+/**
+ * Compact-width matrix: a vertical stack of quadrant sections (spec §6.1). [selection] is null
+ * outside select mode. In it every card shows whether it is selected, and rows do not swipe.
+ */
 @Composable
 fun MatrixList(
     sections: List<QuadrantSectionState>?,
@@ -252,7 +286,8 @@ fun MatrixList(
     modifier: Modifier = Modifier,
     onDelete: (dev.vinny.gsd.model.Task) -> Unit = {},
     rowActions: ((dev.vinny.gsd.model.Task) -> TaskRowActions)? = null,
-    menuEnabled: Boolean = true,
+    selection: Set<String>? = null,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     if (sections == null) {
         MatrixSkeleton(modifier = modifier)
@@ -260,36 +295,49 @@ fun MatrixList(
     }
     val allVisible = sections.flatMap { it.tasks }
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         sections.forEach { section ->
+            // Headers and prompts move with the rows, so the whole board slides as a task changes place
             item(key = "header-${section.quadrant.id}") {
                 QuadrantHeader(
                     section,
-                    modifier = Modifier.padding(top = if (section.quadrant == Quadrant.DO_FIRST) 0.dp else 20.dp),
+                    modifier = reorderMotion()
+                        .padding(top = if (section.quadrant == Quadrant.DO_FIRST) 0.dp else 20.dp),
                 )
             }
             if (section.tasks.isEmpty()) {
-                item(key = "empty-${section.quadrant.id}") { EmptyQuadrantPrompt(section.quadrant) }
+                item(key = "empty-${section.quadrant.id}") {
+                    EmptyQuadrantPrompt(section.quadrant, modifier = reorderMotion())
+                }
             } else {
                 items(section.tasks, key = { it.id }) { task ->
                     val badges = TaskBadges(
                         blocked = dev.vinny.gsd.model.DependencyGraph.uncompletedBlockers(allVisible, task).size,
                         blocking = dev.vinny.gsd.model.DependencyGraph.blocking(allVisible, task).size,
                     )
+                    val actions = rowActions?.invoke(task) ?: TaskRowActions(
+                        onEdit = { onOpen(task.id) },
+                        onToggleComplete = { onToggleComplete(task) },
+                        onDelete = { onDelete(task) },
+                    )
                     SwipeTaskRow(
                         task = task,
                         onComplete = { onToggleComplete(task) },
                         onDelete = { onDelete(task) },
+                        modifier = reorderMotion(),
+                        enabled = selection == null,
+                        onSnooze = { actions.onSnooze(QuickSnooze) },
                     ) {
-                        val actions = rowActions?.invoke(task) ?: TaskRowActions(
-                            onEdit = { onOpen(task.id) },
-                            onToggleComplete = { onToggleComplete(task) },
-                            onDelete = { onDelete(task) },
+                        TaskRowWithMenu(
+                            task = task,
+                            badges = badges,
+                            actions = actions,
+                            selected = selection?.let { task.id in it },
                         )
-                        TaskRowWithMenu(task = task, badges = badges, actions = actions, menuEnabled = menuEnabled)
                     }
                 }
             }
@@ -309,7 +357,8 @@ internal fun QuadrantHeader(section: QuadrantSectionState, modifier: Modifier = 
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(section.quadrant)
     Row(
-        modifier = modifier.fillMaxWidth(),
+        // One heading, "Do First, 3", so TalkBack can jump from quadrant to quadrant (review, Accessibility)
+        modifier = modifier.fillMaxWidth().semantics(mergeDescendants = true) { heading() },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -319,7 +368,7 @@ internal fun QuadrantHeader(section: QuadrantSectionState, modifier: Modifier = 
         Text(
             section.quadrant.title,
             style = GsdType.quadrantTitle,
-            color = accent,
+            color = gsd.accentInk(section.quadrant),
             modifier = Modifier.weight(1f),
         )
         Text(
@@ -339,12 +388,12 @@ private val emptyCopy: Map<Quadrant, Int> = mapOf(
 
 /** Dashed in-context empty prompt (spec §5.10): hairlineStrong dash 5, radius 22. */
 @Composable
-private fun EmptyQuadrantPrompt(quadrant: Quadrant) {
+private fun EmptyQuadrantPrompt(quadrant: Quadrant, modifier: Modifier = Modifier) {
     val gsd = LocalGsdColors.current
     val strokeColor = gsd.hairlineStrong
     val density = LocalDensity.current
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .drawBehind {
                 val dash = with(density) { 5.dp.toPx() }

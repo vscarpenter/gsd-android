@@ -1,6 +1,5 @@
 package dev.vinny.gsd.browse
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,15 +8,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.AdsClick
+import androidx.compose.material.icons.outlined.Adjust
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Book
@@ -53,13 +51,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,6 +65,7 @@ import dev.vinny.gsd.R
 import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
 import dev.vinny.gsd.matrix.ConfettiOverlay
+import dev.vinny.gsd.matrix.QuickSnooze
 import dev.vinny.gsd.matrix.SwipeTaskRow
 import dev.vinny.gsd.matrix.TaskActionsViewModel
 import dev.vinny.gsd.matrix.TaskBadges
@@ -81,15 +79,18 @@ import dev.vinny.gsd.model.FilterCriteria
 import dev.vinny.gsd.model.FilterStatus
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskOrdering
-import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.SearchField
+import dev.vinny.gsd.ui.SectionHeading
+import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
 
 /** Icon token → vector for both built-ins (§5.7) and the 10 curated custom options. */
 val smartViewIcons: Map<String, ImageVector> = mapOf(
-    "adjust" to Icons.Outlined.AdsClick,
+    "adjust" to Icons.Outlined.Adjust, // the crosshair (spec §5.7); AdsClick drew a mouse pointer
     "calendar_month" to Icons.Outlined.CalendarMonth,
     "warning" to Icons.Outlined.Warning,
     "event_busy" to Icons.Outlined.EventBusy,
@@ -165,11 +166,16 @@ fun BrowseScreen(
             },
         )
         ConfettiOverlay(trigger = celebration.confettiTrigger)
-        SnackbarHost(hostState = snackbarHost, modifier = Modifier.align(Alignment.BottomCenter))
+        // Above the keyboard: a delete from search results offers Undo there (spec §8.20)
+        SnackbarHost(hostState = snackbarHost, modifier = Modifier.align(Alignment.BottomCenter).imePadding())
     }
     UndoDeleteEffect(actions, snackbarHost)
     if (editorDraft != null) {
-        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+        TaskEditorSheet(
+            viewModel = editorViewModel,
+            reminderSettings = container.notificationSettingsStore,
+            onDismiss = {},
+        )
     }
 }
 
@@ -192,18 +198,12 @@ fun BrowseContent(
     var query by remember { mutableStateOf("") }
     val trimmed = query.trim()
     Column(modifier = modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 4.dp)) {
-            if (query.isEmpty()) {
-                Text(stringResource(R.string.browse_search_hint), style = GsdType.subhead, color = gsd.ink3)
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                modifier = Modifier.fillMaxWidth().testTag("browse_search"),
-            )
-        }
+        SearchField(
+            value = query,
+            onValueChange = { query = it },
+            hint = stringResource(R.string.browse_search_hint),
+            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 12.dp, bottom = 4.dp).testTag("browse_search"),
+        )
         if (trimmed.isNotEmpty()) {
             BrowseSearchResults(
                 query = trimmed,
@@ -221,7 +221,7 @@ fun BrowseContent(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenArchive).padding(vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenArchive).padding(vertical = 12.dp),
                     ) {
                         Icon(Icons.Outlined.Inventory2, contentDescription = null, tint = gsd.ink2)
                         Text(stringResource(R.string.browse_archive), style = GsdType.cardTitle, color = gsd.ink)
@@ -231,7 +231,7 @@ fun BrowseContent(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTrash).padding(vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenTrash).padding(vertical = 12.dp),
                     ) {
                         Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = gsd.ink2)
                         Text(
@@ -254,7 +254,7 @@ fun BrowseContent(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable(onClick = onNewView).padding(vertical = 12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onNewView).padding(vertical = 12.dp),
                     ) {
                         Icon(Icons.Outlined.Add, contentDescription = null, tint = gsd.tint)
                         Text(stringResource(R.string.browse_new_view), style = GsdType.body, color = gsd.tint)
@@ -292,7 +292,13 @@ fun BrowseSearchResults(
                 blocking = DependencyGraph.blocking(allTasks, task).size,
             )
             val actions = rowActions(task)
-            SwipeTaskRow(task = task, onComplete = actions.onToggleComplete, onDelete = actions.onDelete) {
+            SwipeTaskRow(
+                task = task,
+                onComplete = actions.onToggleComplete,
+                onDelete = actions.onDelete,
+                modifier = reorderMotion(),
+                onSnooze = { actions.onSnooze(QuickSnooze) },
+            ) {
                 TaskRowWithMenu(task = task, badges = badges, actions = actions)
             }
         }
@@ -302,32 +308,12 @@ fun BrowseSearchResults(
 /** §5.10 empty state for a search miss; shared by Browse search and the in-view search (S§3.4). */
 @Composable
 fun SearchMissEmptyState(query: String, modifier: Modifier = Modifier) {
-    val gsd = LocalGsdColors.current
-    Column(
-        modifier = modifier.fillMaxWidth().padding(top = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            modifier = Modifier.size(60.dp).clip(GsdShapes.input).background(gsd.sunken),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Outlined.Search, contentDescription = null, tint = gsd.ink3, modifier = Modifier.size(28.dp))
-        }
-        Text(
-            stringResource(R.string.search_empty_title, query),
-            style = GsdType.quadrantTitle,
-            color = gsd.ink,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            stringResource(R.string.search_empty_body),
-            style = GsdType.subhead,
-            color = gsd.ink2,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(max = 280.dp),
-        )
-    }
+    EmptyState(
+        icon = Icons.Outlined.Search,
+        title = stringResource(R.string.search_empty_title, query),
+        body = stringResource(R.string.search_empty_body),
+        modifier = modifier.padding(top = 40.dp),
+    )
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.section(
@@ -340,15 +326,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.section(
 ) {
     if (rows.isEmpty()) return
     item(key = "header-$labelRes") {
-        Text(
-            stringResource(labelRes).uppercase(),
-            style = GsdType.caption,
-            color = LocalGsdColors.current.ink3,
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        SectionHeading(stringResource(labelRes), Modifier.padding(top = 12.dp))
     }
     items(rows, key = { it.view.id }) { row ->
-        SmartViewRow(row, onOpenView, onTogglePin, onEditView, onDeleteView)
+        SmartViewRow(row, onOpenView, onTogglePin, onEditView, onDeleteView, modifier = reorderMotion())
     }
 }
 
@@ -359,13 +340,14 @@ private fun SmartViewRow(
     onTogglePin: (String) -> Unit,
     onEditView: (String) -> Unit,
     onDeleteView: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val gsd = LocalGsdColors.current
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxWidth().clickable { onOpenView(row.view.id) }.padding(vertical = 8.dp),
+        modifier = modifier.fillMaxWidth().clickable(role = Role.Button) { onOpenView(row.view.id) }.padding(vertical = 8.dp),
     ) {
         Icon(
             smartViewIcons[row.view.icon] ?: Icons.Outlined.Bolt,
@@ -383,7 +365,7 @@ private fun SmartViewRow(
             IconButton(onClick = { menuOpen = true }) {
                 Icon(
                     Icons.Outlined.MoreHoriz,
-                    contentDescription = stringResource(R.string.cd_task_options),
+                    contentDescription = stringResource(R.string.cd_view_options, row.view.name),
                     tint = gsd.ink3,
                 )
             }

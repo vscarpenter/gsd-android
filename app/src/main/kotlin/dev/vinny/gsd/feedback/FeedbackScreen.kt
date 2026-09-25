@@ -1,16 +1,17 @@
 package dev.vinny.gsd.feedback
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -25,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,6 +41,10 @@ import dev.vinny.gsd.model.Sentiment
 import dev.vinny.gsd.sync.FeedbackFailure
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
+import dev.vinny.gsd.ui.SectionHeading
+import dev.vinny.gsd.ui.announced
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
@@ -52,6 +58,7 @@ private val categoryOptions = listOf(
 )
 
 /** Anonymous opt-in feedback (parity spec P§6.1–§6.2): sentiment, category, message, roadmap votes. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val viewModel: FeedbackViewModel = viewModel {
@@ -70,9 +77,7 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(stringResource(R.string.feedback_title), style = GsdType.title, color = gsd.ink)
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = draft.sentiment == Sentiment.UP,
                 onClick = { viewModel.setSentiment(if (draft.sentiment == Sentiment.UP) null else Sentiment.UP) },
@@ -85,7 +90,7 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             categoryOptions.forEach { (category, labelRes) ->
                 FilterChip(
                     selected = draft.category == category,
@@ -96,17 +101,15 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Box {
-                if (draft.message.isEmpty()) {
-                    Text(stringResource(R.string.feedback_message_hint), style = GsdType.body, color = gsd.ink3)
-                }
-                BasicTextField(
-                    value = draft.message,
-                    onValueChange = viewModel::setMessage,
-                    textStyle = GsdType.body.copy(color = gsd.ink),
-                    modifier = Modifier.fillMaxWidth().testTag("feedback_message"),
-                )
-            }
+            val hint = stringResource(R.string.feedback_message_hint)
+            BasicTextField(
+                value = draft.message,
+                onValueChange = viewModel::setMessage,
+                textStyle = GsdType.body.copy(color = gsd.ink),
+                cursorBrush = gsd.cursor,
+                modifier = Modifier.fillMaxWidth().testTag("feedback_message"),
+                decorationBox = { inner -> HintedField(hint, draft.message.isEmpty(), GsdType.body, inner) },
+            )
             Text(
                 "${draft.message.length} / ${FeedbackPayload.MAX_MESSAGE_LENGTH}",
                 style = GsdType.caption,
@@ -116,7 +119,7 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(stringResource(R.string.feedback_votes_header).uppercase(), style = GsdType.caption, color = gsd.ink3)
+            SectionHeading(stringResource(R.string.feedback_votes_header))
             Roadmap.items.forEach { item ->
                 val selected = item.slug in draft.votes
                 Row(
@@ -124,10 +127,11 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
-                        .clickable { viewModel.toggleVote(item.slug) }
+                        // One checkbox per row, with its state; the row and its box were two stops
+                        .toggleable(value = selected, role = Role.Checkbox) { viewModel.toggleVote(item.slug) }
                         .testTag("feedback_vote_${item.slug}"),
                 ) {
-                    Checkbox(checked = selected, onCheckedChange = { viewModel.toggleVote(item.slug) })
+                    Checkbox(checked = selected, onCheckedChange = null)
                     Column {
                         Text(item.label, style = GsdType.body, color = gsd.ink)
                         Text(item.description, style = GsdType.metadata, color = gsd.ink2)
@@ -137,7 +141,7 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(stringResource(R.string.feedback_disclosure_header).uppercase(), style = GsdType.caption, color = gsd.ink3)
+            SectionHeading(stringResource(R.string.feedback_disclosure_header))
             Text(
                 prettyJson.encodeToString(JsonObject.serializer(), state.preview),
                 style = GsdType.metadata.copy(fontFamily = FontFamily.Monospace),
@@ -166,7 +170,12 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
         }
 
         when (sendState) {
-            FeedbackSendState.Sent -> Text(stringResource(R.string.feedback_sent), style = GsdType.body, color = gsd.success)
+            FeedbackSendState.Sent -> Text(
+                stringResource(R.string.feedback_sent),
+                style = GsdType.body,
+                color = gsd.success,
+                modifier = Modifier.announced(),
+            )
             is FeedbackSendState.Failed -> Text(
                 stringResource(
                     when (sendState.kind) {
@@ -177,6 +186,7 @@ fun FeedbackScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     },
                 ),
                 style = GsdType.body, color = gsd.alert,
+                modifier = Modifier.announced(),
             )
             else -> Unit
         }

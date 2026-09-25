@@ -47,9 +47,11 @@ class DashboardTest {
                 )
             }
         }
-        rule.onNodeWithText("ACTIVE").assertIsDisplayed()
-        rule.onNodeWithText("50%").assertIsDisplayed()
-        rule.onNodeWithText("1 overdue — review the backlog").performClick()
+        // Review, Accessibility: a stat card is one node that says its label before its value
+        rule.onNodeWithContentDescription("Active: 1").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Completion: 50%").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Last 7 days: 2 created, 1 completed").assertExists()
+        rule.onNodeWithText("1 overdue. Review the backlog.").performClick()
         assertEquals(true, overdueOpened)
     }
 
@@ -63,6 +65,7 @@ class DashboardTest {
             }
         }
         rule.onNodeWithText("No stats yet").assertIsDisplayed()
+        rule.onNodeWithText("Complete a few tasks and your trends will appear.").assertIsDisplayed()
     }
 
     // Split into two tests, not one with setContent called twice: this Compose-test BOM
@@ -117,7 +120,7 @@ class DashboardTest {
         )
         val stats = Analytics.compute(tasks, 7, now, ZoneOffset.UTC)
         rule.setContent { GsdTheme { DashboardContent(stats, 7, {}, {}, loaded = true, now = now, zone = ZoneOffset.UTC, onOpenTask = {}) } }
-        rule.onNodeWithText("Completion by Quadrant").assertIsDisplayed()
+        rule.onNodeWithText("Completion by quadrant").assertIsDisplayed()
         rule.onNodeWithContentDescription("Completion rings, 50% of all tasks complete").assertIsDisplayed()
         rule.onNodeWithContentDescription("Do First: 50% complete").assertExists()
         rule.onNodeWithContentDescription("Schedule: no tasks").assertExists()

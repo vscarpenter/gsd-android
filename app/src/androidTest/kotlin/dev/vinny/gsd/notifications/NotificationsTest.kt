@@ -3,15 +3,19 @@ package dev.vinny.gsd.notifications
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import androidx.compose.ui.graphics.toArgb
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.GsdApp
 import dev.vinny.gsd.model.ReminderPlanner
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.theme.GsdColorsLight
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import org.junit.Assume.assumeFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.test.assertEquals
@@ -26,6 +30,16 @@ class NotificationsTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    /**
+     * The app's own container, for tests that write tasks. They go through the real store, which
+     * syncs, so a signed-in device skips them rather than send test tasks to the account.
+     */
+    private fun signedOutContainer(): AppContainer {
+        val container = (context.applicationContext as GsdApp).container
+        assumeFalse("signed in: refusing to write test tasks", container.syncCoordinator.signedIn.value)
+        return container
+    }
+
     @Test
     fun channelsExistAfterAppInit() {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -35,7 +49,7 @@ class NotificationsTest {
 
     @Test
     fun reminderBroadcastPostsNotificationAndMarksSent(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
+        val container = signedOutContainer()
         val task = container.store.add(
             Task(title = "standup", urgent = true, important = true,
                 createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
@@ -64,7 +78,7 @@ class NotificationsTest {
 
     @Test
     fun aFiredReminderStaysOutOfLastWriteWins(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
+        val container = signedOutContainer()
         val task = container.store.add(
             Task(title = "review finding S2", urgent = true, important = true,
                 createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
@@ -94,7 +108,7 @@ class NotificationsTest {
 
     @Test
     fun completeActionCompletesTaskThroughStore(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
+        val container = signedOutContainer()
         val task = container.store.add(
             Task(title = "notify me", urgent = false, important = false,
                 createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
@@ -124,7 +138,7 @@ class NotificationsTest {
      */
     @Test
     fun aReminderSnoozedFromItsNotificationIsPlannedAgain(): Unit = runBlocking {
-        val container = (context.applicationContext as GsdApp).container
+        val container = signedOutContainer()
         val now = Instant.now()
         val task = container.store.add(
             Task(title = "snooze me", urgent = true, important = true, createdAt = now, updatedAt = now,
@@ -150,5 +164,35 @@ class NotificationsTest {
         assertNotNull(fireAt, "a snoozed reminder has no fire time, so it never fires again")
         container.store.delete(task.id) // leave the shared app db clean
         container.trashStore.deleteForever(task.id)
+    }
+
+    /** Review finding 27: reminders used a stock system icon, with no color and no category. */
+    @Test
+    fun aReminderCarriesTheBrandIconColorAndCategory(): Unit = runBlocking {
+        val container = signedOutContainer()
+        val task = container.store.add(
+            Task(title = "finding 27", urgent = true, important = true, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
+        )
+        context.sendBroadcast(
+            Intent(context, ReminderReceiver::class.java).apply {
+                action = ReminderScheduler.ACTION_REMINDER
+                putExtra(ReminderScheduler.EXTRA_TASK_ID, task.id)
+            },
+        )
+
+        val manager = context.getSystemService(NotificationManager::class.java)
+        var posted: android.app.Notification? = null
+        val deadline = System.currentTimeMillis() + 10_000
+        while (posted == null && System.currentTimeMillis() < deadline) {
+            posted = manager.activeNotifications.firstOrNull { it.id == task.id.hashCode() }?.notification
+            if (posted == null) delay(100)
+        }
+        manager.cancel(task.id.hashCode())
+        container.store.delete(task.id)
+
+        assertNotNull(posted, "reminder notification never posted")
+        assertEquals(dev.vinny.gsd.R.drawable.ic_notification, posted.smallIcon.resId)
+        assertEquals(android.app.Notification.CATEGORY_REMINDER, posted.category)
+        assertEquals(GsdColorsLight.tint.toArgb(), posted.color)
     }
 }

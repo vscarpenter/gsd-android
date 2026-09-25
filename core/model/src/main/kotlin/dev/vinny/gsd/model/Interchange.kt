@@ -163,12 +163,16 @@ object Interchange {
 
     private fun notificationOrNull(element: JsonElement): BackupNotificationSettings? = runCatching {
         val obj = element.jsonObject
+        val start = obj["quietHoursStart"]?.jsonPrimitive?.contentOrNull
+        val end = obj["quietHoursEnd"]?.jsonPrimitive?.contentOrNull
+        // A time that does not parse turns quiet hours off rather than reaching the store
+        val quiet = QuietHours.parse(start, end).first != null
         BackupNotificationSettings(
             enabled = obj.getValue("enabled").jsonPrimitive.boolean,
             defaultReminder = obj.getValue("defaultReminder").jsonPrimitive.int,
             soundEnabled = obj.getValue("soundEnabled").jsonPrimitive.boolean,
-            quietHoursStart = obj["quietHoursStart"]?.jsonPrimitive?.contentOrNull,
-            quietHoursEnd = obj["quietHoursEnd"]?.jsonPrimitive?.contentOrNull,
+            quietHoursStart = start.takeIf { quiet },
+            quietHoursEnd = end.takeIf { quiet },
             permissionAsked = obj.getValue("permissionAsked").jsonPrimitive.boolean,
             updatedAt = Instant.parse(obj.getValue("updatedAt").jsonPrimitive.content),
         )

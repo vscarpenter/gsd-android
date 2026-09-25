@@ -1,25 +1,40 @@
 package dev.vinny.gsd.editor
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,14 +43,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.DependencyGraph
 import dev.vinny.gsd.model.DuePreset
+import dev.vinny.gsd.model.DueTime
 import dev.vinny.gsd.model.NanoId
 import dev.vinny.gsd.model.Recurrence
 import dev.vinny.gsd.model.ReminderLabel
@@ -46,25 +67,50 @@ import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.theme.cursor
+import dev.vinny.gsd.ui.HintedField
+import dev.vinny.gsd.ui.formatTimeOfDay
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
+/**
+ * Due date (spec §8.3, §8.10): a date row that opens the Material date picker, a time row that opens
+ * the time picker, and the four presets. Every due date used to land at local midnight, because the
+ * presets were the only way in (review finding 6). A date with no time is "All day".
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
-    val gsd = LocalGsdColors.current
+    val context = LocalContext.current
     val zone = ZoneId.systemDefault()
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        draft.dueDate?.let { due ->
-            Text(
-                DateTimeFormatter.ofPattern("EEE, MMM d").format(due.atZone(zone)),
-                style = GsdType.body,
-                color = gsd.ink,
+    val today = LocalDate.now(zone)
+    val due = draft.dueDate
+    var pickingDate by remember { mutableStateOf(false) }
+    var pickingTime by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        TappableValue(
+            text = due?.let { DateTimeFormatter.ofPattern("EEE, MMM d").format(it.atZone(zone)) }
+                ?: stringResource(R.string.due_pick_date),
+            tag = "due_date_row",
+            onClick = { pickingDate = true },
+        )
+        if (due != null) {
+            TappableValue(
+                text = DueTime.timeOf(due, zone)?.let { formatTimeOfDay(context, it) }
+                    ?: stringResource(R.string.due_all_day),
+                tag = "due_time_row",
+                onClick = { pickingTime = true },
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             listOf(
                 DuePreset.NONE to R.string.due_none,
                 DuePreset.TODAY to R.string.due_today,
@@ -72,10 +118,9 @@ internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                 DuePreset.NEXT_WEEK to R.string.due_next_week,
             ).forEach { (preset, labelRes) ->
                 FilterChip(
-                    selected = false,
+                    selected = preset.isSelectedFor(due, today, zone),
                     onClick = {
-                        val resolved = preset.resolve(LocalDate.now(zone))
-                            ?.atStartOfDay(zone)?.toInstant()
+                        val resolved = preset.resolve(today)?.atStartOfDay(zone)?.toInstant()
                         onEdit { it.copy(dueDate = resolved) }
                     },
                     label = { Text(stringResource(labelRes), style = GsdType.metadata) },
@@ -83,10 +128,92 @@ internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
             }
         }
     }
+    if (pickingDate) {
+        DueDatePickerDialog(
+            initial = due?.atZone(zone)?.toLocalDate() ?: today,
+            onPick = { date -> onEdit { it.copy(dueDate = DueTime.onDate(it.dueDate, date, zone)) } },
+            onDismiss = { pickingDate = false },
+        )
+    }
+    if (pickingTime && due != null) {
+        DueTimePickerDialog(
+            initial = DueTime.timeOf(due, zone),
+            onPick = { time ->
+                onEdit { task -> task.dueDate?.let { task.copy(dueDate = DueTime.atTime(it, time, zone)) } ?: task }
+            },
+            onDismiss = { pickingTime = false },
+        )
+    }
 }
 
+/** A value the user taps to change, in the interactive tint and at least 48 dp tall. */
 @Composable
-private fun reminderLabel(minutes: Int?): String = when (val label = minutes?.let(ReminderLabel::of)) {
+private fun TappableValue(text: String, tag: String, onClick: () -> Unit) {
+    Text(
+        text,
+        style = GsdType.body,
+        color = LocalGsdColors.current.tint,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .wrapContentHeight(Alignment.CenterVertically)
+            .testTag(tag),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DueDatePickerDialog(initial: LocalDate, onPick: (LocalDate) -> Unit, onDismiss: () -> Unit) {
+    // The picker counts in UTC days, so a local date travels as that day's UTC midnight
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { onPick(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
+                onDismiss()
+            }) { Text(stringResource(R.string.dialog_done)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) } },
+    ) {
+        DatePicker(state = state)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DueTimePickerDialog(initial: LocalTime?, onPick: (LocalTime?) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val start = initial ?: LocalTime.of(9, 0) // a morning default for a date that had no time
+    val state = rememberTimePickerState(
+        initialHour = start.hour,
+        initialMinute = start.minute,
+        is24Hour = DateFormat.is24HourFormat(context),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.due_time_title)) },
+        text = { TimePicker(state = state) },
+        confirmButton = {
+            TextButton(onClick = { onPick(LocalTime.of(state.hour, state.minute)); onDismiss() }) {
+                Text(stringResource(R.string.dialog_done))
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { onPick(null); onDismiss() }) { Text(stringResource(R.string.due_all_day)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+            }
+        },
+    )
+}
+
+/** The words for a reminder offset, shared by the editor and Settings' default reminder. */
+@Composable
+internal fun reminderLabel(minutes: Int?): String = when (val label = minutes?.let(ReminderLabel::of)) {
     null -> stringResource(R.string.reminder_none)
     ReminderLabel.AtTime -> stringResource(R.string.reminder_at_time)
     is ReminderLabel.Minutes -> pluralStringResource(R.plurals.reminder_minutes_before, label.count, label.count)
@@ -102,7 +229,7 @@ internal fun ReminderSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     Box {
         Text(
             reminderLabel(draft.notifyBefore), style = GsdType.body, color = gsd.tint,
-            modifier = Modifier.clickable { open = true }.testTag("reminder_row").padding(vertical = 4.dp),
+            modifier = Modifier.clickable(role = Role.Button) { open = true }.testTag("reminder_row").padding(vertical = 4.dp),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEach { minutes ->
@@ -115,9 +242,11 @@ internal fun ReminderSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun RepeatSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    // Wraps: at font scale 2.0 "Monthly" was squeezed into a one-letter column (finding 12)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(
             Recurrence.NONE to R.string.repeat_never,
             Recurrence.DAILY to R.string.repeat_daily,
@@ -133,18 +262,34 @@ internal fun RepeatSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     }
 }
 
+/** The §7.2 limits the editor enforces as the user types, so no field fails only at Save (finding 30). */
+internal const val MAX_TAGS = 20
+internal const val MAX_TAG_LENGTH = 30
+private const val MAX_SUBTASKS = 50
+private const val MAX_SUBTASK_LENGTH = 100
+private const val MAX_ESTIMATE_DIGITS = 5 // 10,080 minutes, one week
+
+/** The editor's field look: a `sunken` rounded box at least 48dp tall (review finding 30). */
+internal fun Modifier.editorField(fill: Color): Modifier = this
+    .fillMaxWidth()
+    .heightIn(min = 48.dp)
+    .clip(GsdShapes.input)
+    .background(fill)
+    .padding(horizontal = 12.dp)
+
 @Composable
 internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     val gsd = LocalGsdColors.current
     var pending by remember { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         draft.subtasks.forEach { subtask ->
+            // The row is one checkbox with its state; a borderless disc had neither (finding 30)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .toggleable(value = subtask.completed, role = Role.Checkbox) {
                         onEdit { task ->
                             task.copy(subtasks = task.subtasks.map {
                                 if (it.id == subtask.id) it.copy(completed = !it.completed) else it
@@ -152,16 +297,15 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                         }
                     },
             ) {
-                Box(
-                    modifier = Modifier.size(20.dp).clip(CircleShape)
-                        .background(if (subtask.completed) gsd.success else gsd.sunken),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (subtask.completed) {
-                        Icon(Icons.Outlined.Check, contentDescription = null,
-                            tint = gsd.inkOnAccent, modifier = Modifier.size(12.dp))
-                    }
-                }
+                Checkbox(
+                    checked = subtask.completed,
+                    onCheckedChange = null,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = gsd.success,
+                        uncheckedColor = gsd.ink3,
+                        checkmarkColor = gsd.inkOnAccent,
+                    ),
+                )
                 Text(
                     subtask.title,
                     style = GsdType.body,
@@ -178,26 +322,30 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
                 }
             }
         }
-        Box {
-            if (pending.isEmpty()) {
-                Text(stringResource(R.string.subtask_add_hint), style = GsdType.subhead, color = gsd.ink3)
-            }
-            BasicTextField(
-                value = pending,
-                onValueChange = { new ->
-                    if (new.endsWith(",") || new.endsWith("\n")) {
-                        val title = new.dropLast(1).trim()
-                        if (title.isNotEmpty()) {
-                            onEdit { it.copy(subtasks = it.subtasks + Subtask(NanoId.generate(), title)) }
+        if (draft.subtasks.size >= MAX_SUBTASKS) {
+            Text(stringResource(R.string.subtasks_at_limit), style = GsdType.metadata, color = gsd.ink3)
+        } else {
+            Box(modifier = Modifier.editorField(gsd.sunken), contentAlignment = Alignment.CenterStart) {
+                val hint = stringResource(R.string.subtask_add_hint)
+                BasicTextField(
+                    value = pending,
+                    onValueChange = { new ->
+                        if (new.endsWith(",") || new.endsWith("\n")) {
+                            val title = new.dropLast(1).trim()
+                            if (title.isNotEmpty()) {
+                                onEdit { it.copy(subtasks = it.subtasks + Subtask(NanoId.generate(), title)) }
+                            }
+                            pending = ""
+                        } else {
+                            pending = new.take(MAX_SUBTASK_LENGTH)
                         }
-                        pending = ""
-                    } else {
-                        pending = new
-                    }
-                },
-                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                modifier = Modifier.fillMaxWidth().testTag("subtask_input"),
-            )
+                    },
+                    textStyle = GsdType.subhead.copy(color = gsd.ink),
+                    cursorBrush = gsd.cursor,
+                    modifier = Modifier.fillMaxWidth().testTag("subtask_input"),
+                    decorationBox = { inner -> HintedField(hint, pending.isEmpty(), GsdType.subhead, inner) },
+                )
+            }
         }
     }
 }
@@ -206,19 +354,34 @@ internal fun SubtasksSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
 internal fun EstimateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
     val gsd = LocalGsdColors.current
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box {
-            if (draft.estimatedMinutes == null) {
-                Text(stringResource(R.string.estimate_hint), style = GsdType.subhead, color = gsd.ink3)
-            }
+        // A number keyboard and a unit; it was a bare "90" under a hint that printed the raw limit (finding 30)
+        Row(
+            modifier = Modifier.editorField(gsd.sunken),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val hint = stringResource(R.string.estimate_hint)
             BasicTextField(
                 value = draft.estimatedMinutes?.toString().orEmpty(),
                 onValueChange = { raw ->
-                    val minutes = raw.filter(Char::isDigit).toIntOrNull()
+                    val minutes = raw.filter(Char::isDigit).take(MAX_ESTIMATE_DIGITS).toIntOrNull()
                     onEdit { it.copy(estimatedMinutes = minutes) }
                 },
                 textStyle = GsdType.body.copy(color = gsd.ink),
-                modifier = Modifier.fillMaxWidth().testTag("estimate_input"),
+                cursorBrush = gsd.cursor,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                modifier = Modifier.weight(1f).testTag("estimate_input"),
+                decorationBox = { inner ->
+                    HintedField(hint, draft.estimatedMinutes == null, GsdType.subhead, inner)
+                },
             )
+            draft.estimatedMinutes?.let { minutes ->
+                Text(stringResource(R.string.estimate_unit), style = GsdType.body, color = gsd.ink2)
+                if (minutes >= 60) {
+                    Text("· ${TimeTracking.formatMinutes(minutes)}", style = GsdType.metadata, color = gsd.ink3)
+                }
+            }
         }
         val estimate = draft.estimatedMinutes
         if (estimate != null && draft.timeSpent > 0) {
@@ -260,7 +423,7 @@ internal fun SnoozeSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
             label,
             style = GsdType.body,
             color = gsd.tint,
-            modifier = Modifier.clickable { open = true }.testTag("snooze_row").padding(vertical = 4.dp),
+            modifier = Modifier.clickable(role = Role.Button) { open = true }.testTag("snooze_row").padding(vertical = 4.dp),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             snoozePresets.forEach { (duration, labelRes) ->
@@ -302,17 +465,15 @@ internal fun DependenciesSection(draft: Task, allTasks: List<Task>, onEdit: ((Ta
                 }
             }
         }
-        Box {
-            if (query.isEmpty()) {
-                Text(stringResource(R.string.dependency_search_hint), style = GsdType.subhead, color = gsd.ink3)
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = { query = it },
-                textStyle = GsdType.subhead.copy(color = gsd.ink),
-                modifier = Modifier.fillMaxWidth().testTag("dependency_search"),
-            )
-        }
+        val hint = stringResource(R.string.dependency_search_hint)
+        BasicTextField(
+            value = query,
+            onValueChange = { query = it },
+            textStyle = GsdType.subhead.copy(color = gsd.ink),
+            cursorBrush = gsd.cursor,
+            modifier = Modifier.fillMaxWidth().testTag("dependency_search"),
+            decorationBox = { inner -> HintedField(hint, query.isEmpty(), GsdType.subhead, inner) },
+        )
         if (query.isNotEmpty()) {
             allTasks
                 .filter { it.id != draft.id && it.id !in draft.dependencies }
@@ -325,7 +486,7 @@ internal fun DependenciesSection(draft: Task, allTasks: List<Task>, onEdit: ((Ta
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(GsdShapes.small)
-                            .clickable(enabled = !cycles) {
+                            .clickable(enabled = !cycles, role = Role.Button) {
                                 onEdit { it.copy(dependencies = it.dependencies + candidate.id) }
                                 query = ""
                             }

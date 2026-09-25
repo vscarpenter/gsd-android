@@ -1,10 +1,8 @@
 package dev.vinny.gsd.settings
 
 import androidx.browser.customtabs.CustomTabsIntent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -26,7 +24,25 @@ import dev.vinny.gsd.R
 import dev.vinny.gsd.sync.DeleteAccountOutcome
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.SignInButton
+import dev.vinny.gsd.ui.announced
 import kotlinx.coroutines.launch
+
+/**
+ * Opens [provider]'s sign-in page in a Custom Tab (spec §10.2), from Settings or the onboarding's
+ * last page. False when it could not start; the log names only the exception's class (§13.4).
+ */
+internal suspend fun openSignIn(container: AppContainer, context: android.content.Context, provider: String): Boolean =
+    try {
+        val pendingAuth = container.authManager.beginOAuth(provider)
+        CustomTabsIntent.Builder().build().launchUrl(context, pendingAuth.url.toUri())
+        true
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        android.util.Log.w("GsdAuth", "sign-in with $provider failed: ${failure.javaClass.simpleName}")
+        false
+    }
 
 /** Settings Account section (spec §8.17.3): signing in IS enabling sync — no toggle. */
 @Composable
@@ -42,12 +58,15 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     val authProvider by container.prefs.lastAuthProvider.collectAsStateWithLifecycle(initialValue = null)
     var deleteOpen by remember { mutableStateOf(false) }
     var signInError by remember { mutableStateOf<String?>(null) }
-    var deletionMessage by remember { mutableStateOf<Int?>(null) }
+    val deletionMessage by container.accountDeletionMessage.collectAsStateWithLifecycle()
 
     fun deleteAccount(eraseLocal: Boolean) {
         deleteOpen = false
-        scope.launch {
-            deletionMessage = when (container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = eraseLocal)) {
+        // The app's scope, so a rotation cannot cancel a deletion midway or lose its outcome (finding 40)
+        container.appScope.launch {
+            container.accountDeletionMessage.value = when (
+                container.syncCoordinator.deleteAccount(container.api, container.api, eraseLocal = eraseLocal)
+            ) {
                 DeleteAccountOutcome.Deleted -> null
                 DeleteAccountOutcome.ListingFailed -> R.string.account_delete_listing_failed
                 DeleteAccountOutcome.PartialAuthRejected -> R.string.account_delete_partial_auth
@@ -60,24 +79,13 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
     fun launchProvider(provider: String) {
         scope.launch {
             signInError = null
-            deletionMessage = null
-            try {
-                val pendingAuth = container.authManager.beginOAuth(provider)
-                CustomTabsIntent.Builder().build().launchUrl(context, pendingAuth.url.toUri())
-            } catch (failure: Exception) {
-                android.util.Log.w("GsdAuth", "sign-in with $provider failed: ${failure.javaClass.simpleName}")
-                signInError = context.getString(R.string.sign_in_error)
-            }
+            container.accountDeletionMessage.value = null
+            if (!openSignIn(container, context, provider)) signInError = context.getString(R.string.sign_in_error)
         }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            stringResource(R.string.settings_account).uppercase(),
-            style = GsdType.caption,
-            color = gsd.ink3,
-            modifier = Modifier.padding(top = 12.dp),
-        )
+        GroupLabel(R.string.settings_account)
         if (!signedIn) {
             SignedOutAccount(sessionExpired, signInError) { launchProvider(it) }
         } else {
@@ -97,19 +105,21 @@ internal fun AccountGroup(container: AppContainer, onOpenHistory: () -> Unit) {
                 color = gsd.ink2,
             )
             if (failed > 0) {
-                Text(stringResource(R.string.health_failed), style = GsdType.metadata, color = gsd.ochre)
+                Text(stringResource(R.string.health_failed), style = GsdType.metadata, color = gsd.ochreInk)
             }
-            AccountAction(R.string.account_sync_now) { container.syncCoordinator.requestSync(true) }
-            AccountAction(R.string.account_sync_history, onClick = onOpenHistory)
-            AccountAction(R.string.account_sign_out) {
-                scope.launch { container.syncCoordinator.signOut() }
+            ActionRow(R.string.account_sync_now) { container.syncCoordinator.requestSync(true) }
+            ActionRow(R.string.account_sync_history, onClick = onOpenHistory)
+            ActionRow(R.string.account_sign_out) {
+                container.appScope.launch { container.syncCoordinator.signOut() }
             }
-            AccountAction(R.string.account_delete, tint = gsd.alert) { deleteOpen = true }
+            ActionRow(R.string.account_delete, tint = gsd.alert) { deleteOpen = true }
         }
         // Rendered outside the signed-in branch: a local-erase failure after a successful
         // remote delete flips signedIn to false before this recomposes, so the message must
         // survive that transition to stay visible.
-        deletionMessage?.let { Text(stringResource(it), style = GsdType.subhead, color = gsd.alert) }
+        deletionMessage?.let {
+            Text(stringResource(it), style = GsdType.subhead, color = gsd.alert, modifier = Modifier.announced())
+        }
     }
 
     if (deleteOpen) {
@@ -140,22 +150,12 @@ internal fun SignedOutAccount(sessionExpired: Boolean, signInError: String?, onP
     val gsd = LocalGsdColors.current
     if (sessionExpired) {
         // Ochre, not alert: nothing was lost, the user only needs to sign in again (spec §5.3)
-        Text(stringResource(R.string.health_expired), style = GsdType.metadata, color = gsd.ochre)
+        Text(stringResource(R.string.health_expired), style = GsdType.metadata, color = gsd.ochreInk)
     }
-    AccountAction(R.string.sign_in_google) { onProvider("google") }
-    AccountAction(R.string.sign_in_apple) { onProvider("apple") }
-    AccountAction(R.string.sign_in_github) { onProvider("github") }
-    signInError?.let { Text(it, style = GsdType.metadata, color = gsd.alert) }
+    // Buttons, not bare text links (finding 29)
+    SignInButton(stringResource(R.string.sign_in_google), onClick = { onProvider("google") })
+    SignInButton(stringResource(R.string.sign_in_apple), onClick = { onProvider("apple") })
+    SignInButton(stringResource(R.string.sign_in_github), onClick = { onProvider("github") })
+    signInError?.let { Text(it, style = GsdType.metadata, color = gsd.alert, modifier = Modifier.announced()) }
     Text(stringResource(R.string.account_privacy_hint), style = GsdType.metadata, color = gsd.ink3)
-}
-
-@Composable
-private fun AccountAction(labelRes: Int, tint: androidx.compose.ui.graphics.Color? = null, onClick: () -> Unit) {
-    val gsd = LocalGsdColors.current
-    Text(
-        stringResource(labelRes),
-        style = GsdType.body,
-        color = tint ?: gsd.tint,
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 8.dp),
-    )
 }

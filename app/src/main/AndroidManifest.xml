@@ -10,6 +10,8 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"
@@ -33,7 +35,7 @@
         <activity
             android:name=".share.ShareActivity"
             android:exported="true"
-            android:theme="@style/Theme.Gsd"
+            android:theme="@style/Theme.Gsd.Share"
             android:excludeFromRecents="true">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -45,7 +47,8 @@
         <receiver android:name=".notifications.NotificationActionReceiver" android:exported="false" />
         <receiver
             android:name=".widget.GsdWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_title">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -57,6 +60,9 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
             </intent-filter>
         </receiver>
     </application>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The widget's picker preview in the dark palette, as the widget itself draws (spec §12.1) -->
+    <color name="widget_paper">#17150F</color>
+    <color name="widget_ink">#F1ECE2</color>
+    <color name="widget_ink3">#948A79</color>
+    <color name="widget_rust">#E0705F</color>
+</resources>

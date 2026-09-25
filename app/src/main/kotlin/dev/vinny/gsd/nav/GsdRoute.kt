@@ -6,9 +6,14 @@ import dev.vinny.gsd.model.Quadrant
  * The §6.4 deep-link routes — one router shared by widgets, shortcuts, and
  * notifications so `gsd://` links behave identically everywhere. The
  * `oauth-callback` host belongs to the auth flow and is ignored here.
+ * The §6.6 keys go through the same router, so a key pressed on any tab
+ * behaves like its link.
  */
 sealed interface GsdRoute {
     data object Capture : GsdRoute
+
+    /** Ctrl+K and Ctrl+F: Matrix with the palette open. Keyboard only; no `gsd://` link maps here. */
+    data object Palette : GsdRoute
     data object Focus : GsdRoute
     data class QuadrantLink(val quadrant: Quadrant) : GsdRoute
     data class TaskLink(val id: String) : GsdRoute

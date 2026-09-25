@@ -63,7 +63,8 @@ class SyncEngine(
             reconcileDeletions(owner)
         } catch (failure: Exception) {
             error = failure.message ?: failure.javaClass.simpleName
-            notSignedIn = failure is NotSignedIn
+            // A token the server rejects is a dead session, however long before it expires (review S1)
+            notSignedIn = failure is NotSignedIn || failure is PocketBaseApi.Unauthorized
         }
         val failedCount = local.failedQueue().size
         val status = when {
@@ -128,12 +129,15 @@ class SyncEngine(
 
     /** Returns pushed count to permanently-failed-this-drain count. */
     private suspend fun push(owner: String): Pair<Int, Int> {
+        val pending = local.pendingQueue().sortedBy { it.id }
+        // The index is for the queue. With nothing queued, reconciliation's listing is the only one (§9.5).
+        if (pending.isEmpty()) return 0 to 0
         val deviceId = local.deviceId()
         val index = fetchRemoteIndex()
         var pushed = 0
         var failures = 0
         val now = clock.instant()
-        for (item in local.pendingQueue().sortedBy { it.id }) {
+        for (item in pending) {
             if (item.retryCount > 0) {
                 val waitMs = backoffMs[(item.retryCount - 1).coerceAtMost(backoffMs.lastIndex)]
                 val lastAttempt = item.lastAttemptAt ?: 0L

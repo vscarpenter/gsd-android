@@ -5,7 +5,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import dev.vinny.gsd.GsdApp
@@ -54,7 +55,14 @@ class SwipeDeleteUndoTest {
         ActivityScenario.launch(MainActivity::class.java).use {
             awaitText("swipe me away")
 
-            rule.onNodeWithText("swipe me away").performTouchInput { swipeLeft() }
+            // A part swipe opens Snooze and Delete (spec 8.1); a full one would snooze
+            rule.onNodeWithText("swipe me away").performTouchInput {
+                down(centerRight)
+                moveBy(Offset(-100.dp.toPx(), 0f)) // past half of the two buttons, short of a full swipe
+                up()
+            }
+            awaitText("Delete")
+            rule.onNodeWithText("Delete").performClick()
             awaitText("Undo")
             // The card must be gone first, or the last wait could pass on the card it started with.
             rule.waitUntil(5_000) { rule.onAllNodesWithText("swipe me away").fetchSemanticsNodes().isEmpty() }

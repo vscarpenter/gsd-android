@@ -6,6 +6,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,14 +16,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.ArrowCircleRight
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Warning
@@ -39,11 +45,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
@@ -60,8 +71,14 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-/** Task card per spec §5.6: accent spine, content column, overflow + completion disc. */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+/**
+ * Task card per spec §5.6: accent spine, content column, overflow + completion disc. A long press
+ * opens the menu unless [longPressOpensMenu] is false, as on the tablet grid, where it starts a drag.
+ *
+ * [selected] is null outside select mode. In select mode the card is one checkbox: a check mark
+ * leads, the menu button and the disc go, and a tap runs [onClick] to toggle it (§8.11).
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun TaskCard(
     task: Task,
@@ -70,6 +87,8 @@ fun TaskCard(
     modifier: Modifier = Modifier,
     badges: TaskBadges = TaskBadges(0, 0),
     onOpenMenu: (() -> Unit)? = null,
+    longPressOpensMenu: Boolean = true,
+    selected: Boolean? = null,
 ) {
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(task.quadrant)
@@ -78,16 +97,35 @@ fun TaskCard(
         color = gsd.surface,
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, gsd.hairline, GsdShapes.card)
-            .combinedClickable(onClick = onClick, onLongClick = onOpenMenu),
+            .border(
+                width = if (selected == true) 2.dp else 1.dp,
+                color = if (selected == true) gsd.tint else gsd.hairline,
+                shape = GsdShapes.card,
+            )
+            .then(
+                if (selected != null) {
+                    Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = { onClick() })
+                } else {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onOpenMenu.takeIf { longPressOpensMenu },
+                    )
+                },
+            ),
     ) {
-        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Intrinsic height lets the spine run the card's full height, not a fixed 40 dp (finding 34)
+        Row(
+            modifier = Modifier.height(IntrinsicSize.Min).padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (selected != null) SelectionMark(selected)
             Box(
                 modifier = Modifier
                     .width(3.dp)
-                    .height(40.dp)
+                    .fillMaxHeight()
                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(1.5.dp))
-                    .background(accent),
+                    .background(accent)
+                    .testTag("card_spine"),
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -95,7 +133,7 @@ fun TaskCard(
                     style = GsdType.cardTitle,
                     color = if (task.completed) gsd.ink3 else gsd.ink,
                     textDecoration = if (task.completed) TextDecoration.LineThrough else null,
-                    maxLines = 2,
+                    maxLines = cardTitleMaxLines(LocalDensity.current.fontScale),
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (task.description.isNotEmpty()) {
@@ -108,12 +146,15 @@ fun TaskCard(
                     )
                 }
                 if (task.tags.isNotEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         task.tags.take(4).forEach { tag ->
                             Text(
                                 "#$tag",
                                 style = GsdType.metadata,
-                                color = accent,
+                                color = gsd.accentInk(task.quadrant),
                                 modifier = Modifier
                                     .clip(CircleShape)
                                     .background(gsd.wash(task.quadrant))
@@ -126,7 +167,7 @@ fun TaskCard(
                 SubtaskProgress(task)
             }
             // A card with no menu shows no button. A long press and the button open the same menu (§8.1).
-            if (onOpenMenu != null) {
+            if (onOpenMenu != null && selected == null) {
                 IconButton(onClick = onOpenMenu) {
                     Icon(
                         Icons.Outlined.MoreHoriz,
@@ -136,9 +177,22 @@ fun TaskCard(
                 }
             }
             // Trash and Archive cannot complete a task, so they pass no callback and get no disc.
-            if (onToggleComplete != null) CompletionDisc(task, onToggleComplete)
+            // In select mode a tap selects, and a disc there said "Mark complete" (finding 13).
+            if (onToggleComplete != null && selected == null) CompletionDisc(task, onToggleComplete)
         }
     }
+}
+
+/** The select-mode mark (§8.11): a Tide check circle when selected, a quiet ring when not. */
+@Composable
+private fun SelectionMark(selected: Boolean) {
+    val gsd = LocalGsdColors.current
+    Icon(
+        if (selected) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
+        contentDescription = null, // the card's checkbox state says it
+        tint = if (selected) gsd.tint else gsd.ink3,
+        modifier = Modifier.size(28.dp),
+    )
 }
 
 @Composable
@@ -151,7 +205,7 @@ private fun MetadataRow(task: Task, badges: TaskBadges) {
     if (!hasAny) return
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         task.dueDate?.let { due ->
-            val (label, color) = dueLabel(due, Instant.now(), gsd.tide, gsd.alert, gsd.ink3)
+            val (label, color) = dueLabel(due, Instant.now())
             val overdue = color == gsd.alert
             Icon(
                 if (overdue) Icons.Outlined.Warning else Icons.Outlined.Event,
@@ -168,7 +222,8 @@ private fun MetadataRow(task: Task, badges: TaskBadges) {
             val cd = stringResource(R.string.cd_blocked_by, badges.blocked)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.semantics { contentDescription = cd },
+                // One description; the count beside the lock was read again after it (review, Accessibility)
+                modifier = Modifier.clearAndSetSemantics { contentDescription = cd },
             ) {
                 Icon(Icons.Outlined.Lock, contentDescription = null, tint = gsd.ink2, modifier = Modifier.size(14.dp))
                 Text("${badges.blocked}", style = GsdType.metadata, color = gsd.ink2)
@@ -178,7 +233,7 @@ private fun MetadataRow(task: Task, badges: TaskBadges) {
             val cd = stringResource(R.string.cd_blocking, badges.blocking)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.semantics { contentDescription = cd },
+                modifier = Modifier.clearAndSetSemantics { contentDescription = cd },
             ) {
                 Icon(
                     Icons.Outlined.ArrowCircleRight,
@@ -251,22 +306,18 @@ private fun LiveTimerText(startedAt: Instant) {
 }
 
 /** Relative due formatting (§8.1): today in Tide, overdue in alert, else quiet ink. */
-internal fun dueLabel(
-    due: Instant,
-    now: Instant,
-    tide: androidx.compose.ui.graphics.Color,
-    alert: androidx.compose.ui.graphics.Color,
-    ink3: androidx.compose.ui.graphics.Color,
-): Pair<String, androidx.compose.ui.graphics.Color> {
+@Composable
+internal fun dueLabel(due: Instant, now: Instant): Pair<String, androidx.compose.ui.graphics.Color> {
+    val gsd = LocalGsdColors.current
     val zone = ZoneId.systemDefault()
     val dueDay = due.atZone(zone).toLocalDate()
     val today = now.atZone(zone).toLocalDate()
     val days = ChronoUnit.DAYS.between(today, dueDay)
     return when {
-        days < 0L -> "Overdue" to alert
-        days == 0L -> "Due today" to tide
-        days == 1L -> "Due tomorrow" to ink3
-        else -> "in $days days" to ink3
+        days < 0L -> stringResource(R.string.card_due_overdue) to gsd.alert
+        days == 0L -> stringResource(R.string.card_due_today) to gsd.tide
+        days == 1L -> stringResource(R.string.card_due_tomorrow) to gsd.ink3
+        else -> pluralStringResource(R.plurals.card_due_in_days, days.toInt(), days) to gsd.ink3
     }
 }
 

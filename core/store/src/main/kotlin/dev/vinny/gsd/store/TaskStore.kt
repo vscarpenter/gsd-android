@@ -9,6 +9,7 @@ import dev.vinny.gsd.model.TaskValidator
 import dev.vinny.gsd.model.TimeTracking
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -44,28 +45,38 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
     }
 
     /**
-     * A save from the editor. It is typed input, so it validates. The row is read inside the
-     * transaction, so the transform sees the task as it is now and not as it was when the sheet
-     * opened. Null when the task is gone, and then nothing is written.
+     * A save from the editor. What the user sees and typed, [typed], is input, so it validates. The
+     * row is read inside the transaction, so [transform] sees the task as it is now and not as it
+     * was when the sheet opened. That row only normalizes: a field the user never touched may have
+     * arrived by sync over a limit (iOS counts characters, Android UTF-16 units), and it must not fail
+     * the save. Null when the task is gone, and then nothing is written.
      */
-    suspend fun edit(id: String, transform: (Task) -> Task): Task? {
+    suspend fun edit(id: String, typed: Task, transform: (Task) -> Task): Task? {
         val now = clock.instant()
+        TaskValidator.validate(typed, now)
         return db.withTransaction {
             val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
-            val edited = TaskValidator.validate(transform(current), now).copy(updatedAt = now)
+            val edited = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, edited, now))
             db.taskDao().upsert(edited.toEntity())
             edited
         }
     }
 
-    /** A state change to a stored task: quadrant, due date, snooze, timers. Null when the task is gone. */
+    /**
+     * A state change to a stored task: quadrant, due date, snooze, timers. Null when the task is gone.
+     * The row is read inside the transaction, as in [edit], so a snooze or a timer write can never
+     * overwrite an editor save that committed a moment earlier.
+     */
     suspend fun change(id: String, transform: (Task) -> Task): Task? {
-        val current = get(id) ?: return null
         val now = clock.instant()
-        val changed = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
-        write(SyncOp.UPDATE, changed, now)
-        return changed
+        return db.withTransaction {
+            val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
+            val changed = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
+            db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, changed, now))
+            db.taskDao().upsert(changed.toEntity())
+            changed
+        }
     }
 
     /** A copy holds nothing the user typed just now, so it only normalizes. Null when the task is gone. */
@@ -113,7 +124,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
             ).copy(updatedAt = now)
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, updated, now))
             db.taskDao().upsert(updated.toEntity())
-            val spawned = if (completed) RecurrenceEngine.spawnNext(updated, now) else null
+            val spawned = if (completed) RecurrenceEngine.spawnNext(updated, now, ZoneId.systemDefault()) else null
             if (spawned != null) {
                 val nextInstance = TaskValidator.normalize(spawned, now)
                 db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.CREATE, nextInstance, now))

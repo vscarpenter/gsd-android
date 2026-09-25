@@ -140,6 +140,37 @@ class TabNavigationTest {
         }
     }
 
+    /** Review finding 21: the bar compared routes for equality, so a child screen had no selected tab. */
+    @Test
+    fun theBrowseTabStaysSelectedOnAChildScreen() {
+        launch().use {
+            openArchiveFromBrowse()
+
+            rule.onNode(navItem("Browse")).assertIsSelected()
+        }
+    }
+
+    /** Review finding 21: a pushed screen had no title bar and no Up arrow. */
+    @Test
+    fun aPushedScreenHasAnUpArrowBackToItsTab() {
+        launch().use {
+            openArchiveFromBrowse()
+
+            rule.onNodeWithContentDescription("Navigate up").performClick()
+
+            rule.waitUntil(5_000) { rule.onAllNodesWithTag("browse_search").fetchSemanticsNodes().isNotEmpty() }
+        }
+    }
+
+    private fun openArchiveFromBrowse() {
+        awaitSelected("Matrix")
+        rule.onNode(navItem("Browse")).performClick()
+        rule.onNodeWithText("Archive").performClick()
+        rule.waitUntil(5_000) {
+            rule.onAllNodesWithContentDescription("Archive options").fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
     private fun launch(deepLink: String? = null): ActivityScenario<MainActivity> {
         val intent = Intent(app, MainActivity::class.java)
         if (deepLink != null) intent.setAction(Intent.ACTION_VIEW).setData(Uri.parse(deepLink))
@@ -152,9 +183,9 @@ class TabNavigationTest {
      */
     private fun openAndCloseTheEditor(alreadyRequested: Boolean) {
         if (!alreadyRequested) app.container.palette.requestNewTask()
-        rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithContentDescription("Close sheet").performSemanticsAction(SemanticsActions.OnClick)
-        rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isEmpty() }
+        rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isEmpty() }
     }
 
     /**

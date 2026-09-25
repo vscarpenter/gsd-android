@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -29,17 +30,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.matrix.ScreenTopBar
 import dev.vinny.gsd.matrix.SwipeTaskRow
 import dev.vinny.gsd.matrix.TaskCard
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
+import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.reorderMotion
 import java.time.Instant
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -51,7 +55,7 @@ import kotlinx.coroutines.launch
  * its original timestamps (a faithful undo) — see [dev.vinny.gsd.store.TrashStore].
  */
 @Composable
-fun TrashScreen(container: AppContainer, modifier: Modifier = Modifier) {
+fun TrashScreen(container: AppContainer, modifier: Modifier = Modifier, onUp: (() -> Unit)? = null) {
     val trashed by container.trashStore.observeTrash()
         .collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
@@ -62,6 +66,7 @@ fun TrashScreen(container: AppContainer, modifier: Modifier = Modifier) {
         onDeleteForever = { id -> scope.launch { container.trashStore.deleteForever(id) } },
         onEmptyTrash = { scope.launch { container.trashStore.empty() } },
         modifier = modifier,
+        onUp = onUp,
     )
 }
 
@@ -73,6 +78,7 @@ fun TrashContent(
     onDeleteForever: (String) -> Unit,
     onEmptyTrash: () -> Unit,
     modifier: Modifier = Modifier,
+    onUp: (() -> Unit)? = null,
 ) {
     val gsd = LocalGsdColors.current
     var menuOpen by remember { mutableStateOf(false) }
@@ -87,14 +93,9 @@ fun TrashContent(
         selection = emptySet()
     }
 
-    Column(modifier = modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 12.dp)) {
-            Text(
-                stringResource(R.string.trash_title),
-                style = GsdType.quadrantTitle,
-                color = gsd.ink,
-                modifier = Modifier.weight(1f),
-            )
+    Column(modifier = modifier.fillMaxSize()) {
+        // The title row became the shared bar; its buttons ride in the bar's actions (finding 21)
+        ScreenTopBar(stringResource(R.string.trash_title), onUp = onUp) {
             if (trashed.isNotEmpty()) {
                 IconButton(onClick = { if (selectionMode) exitSelection() else selectionMode = true }) {
                     Icon(
@@ -120,52 +121,58 @@ fun TrashContent(
                 }
             }
         }
-
-        if (selectionMode && selection.isNotEmpty()) {
-            TrashBulkBar(
-                selectedCount = selection.size,
-                onRestore = { selection.forEach(onRestore); exitSelection() },
-                onDeleteForever = { confirmBulkDelete = true },
-            )
-        }
-
-        if (trashed.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.trash_empty_state), style = GsdType.subhead, color = gsd.ink2)
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+            if (selectionMode && selection.isNotEmpty()) {
+                TrashBulkBar(
+                    selectedCount = selection.size,
+                    onRestore = { selection.forEach(onRestore); exitSelection() },
+                    onDeleteForever = { confirmBulkDelete = true },
+                )
             }
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(trashed, key = { it.first.id }) { (task, deletedAt) ->
-                    val isSelected = task.id in selection
-                    fun toggleSelected() {
-                        selection = if (isSelected) selection - task.id else selection + task.id
-                    }
-                    val row: @Composable () -> Unit = {
-                        TrashRow(
-                            task = task,
-                            deletedAt = deletedAt,
-                            now = now,
-                            selectionMode = selectionMode,
-                            onClick = { if (selectionMode) toggleSelected() },
-                            onRestore = { onRestore(task.id) },
-                            onDeleteForever = { confirmDeleteForever = task },
-                        )
-                    }
-                    if (selectionMode) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Checkbox(checked = isSelected, onCheckedChange = { toggleSelected() })
-                            Box(modifier = Modifier.weight(1f)) { row() }
+
+            if (trashed.isEmpty()) {
+                // The §5.10 empty state (finding 32)
+                EmptyState(
+                    icon = Icons.Outlined.DeleteOutline,
+                    title = stringResource(R.string.trash_empty_state),
+                    body = stringResource(R.string.trash_empty_body),
+                    modifier = Modifier.padding(top = 40.dp),
+                )
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(trashed, key = { it.first.id }) { (task, deletedAt) ->
+                        val isSelected = task.id in selection
+                        fun toggleSelected() {
+                            selection = if (isSelected) selection - task.id else selection + task.id
                         }
-                    } else {
-                        SwipeTaskRow(
-                            task = task,
-                            onComplete = { onRestore(task.id) },
-                            onDelete = { confirmDeleteForever = task },
-                            content = row,
-                        )
+                        val row: @Composable () -> Unit = {
+                            TrashRow(
+                                task = task,
+                                deletedAt = deletedAt,
+                                now = now,
+                                selectionMode = selectionMode,
+                                onClick = { if (selectionMode) toggleSelected() },
+                                onRestore = { onRestore(task.id) },
+                                onDeleteForever = { confirmDeleteForever = task },
+                            )
+                        }
+                        if (selectionMode) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = reorderMotion().fillMaxWidth(),
+                            ) {
+                                Checkbox(checked = isSelected, onCheckedChange = { toggleSelected() })
+                                Box(modifier = Modifier.weight(1f)) { row() }
+                            }
+                        } else {
+                            SwipeTaskRow(
+                                task = task,
+                                onComplete = { onRestore(task.id) },
+                                onDelete = { confirmDeleteForever = task },
+                                modifier = reorderMotion(),
+                                content = row,
+                            )
+                        }
                     }
                 }
             }
@@ -175,10 +182,12 @@ fun TrashContent(
     confirmDeleteForever?.let { task ->
         AlertDialog(
             onDismissRequest = { confirmDeleteForever = null },
+            // It names the task, so the dialog says what goes (finding 31)
+            title = { Text(stringResource(R.string.trash_delete_title, task.title), style = GsdType.cardTitle) },
             text = { Text(stringResource(R.string.archive_delete_body), style = GsdType.body) },
             confirmButton = {
                 TextButton(onClick = { onDeleteForever(task.id); confirmDeleteForever = null }) {
-                    Text(stringResource(R.string.trash_delete_forever), color = gsd.alert)
+                    Text(stringResource(R.string.trash_delete_permanently), color = gsd.alert)
                 }
             },
             dismissButton = {
@@ -208,13 +217,18 @@ fun TrashContent(
     if (confirmBulkDelete) {
         AlertDialog(
             onDismissRequest = { confirmBulkDelete = false },
-            title = { Text(stringResource(R.string.bulk_delete_confirm, selection.size), style = GsdType.cardTitle) },
+            title = {
+                Text(
+                    pluralStringResource(R.plurals.bulk_delete_confirm, selection.size, selection.size),
+                    style = GsdType.cardTitle,
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     selection.forEach(onDeleteForever)
                     confirmBulkDelete = false
                     exitSelection()
-                }) { Text(stringResource(R.string.trash_delete_forever), color = gsd.alert) }
+                }) { Text(stringResource(R.string.trash_delete_permanently), color = gsd.alert) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmBulkDelete = false }) { Text(stringResource(R.string.dialog_cancel)) }
@@ -235,7 +249,8 @@ private fun TrashRow(
 ) {
     val gsd = LocalGsdColors.current
     val (label, color) = trashRetentionLabel(deletedAt, now)
-    Column(modifier = Modifier.alpha(0.72f)) {
+    // Not dimmed: 72% alpha took the text and buttons under AA (review, Accessibility)
+    Column {
         TaskCard(task = task, onToggleComplete = null, onClick = onClick)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(label, style = GsdType.metadata, color = color, modifier = Modifier.weight(1f))
@@ -244,7 +259,7 @@ private fun TrashRow(
                     Text(stringResource(R.string.trash_restore), style = GsdType.metadata, color = gsd.tint)
                 }
                 TextButton(onClick = onDeleteForever) {
-                    Text(stringResource(R.string.trash_delete_forever), style = GsdType.metadata, color = gsd.alert)
+                    Text(stringResource(R.string.trash_delete_permanently), style = GsdType.metadata, color = gsd.alert)
                 }
             }
         }
@@ -272,7 +287,7 @@ private fun TrashBulkBar(
             Text(stringResource(R.string.trash_restore), style = GsdType.metadata, color = gsd.tint)
         }
         TextButton(onClick = onDeleteForever) {
-            Text(stringResource(R.string.trash_delete_forever), style = GsdType.metadata, color = gsd.alert)
+            Text(stringResource(R.string.trash_delete_permanently), style = GsdType.metadata, color = gsd.alert)
         }
     }
 }
@@ -291,6 +306,6 @@ internal fun trashRetentionLabel(
     return if (daysLeft <= 0) {
         stringResource(R.string.trash_last_day) to gsd.alert
     } else {
-        stringResource(R.string.trash_days_left, daysLeft) to gsd.ink3
+        pluralStringResource(R.plurals.trash_days_left, daysLeft.toInt(), daysLeft) to gsd.ink3
     }
 }

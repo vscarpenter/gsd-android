@@ -57,7 +57,7 @@ class ReminderTapTest {
 
             app.startActivity(ReminderReceiver.tapIntent(app, taskId))
 
-            rule.waitUntil(5_000) { rule.onAllNodesWithText("Edit Task").fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(5_000) { rule.onAllNodesWithText("Edit task").fetchSemanticsNodes().isNotEmpty() }
         }
     }
 

@@ -104,3 +104,19 @@ suspend fun resolveTombstone(local: SyncLocalStore, taskId: String, remoteUpdate
     local.removeTombstone(taskId) // deliberate resurrection, exactly once
     return true
 }
+
+/**
+ * A realtime upsert (spec §9.6, [SseDecision.ApplyUpsert]): the tombstone guard first (parity spec
+ * P§4), then last-write-wins against the local copy (spec §9.3). It lives here, not in the app's
+ * coordinator, so the guard's wiring has a JVM test.
+ */
+suspend fun applyRealtimeUpsert(local: SyncLocalStore, record: WireTask) {
+    val existing = local.taskById(record.taskId)
+    val incoming = WireMapper.pull(record, existing) ?: return
+    if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
+        return // archived/trashed locally, remote not strictly newer (parity spec P§4)
+    }
+    if (existing == null || incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli()) {
+        local.upsertFromRemote(incoming)
+    }
+}

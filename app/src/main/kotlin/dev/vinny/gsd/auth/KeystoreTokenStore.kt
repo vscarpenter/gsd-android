@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dev.vinny.gsd.prefs.resetOnCorruption
 import dev.vinny.gsd.sync.TokenStore
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -17,7 +18,10 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import kotlinx.coroutines.flow.first
 
-private val Context.tokenDataStore: DataStore<Preferences> by preferencesDataStore(name = "gsd_auth")
+private val Context.tokenDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "gsd_auth",
+    corruptionHandler = resetOnCorruption,
+)
 
 /**
  * The PocketBase JWT encrypted with an AndroidKeyStore AES/GCM key; only the

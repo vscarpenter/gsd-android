@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -35,16 +36,59 @@ class LaunchIntentTest {
         val capture = Intent(Intent.ACTION_VIEW, Uri.parse("gsd://capture"), app, MainActivity::class.java)
 
         ActivityScenario.launch<MainActivity>(capture).use { scenario ->
-            rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isNotEmpty() }
             rule.onNodeWithContentDescription("Close sheet").performSemanticsAction(SemanticsActions.OnClick)
-            rule.waitUntil(5_000) { rule.onAllNodesWithText("New Task").fetchSemanticsNodes().isEmpty() }
+            rule.waitUntil(5_000) { rule.onAllNodesWithText("New task").fetchSemanticsNodes().isEmpty() }
             rule.onNode(navItem("Settings")).performClick()
 
             scenario.recreate() // what a rotation does
             rule.waitForIdle()
 
-            rule.onAllNodesWithText("New Task").assertCountEquals(0)
+            rule.onAllNodesWithText("New task").assertCountEquals(0)
             rule.onNode(navItem("Settings")).assertIsSelected()
+        }
+    }
+
+    /**
+     * `singleTask` keeps the last link as the task's base intent. After a reboot, Recents starts the
+     * activity fresh with that link and FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY. It already ran once.
+     */
+    @Test
+    fun aLaunchFromRecentsDoesNotRunTheOldLinkAgain() {
+        val app = ApplicationProvider.getApplicationContext<GsdApp>()
+        runBlocking { app.container.prefs.setHasOnboarded(true) }
+        val fromRecents = Intent(Intent.ACTION_VIEW, Uri.parse("gsd://dashboard"), app, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+
+        ActivityScenario.launch<MainActivity>(fromRecents).use {
+            rule.waitUntil(5_000) { rule.onAllNodes(navItem("Matrix")).fetchSemanticsNodes().isNotEmpty() }
+            rule.waitForIdle()
+
+            rule.onNode(navItem("Matrix")).assertIsSelected()
+        }
+    }
+
+    /**
+     * The onboarding flag read as "done" until it loaded, so on a first launch the nav host could
+     * take the link for a frame, and onboarding then replaced it. The link waits for onboarding now.
+     */
+    @Test
+    fun aFirstLaunchLinkSurvivesOnboarding() {
+        val app = ApplicationProvider.getApplicationContext<GsdApp>()
+        runBlocking { app.container.prefs.setHasOnboarded(false) }
+        val dashboard = Intent(Intent.ACTION_VIEW, Uri.parse("gsd://dashboard"), app, MainActivity::class.java)
+
+        try {
+            ActivityScenario.launch<MainActivity>(dashboard).use {
+                rule.waitUntil(5_000) { rule.onAllNodesWithText("Skip").fetchSemanticsNodes().isNotEmpty() }
+                rule.onAllNodesWithText("Skip")[0].performClick()
+
+                rule.waitUntil(5_000) {
+                    rule.onAllNodes(navItem("Dashboard") and isSelected()).fetchSemanticsNodes().isNotEmpty()
+                }
+            }
+        } finally {
+            runBlocking { app.container.prefs.setHasOnboarded(true) }
         }
     }
 

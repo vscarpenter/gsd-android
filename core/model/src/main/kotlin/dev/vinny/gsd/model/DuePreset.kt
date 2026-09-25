@@ -1,7 +1,9 @@
 package dev.vinny.gsd.model
 
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
 
 /**
@@ -23,4 +25,8 @@ enum class DuePreset {
             }
         NEXT_WEEK -> today.with(TemporalAdjusters.next(DayOfWeek.MONDAY))
     }
+
+    /** Whether this preset's chip shows as selected: the due date falls on the day it resolves to. */
+    fun isSelectedFor(due: Instant?, today: LocalDate, zone: ZoneId): Boolean =
+        if (this == NONE) due == null else due?.atZone(zone)?.toLocalDate() == resolve(today)
 }

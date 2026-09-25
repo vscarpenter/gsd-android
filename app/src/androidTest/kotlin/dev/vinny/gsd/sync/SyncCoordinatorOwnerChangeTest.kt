@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vinny.gsd.auth.CachedTokenStore
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.prefs.GsdPrefs
+import dev.vinny.gsd.prefs.PendingSignIn
 import dev.vinny.gsd.store.GsdDatabase
 import java.io.File
 import java.time.Clock
@@ -18,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -94,6 +96,8 @@ class SyncCoordinatorOwnerChangeTest {
     private lateinit var tokens: CachedTokenStore
     private lateinit var local: RoomSyncLocalStore
     private lateinit var remote: AccountsRemote
+    /** One instance per test: DataStore refuses two active instances on the same file. */
+    private lateinit var prefs: GsdPrefs
     private var lastOwner: String? = null
 
     @Before
@@ -104,6 +108,7 @@ class SyncCoordinatorOwnerChangeTest {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         local = RoomSyncLocalStore(db)
         remote = AccountsRemote()
+        prefs = GsdPrefs(PreferenceDataStoreFactory.create(produceFile = { prefsFile }))
     }
 
     @After
@@ -138,7 +143,7 @@ class SyncCoordinatorOwnerChangeTest {
         return SyncCoordinator(
             context, engine, auth, tokens, db, local,
             SseClient("http://127.0.0.1:9", { tokens.cachedToken() }),
-            scope, GsdPrefs(PreferenceDataStoreFactory.create(produceFile = { prefsFile })),
+            scope, prefs,
         ).also { built ->
             built.lastOwnerId = { lastOwner }
             built.onOwnerConfirmed = { result -> lastOwner = result.record.id }
@@ -245,5 +250,30 @@ class SyncCoordinatorOwnerChangeTest {
         delay(500) // long enough for a wrongly started sync to have run
         assertNull(coordinator.lastResult.value)
         assertEquals(listOf("kept-task"), local.activeTasks().map { it.id })
+    }
+
+    /** Review follow-up S3: a prompt rebuilt after a restart knew no email, so Settings showed none. */
+    @Test
+    fun aPromptRebuiltAfterARestartKeepsTheEmailAndProvider() = runBlocking {
+        local.upsertFromRemote(task("kept-task"))
+        lastOwner = "user-a"
+        remote.sessionUser = "user-b"
+        // What completeOAuthCallback saved before the app died with the prompt open
+        prefs.setPendingSignIn(PendingSignIn("user-b", "b@example.com", "google"))
+        val coordinator = coordinator(jwt("user-b"))
+        var confirmedProvider: String? = null
+        coordinator.onOwnerConfirmed = { result ->
+            lastOwner = result.record.id
+            confirmedProvider = coordinator.providerFor(result.record.id)
+        }
+
+        coordinator.start()
+        awaitUntil("the prompt is raised again") { coordinator.switchPrompt.value != null }
+        val rebuilt = coordinator.switchPrompt.value!!
+        coordinator.confirmOwner(rebuilt, eraseLocalFirst = false)
+
+        assertEquals("b@example.com", rebuilt.record.email)
+        assertEquals("google", confirmedProvider)
+        assertNull(prefs.pendingSignIn.first()) // answered, so nothing is pending any more
     }
 }

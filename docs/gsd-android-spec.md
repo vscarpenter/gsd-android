@@ -152,6 +152,8 @@ GSD's brand is **Editorial · Calm · Focused** — magazine-like restraint, a s
 
 ### 5.1 Color — quadrant accents (the only strong color in the app)
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Accessibility section
+
 | Quadrant | Name | Light | Dark |
 |---|---|---|---|
 | Q1 `urgent-important` — **Do First** | Rust | `#B23A2E` | `#E0705F` |
@@ -170,7 +172,20 @@ GSD's brand is **Editorial · Calm · Focused** — magazine-like restraint, a s
 
 The one place accent **alpha** is used: the editor 2×2 picker's unselected cell border = accent at 35% opacity (selected = accent at 100% + wash fill).
 
+**Quadrant text inks** (`GsdColors.accentInk`). Text in a quadrant's color uses its text ink, never the raw pigment; fills, spines, borders, and icons keep the pigment. In light mode Ochre measured 4.47:1 on paper and 4.17:1 on its wash, and Slate 4.46:1 on sunken, so their text inks are darker: the web's `--q3-ink` and `--q4-ink`. Every other value is its own pigment.
+
+| Quadrant | Text ink light | Text ink dark |
+|---|---|---|
+| Q1 Rust | `#B23A2E` | `#E0705F` |
+| Q2 Tide | `#2C6680` | `#6FAACB` |
+| Q3 Ochre | `#74591C` | `#CFB266` |
+| Q4 Slate | `#615B54` | `#A9A096` |
+
+This supersedes the "Android follows iOS" note in `docs/2026-08-29-cross-platform-parity-spec.md`, which kept raw pigment for text. iOS still draws raw pigment and should take the same inks.
+
 ### 5.2 Color — the "warm paper" neutral ramp
+
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Accessibility section
 
 | Token | Purpose | Light | Dark |
 |---|---|---|---|
@@ -181,27 +196,33 @@ The one place accent **alpha** is used: the editor 2×2 picker's unselected cell
 | `hairline` | separators, card borders | `#E3DDD0` | `#322D24` |
 | `hairlineStrong` | stronger borders, unselected rings | `#D8D1C1` | `#423B2F` |
 | `ink` | primary text | `#211E1A` | `#F1ECE2` |
-| `ink2` | secondary text | `#6E6760` | `#A79F92` |
-| `ink3` | tertiary text, quiet icons | `#797368` | `#948A79` |
+| `ink2` | secondary text | `#5C5751` | `#A79F92` |
+| `ink3` | tertiary text, quiet icons | `#6A655C` | `#948A79` |
 | `inkOnAccent` | glyph on a filled accent | `#FFFFFF` | `#17150F` |
 | `shadow` | warm-tinted card shadow ink | `#282116` | `#000000` |
 
+Light `ink2` and `ink3` were `#6E6760` and `#797368`, and `ink3` measured 4.17:1 on paper and 3.81:1 on sunken. Every text ink now reaches 4.5:1 on `paper`, `sunken`, `surface`, and `surface2` in both modes, and `ink2` stays darker than `ink3`. `ContrastTest` checks the token values.
+
 ### 5.3 Color — functional
+
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 10 and 23, and the Accessibility section
 
 | Token | Purpose | Light | Dark |
 |---|---|---|---|
-| `success` | completion, 100% progress | `#3E7D52` | `#6FB07F` |
+| `success` | completion, 100% progress (light was `#3E7D52`, 4.37:1 as text on paper) | `#39724B` | `#6FB07F` |
 | `alert` | overdue, delete, destructive | `#B23A2E` | `#E0705F` |
 | `alertWash` | field behind alert text | `#F4E4E0` | `#3A211D` |
-| `tint` | the single interactive tint (links, actions) = Tide | `#2C6680` | `#6FAACB` |
+| `tint` | the single interactive tint (links, actions, the text caret in every field) = Tide | `#2C6680` | `#6FAACB` |
 
-Sync-status semantics: error = `alert`; soft health warning = **Ochre** ("attention, not alarm"); pending/progress = default ink.
+Sync-status semantics: error = `alert`; soft health warning = **Ochre** ("attention, not alarm"), its text in the Ochre text ink (§5.1); pending/progress = default ink.
 
-**Material 3 `ColorScheme` mapping** (so stock components inherit correctly): `primary = tint`, `background = paper`, `surface = surface`, `surfaceVariant = sunken`, `outline = hairlineStrong`, `outlineVariant = hairline`, `error = alert`, `onBackground/onSurface = ink`, `onSurfaceVariant = ink2`, `onPrimary = inkOnAccent`. Set **tonal elevation to 0** everywhere (no elevation tinting) and expose the full GSD token set via a `CompositionLocal` alongside `MaterialTheme`.
+**Material 3 `ColorScheme` mapping** (so stock components inherit correctly): `primary = tint`, `background = paper`, `surface = surface`, `surfaceVariant = sunken`, `outline = hairlineStrong`, `outlineVariant = hairline`, `error = alert`, `onBackground/onSurface = ink`, `onSurfaceVariant = ink2`, `onPrimary = inkOnAccent`. Set **tonal elevation to 0** everywhere (no elevation tinting) and expose the full GSD token set via a `CompositionLocal` alongside `MaterialTheme`. `secondary` and `tertiary` = `tint`; `primaryContainer` and `tertiaryContainer` = `tideWash` (the date and time pickers' selected fields); `errorContainer` = `alertWash`; every surface and container role maps to a GSD neutral. An unmapped role keeps Material's baseline purple, which is how `secondary` once colored the selected navigation label. **Shapes and type:** `MaterialTheme` also takes the §5.5 shape scale (chips full pills; menus and snackbars 12dp; dialogs, sheets, and pickers 26dp) and the §5.4 type scale (Newsreader for display and headline roles, the system sans for the rest, dialog titles in Card title), so stock components match the hand-built ones.
 
 Theme preference: **System / Light / Dark** (user-selectable in Settings; follows system by default).
 
 ### 5.4 Typography
+
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 21 and 35, and the Copy section
 
 Exactly **two typefaces**:
 
@@ -212,7 +233,7 @@ Exactly **two typefaces**:
 | Role | Face | Size / weight | Used for |
 |---|---|---|---|
 | Large Title | Newsreader | 34sp / semibold | top-app-bar expanded titles |
-| Title | Newsreader | 28sp / semibold | sheet titles ("New Task"), onboarding |
+| Title | Newsreader | 28sp / semibold | sheet titles ("New task"), onboarding |
 | Quadrant Title | Newsreader | 20sp / semibold | quadrant headers (in the quadrant pigment), empty-state headlines |
 | Card title | Sans | 17sp / semibold | task titles |
 | Body | Sans | 17sp / regular | editor fields, body copy |
@@ -220,9 +241,9 @@ Exactly **two typefaces**:
 | Metadata | Sans | 13sp / regular | card meta row, tag chips |
 | Caption | Sans | 12sp / regular, caps | section labels |
 
-Dashboard stat numerals are Newsreader. Use `sp` everywhere (respect user font scale; test at 2× / non-linear scaling). Tabular (monospaced) digits for counts, timers, and subtask progress. Card title wraps to 2 lines (unlimited at accessibility scales); description 2 lines; metadata row 1 line.
+Dashboard stat numerals are Newsreader. Use `sp` everywhere (respect user font scale; test at 2× / non-linear scaling). Tabular (monospaced) digits for counts, timers, and subtask progress. Card title wraps to 2 lines (unlimited at accessibility scales, meaning font scale 1.5 and up: the steps Android 14 added above the old 1.3 maximum); description 2 lines; metadata row 1 line. Bottom-bar labels stay on one line and end in an ellipsis rather than break mid-word.
 
-Brand lockup in the top app bar: 24dp app mark + "GSD" (sans, bold, ink) + "·" (ink3) + screen name (sans, semibold, ink2).
+Brand lockup in the top app bar: 24dp app mark + "GSD" (sans, bold, ink) + "·" (ink3) + screen name (sans, semibold, ink2, one line). Every screen has this bar, at least 56dp tall. Matrix adds its actions (§6.1). A pushed screen (a smart view, Archive, Trash, the smart view editor, Sync history, Feedback, the Field Guide) shows an Up arrow ("Navigate up") in place of the mark, Archive and Trash carry their buttons in the bar, and a smart view's bar shows the view's name. TalkBack reads the lockup as one heading and skips the dot.
 
 ### 5.5 Shape & spacing
 
@@ -241,10 +262,11 @@ Spacing is a strict **4dp grid**: 4 hairline gaps · 8 chip padding · 12 in-car
 ### 5.6 Task card anatomy
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1 and 48
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 34
 
 Row layout (top-aligned, 12dp gap), left → right:
 
-1. **Accent spine** — 3dp-wide rounded bar in the quadrant accent. This is how a task wears its quadrant.
+1. **Accent spine** — 3dp-wide rounded bar in the quadrant accent, running the full height of the card's content. This is how a task wears its quadrant.
 2. **Content column** (6dp vertical rhythm):
    - **Title** — card-title style, `ink`; completed = `ink3` + strikethrough.
    - **Description preview** — subhead, `ink2` (2 lines, `ink3` when completed or a bare URL).
@@ -294,13 +316,14 @@ Built-in smart-view icons: Today's Focus `target`-style crosshair (`adjust`), Th
 ### 5.8 Motion & haptics
 
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, findings 50 and 51
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 33
 
 Motion is intentional and sparse; **all non-essential animation is suppressed when the system reports animations disabled** (animator duration scale 0 / "Remove animations" accessibility setting — check `ValueAnimator.areAnimatorsEnabled()`).
 
 - **Confetti on completion** — the one celebration. Parameters (feel reference from iOS): **160 particles**, 1.6s duration, gravity 700, launch speed 150–460 with an upward bias (−220 vertical offset), particle size 5–10dp, opacity fading 1→0, origin around the card/center (normalized x 0.3–0.7). **Colors: the four quadrant pigments + success green** — never generic rainbow. Draw on a Compose `Canvas` driven by a frame clock; skip entirely under reduced motion.
 - **Running-timer dot:** 7dp dot pulsing opacity 1↔0.35, ~0.85s ease-in-out, repeating; static under reduced motion.
 - **Count changes** roll numerically (Compose `AnimatedContent`-style numeric transition) on quadrant headers.
-- **Snackbars/toasts** slide+fade from bottom (fade-only under reduced motion). Sheet expansions and list reorders use default snappy springs.
+- **Snackbars/toasts** slide+fade from bottom (fade-only under reduced motion). Sheet expansions and list reorders use default snappy springs. Every lazy list row (Matrix list and grid, smart views, Browse results and view rows, Archive, Trash, sync history) slides to its new place and fades in or out on the default `animateItem` spring, and the Matrix headers and empty prompts move with the rows. Under reduced motion rows snap into place.
 - **Haptics:** exactly one. A success haptic on complete and on uncomplete, sent through `LocalHapticFeedback` as `HapticFeedbackType.Confirm`, which Compose maps to `HapticFeedbackConstants.CONFIRM`. A test can replace that local and count the calls. Resist adding more.
 
 ### 5.9 App icon & brand mark
@@ -316,14 +339,31 @@ The brand mark is a **2×2 grid of four rounded pigment tiles with a white check
 ### 5.10 Key component looks
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 32, and the Accessibility section
 
 - **Capture bar:** a pinned pill — `surface` fill, `hairline` border, the soft card shadow — sitting on `paper`. Placeholder: `Capture a task…  (!!  *  #tag)` in `ink3`. Trailing **quadrant chip** (see §8.2). Parsed `#tag` chips appear beneath in neutral `sunken`/`ink2` (they only take quadrant color once on a card). A quiet "Details" text button in `tint` opens the full editor.
 - **Quadrant header:** a fixed 26dp icon column (shared left edge) with the accent-colored quadrant symbol, the serif 20sp title in the pigment, and a trailing live active-count in monospaced digits (`ink2`).
-- **Empty states:** 60dp `sunken` rounded tile + 28dp icon (`ink3`; tinted only to reassure — e.g. green check for "Nothing overdue"), serif headline, one `ink2` sentence (max width ~280dp), at most one `tint` action. In-context quadrant empties use a dashed `hairlineStrong` border (dash 5), radius 22dp, with tailored copy: Q1 *"No fires right now."* · Q2 *"Nothing scheduled yet."* · Q3 *"Nothing to hand off."* · Q4 *"Nothing to drop."*
-- **Sync status chip:** quiet-until-it-matters — **hidden entirely** when idle, healthy, and nothing pending; spinner while syncing (static sync glyph under reduced motion); pending count with sync glyph; `sync_problem` in `alert` on error, in Ochre for soft health warnings.
+- **Empty states:** 60dp `sunken` rounded tile + 28dp icon (`ink3`; tinted only to reassure — e.g. green check for "Nothing overdue"), serif headline, one `ink2` sentence (max width ~280dp), at most one `tint` action. In-context quadrant empties use a dashed `hairlineStrong` border (dash 5), radius 22dp, with tailored copy: Q1 *"No fires right now."* · Q2 *"Nothing scheduled yet."* · Q3 *"Nothing to hand off."* · Q4 *"Nothing to drop."* Every other empty surface uses the one shared component, which TalkBack reads as a single node, worded as on iOS:
+  - Dashboard (`bar_chart`): *"No stats yet"* · "Complete a few tasks and your trends will appear."
+  - Archive (`inventory_2`): *"Nothing archived yet"* · "Completed tasks you archive will live here." A search that matches nothing shows the search-miss state instead.
+  - Trash (`delete_outline`): *"Trash is empty"* · "Deleted tasks stay here for 30 days, then they're gone."
+  - Smart views: Overdue Backlog (`check_circle` in `success`) *"Nothing overdue"* · "You're all caught up."; This Week's Wins (`emoji_events`) *"No wins yet this week"* · "Completed tasks from the last 7 days show here."; any other view (its own icon) *"Nothing here yet"* · `Tasks matching "<view name>" will appear here.`
+  - Sync history (`history`): *"No syncs yet"* · "Each sync from this device shows here, with what it sent and received."
+  - Search miss (`search`): `No tasks match "<query>"` · "Try a different word, tag, or quadrant."
+- **Sync status chip:** quiet-until-it-matters — **hidden entirely** when idle, healthy, and nothing pending; spinner while syncing (static sync glyph under reduced motion); pending count with sync glyph; `sync_problem` in `alert` on error, in Ochre for soft health warnings. TalkBack reads what it shows: "Syncing", "N changes waiting to sync", or "Some changes couldn't sync"; it used to say "Sync status" whatever it showed.
 - **Status badge:** a small capsule beside a title — `GsdType.caption` semibold, single line, 8dp × 3dp padding, pill shape. **Two styles only**, by design (color is rationed, so only overdue earns the alert pigment): *neutral* — `ink2` on `sunken`; *alert* — `alert` on `alertWash`. Used by the Dashboard's upcoming rows (§8.15).
 - **Loading skeletons:** first-frame silhouettes shown while a surface's task state is still `null` (§8.1, §8.13, §8.15) — never a spinner, never a minimum display time. Built from one primitive, `SkeletonBlock(height, width = null, shape = GsdShapes.small)`: a `sunken`-filled rounded rectangle that fills the available width when `width` is null. `Modifier.skeletonShimmer()` sweeps **one** light band across the whole composition left→right — band width 50 % of the container, a horizontal gradient `transparent → surface @ 75 % → transparent` (the raised `surface` tone, not white: a white band reads as glare on warm paper and vanishes in dark mode), **1600 ms** linear sweep with a **600 ms** delay before each pass (including the first, so layout settles before anything moves), repeating. The band is masked to the placeholder shapes (`CompositingStrategy.Offscreen` + `BlendMode.SrcIn`) so it never streaks across gaps, and it draws only — it never intercepts touch. Apply it **once**, to the outermost skeleton container. Every skeleton is **one** semantics node (`clearAndSetSemantics`) with `contentDescription` "Loading". Under reduced motion the band is not drawn at all — the skeleton is a static silhouette (§13.3).
 - **Onboarding:** 4 paged, skippable, editorial screens on `paper` (§8.19).
+
+### 5.11 Copy
+
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy section
+
+- **Case.** Sentence case for everything a person reads: screen and sheet titles, buttons, rows, menu items, chips, and card and section headings ("New task", "Sync now", "Delete account…", "Completion by quadrant"). Names keep their capitals: GSD, Smart View, the Field Guide, the quadrant names (Do First, Schedule, Delegate, Eliminate), and the built-in smart view names (Today's Focus, This Week, …).
+- **One name per action.** Marking a task done is **Complete** in the row menu, the bulk bar, and the notification. The irreversible delete is **Delete permanently** in Archive and in Trash.
+- **Punctuation.** No em dashes in copy; a comma, colon, or period does the job. The one "—" a person sees is the rings legend's no-data value (§8.15), a value rather than punctuation. Quotes and apostrophes are straight.
+- **Plurals.** A count inside a sentence uses a plurals resource: "1 day left", "Delete 1 task?", "in 3 days".
+- **Resources.** Every string a person reads lives in `strings.xml`: the palette's command labels, which the palette also matches on (§8.14), the card's due labels, the share sheet's fallback title (§12.2), and validation messages. A validation error's model message is for logs and tests; the editor, the capture bar, and the share sheet show the app's own sentence for it, and a too-long tag is named in it. No surface shows an exception's message.
 
 ---
 
@@ -335,6 +375,7 @@ The app adapts by **window size class**, the Android analog of the iPhone/iPad s
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 43
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 21 and the follow-up to finding 43, and the Copy section
 
 A **bottom navigation bar** with four destinations:
 
@@ -345,22 +386,29 @@ A **bottom navigation bar** with four destinations:
 
 Archive is deliberately *inside* Browse, not a fifth destination.
 
-Tapping a destination keeps one copy of it on the back stack, and the tab being left keeps its own stack. Tapping Matrix always lands on the Matrix root. A deep link (§6.4) or a palette row (§8.14) that names one of the four destinations behaves exactly like a tap on it. Any other route pushes over the current screen, and the Matrix tab still returns to Matrix from there.
+Tapping a destination keeps one copy of it on the back stack, and the tab being left keeps its own stack. Tapping Matrix always lands on the Matrix root. A deep link (§6.4) or a palette row (§8.14) that names one of the four destinations behaves exactly like a tap on it. Any other route pushes over the current screen, and the Matrix tab still returns to Matrix from there. The selected tab is the one whose stack is showing, not the one whose route matches: Browse stays selected on a smart view, Archive, or Trash opened from it, and a screen a deep link pushes straight over Matrix counts as Matrix's. Only a tab's own stack is saved on a tab switch. A screen pushed straight over Matrix belongs to no tab and nothing would restore it, so a tab switch pops it without saving, and Navigation releases its view model.
 
 ### 6.2 Medium & expanded width (tablets, unfolded foldables, freeform windows)
 
-- **Medium:** a **navigation rail** (Matrix, Browse, Dashboard, Settings) with phone-style content.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 11, 36, and 37
+
+**Which layout.** Width under 600dp gets the bottom bar (§6.1); under 840dp the rail; 840dp and wider the drawer, but only with at least 480dp of height (`navLayoutFor`). A phone in landscape is wide but short, so it takes the rail, as Material's window classes advise. Every layout sits on `paper` in the in-app theme, and the rail and drawer layouts apply the safe-drawing insets (system bars, display cutout, and keyboard) that the phone's `Scaffold` applies, so nothing draws under the status bar. Rail and drawer labels stay on one line.
+
+- **Medium:** a **navigation rail** (Matrix, Browse, Dashboard, Settings) with phone-style content, centered and at most 640dp wide.
 - **Expanded:** a **permanent navigation drawer** mirroring the iPad sidebar — Matrix; Dashboard; a **Smart Views** section (pinned first, then built-ins, then custom, then "New Smart View"); a **Library** section (Archive, Settings) — beside a detail pane. **Matrix at expanded width is a true 2×2 grid** (Q1 top-left, Q2 top-right, Q3 bottom-left, Q4 bottom-right), each cell a header + scrollable list, with **drag-and-drop of task cards across quadrant boundaries** to reclassify (updates `urgent`/`important`). Smart-view rows show live counts; row context menu offers Pin/Unpin (+ Edit/Delete for custom).
 
 ### 6.3 Editor presentation
 
-- **Compact:** a **modal bottom sheet** opening half-expanded with the essential fields and a "Show all details" affordance that expands it fully.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 25
+
+- **Compact:** a **modal bottom sheet** that opens fully expanded, with a header pinned above the scrolling sections: Cancel, the sheet's title, and a filled Save (Tide, `inkOnAccent` text; `sunken` while the title is empty). The half-open sheet used to hide Save, which sat at the end of an eleven-section scroll, and Back collapsed the sheet before closing it. Every way out (Cancel, Back, a swipe down, a tap outside) closes at once when the draft is untouched, and asks first when it has unsaved changes: "Discard changes?" · "Your edits to this task will be lost." · Keep editing / Discard (in `alert`). A save error shows under the header, beside Save.
 - **Medium/expanded:** a centered dialog sheet (the board stays visible behind it).
 
 ### 6.4 Deep links
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4, 43, and 4
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, S4 follow-up; `tasks/todo.md` K, quadrant scroll, and J, Recents replay
 
 Register the **`gsd://` scheme** (intent filters on the main activity). Routes — identical to iOS so widgets, shortcuts, and notifications share one router:
 
@@ -374,31 +422,39 @@ Register the **`gsd://` scheme** (intent filters on the main activity). Routes �
 | `gsd://dashboard` · `gsd://settings` · `gsd://archive` · `gsd://trash` | those surfaces (`trash` — §8.20) |
 | `gsd://oauth-callback?...` | reserved for the OAuth flow (§10); the router ignores it |
 
+`gsd://quadrant/<id>` goes to Matrix and scrolls the phone's list so that quadrant's header is at the top, animated, or in one jump under reduced motion. A cold start's request waits for the first snapshot and the list's first layout. The expanded grid already shows all four quadrants, so there it only goes to Matrix.
+
 A deep link arriving before the UI is ready is persisted and consumed on first composition (cold-start). A `task/<id>` link to a task that no longer exists shows a friendly "not found" state, never a blank screen.
 
-A deep link runs once. The activity handles its launch intent only on a fresh start, when `savedInstanceState` is null. A rotation or any other recreation does not run the link again. A link that reaches a running activity arrives through `onNewIntent`.
+A deep link runs once. The activity handles its launch intent only on a fresh start, when `savedInstanceState` is null. A rotation or any other recreation does not run the link again. Neither does a launch from Recents, which carries `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`: `singleTask` keeps the last link as the task's base intent, and after a reboot Recents starts the activity fresh with that link, a sign-in callback included. A link that reaches a running activity arrives through `onNewIntent`.
 
 There is one `MainActivity`. Its launch mode is `singleTask`, so a link, a widget tap, or a reminder tap that reaches a running app goes to that activity. It never stacks a second copy. Any page above the activity in its task closes first, and that includes the sign-in Custom Tab (§10.2). A tap on the launcher icon closes such a page too. A user who leaves the sign-in tab and comes back through the icon starts sign-in again. The two static shortcuts (§6.5) are the exception. The system launches them with `NEW_TASK` and `CLEAR_TASK`, so each one restarts the task and arrives as a fresh launch.
 
 ### 6.5 App shortcuts (launcher long-press)
 
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 46
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy section
 
-Two static shortcuts: **"New Task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`. The system gives a static shortcut `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`, and the app cannot change that. A shortcut fired while GSD is on screen therefore destroys the running `MainActivity` and starts a fresh one, which discards an open draft. For a moment both copies exist, and the old one is paused before the new one is created. That ordering is what the §6.7 RESUMED gates rely on: the fresh copy takes the route, and the paused copy takes nothing.
+Two static shortcuts: **"New task"** → `gsd://capture` and **"Today's Focus"** → `gsd://smart-view/today-focus`. Each has an adaptive icon, a Rust glyph (a plus; the crosshair) on paper, since without one the launcher drew blank circles (review finding 28). The system gives a static shortcut `NEW_TASK`, `CLEAR_TASK`, and `TASK_ON_HOME`, and the app cannot change that. A shortcut fired while GSD is on screen therefore destroys the running `MainActivity` and starts a fresh one, which discards an open draft. For a moment both copies exist, and the old one is paused before the new one is created. That ordering is what the §6.7 RESUMED gates rely on: the fresh copy takes the route, and the paused copy takes nothing.
 
 ### 6.6 Hardware keyboard shortcuts
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, S4 follow-up; `tasks/todo.md` K, Ctrl+1–4
+
 For tablets/DeX/Chromebooks: **Ctrl+K** command palette · **Ctrl+N** new task · **Ctrl+F** search (palette) · **Ctrl+1–4** jump to quadrant. Escape dismisses sheets.
+
+Every key goes through the §6.4 router, so pressed on any tab it switches to Matrix and acts at once. Before, a key pressed off Matrix waited for the next visit there. Ctrl+N behaves as `gsd://capture`, Ctrl+1–4 as `gsd://quadrant/<id>` for Q1–Q4, and Ctrl+K and Ctrl+F open the palette on Matrix. That palette route is keyboard only: no `gsd://` link opens it.
 
 ### 6.7 State & system behavior
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings S4 and 45
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 46
+> Amended 2026-09-24: `tasks/todo.md` J, a first-launch deep link lost behind onboarding, and the snackbar under the keyboard
 
 - **Requests are one-shot.** A "new task" or "open palette" request (deep links, app shortcuts, the §6.6 keys) is an event, delivered exactly once. Only a Matrix screen that is RESUMED may take it (`ConsumeWhileResumed`), and only a RESUMED `MainActivity` takes a pending deep-link route. STARTED is not enough: a paused activity is still STARTED, and a shortcut's `CLEAR_TASK` (§6.5) leaves the old copy paused while the fresh one is created. Returning to the Matrix tab never replays one, and an activity under another never claims one. A link that arrives while a dialog covers GSD waits until GSD resumes. A request sent before the Matrix screen composes waits for it. A new-task request that arrives while the editor is open is dropped, because the open draft wins. Two requests with equal payloads are still two requests: each send is its own object, so one that arrives while a handler is still running is delivered when it returns.
 - Persist (DataStore, mirroring iOS `@AppStorage`): `showCompleted`, theme preference, `hasOnboarded`, `fetchShareTitles`, plus the pending deep link. Tab/drawer selection and scroll positions are **not** persisted across process death (parity with shipped iOS; standard Compose saved-instance-state within a session is fine).
-- **Predictive back** enabled; **edge-to-edge** rendering with proper inset handling.
-- First run shows the onboarding flow (§8.19), skippable, gated on `hasOnboarded`.
+- **Predictive back** enabled; **edge-to-edge** rendering with proper inset handling. The snackbars on Matrix, Browse, and a smart view sit above the keyboard (`imePadding`), so an Undo offered from search results stays visible. The phone layout consumes the scaffold's padding, so that lift counts only the keyboard above the bottom bar. The status and navigation bar icons follow the **in-app** theme, re-applied whenever it changes, so a dark in-app theme on a light system draws light icons (review finding 38).
+- First run shows the onboarding flow (§8.19), skippable, gated on `hasOnboarded`. Until that flag loads, the activity draws only paper: neither onboarding nor the nav host. A deep link that arrives with the first launch waits for onboarding to finish, then runs. Reading the flag as "done" before it loaded let the nav host take the link for a moment, and onboarding then replaced it.
 
 ---
 
@@ -453,7 +509,11 @@ All entities must be representable in the Room store, in the JSON import/export 
 
 ### 7.4 NotificationSettings (singleton)
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look"
+
 `enabled` (default true) · `defaultReminder` minutes (default **15**; presets 15/30/60/120/1440) · `soundEnabled` (default true) · `quietHoursStart`/`quietHoursEnd` (`"HH:mm"` local; UI default 22:00–07:00 when enabled) · `permissionAsked` (default false) · `updatedAt`.
+
+Quiet hours hold both times or neither. A time that does not parse, whether imported or already stored, turns quiet hours off (`QuietHours.parse`); it used to throw on every read of the settings.
 
 ### 7.5 ArchiveSettings (singleton)
 
@@ -531,6 +591,7 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, findings 1, 2, 3, and 48
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 13, 14, and 31, and `tasks/todo.md` K, the two-button trailing swipe
 
 **Behavior.** Tasks group into the four quadrants (§7.8). Within a quadrant, incomplete tasks sort above completed; completed tasks render dimmed with strikethrough. A global **show-completed** toggle hides/reveals completed tasks. Quadrant headers show live active counts.
 
@@ -539,13 +600,13 @@ Each feature lists **Behavior** (the rule — shared across all GSD clients, aut
 - **Expanded:** true 2×2 grid; **drag a card across quadrant boundaries** to reclassify.
 - **Row interactions (both):**
   - **Swipe right (leading)** → complete/uncomplete (full-swipe commits), with the success haptic + confetti on complete.
-  - **Swipe left (trailing)** → reveal **Snooze** (quick-snooze **1 hour**) and **Delete**.
+  - **Swipe left (trailing)** → reveal **Snooze** (quick-snooze **1 hour**) and **Delete**. A part swipe opens the two buttons behind the row, Delete (`alert`) and then Snooze (Slate) at the edge, 76dp each, and a tap on one runs it and closes the row. A full trailing swipe runs Snooze, the edge-most action, as on iOS; Delete takes a tap, then offers Undo. A row that cannot snooze (Trash) keeps one trailing action, which a full swipe runs.
   - A full swipe runs its action once, when the swipe settles. The row then slides back.
   - The swipe background (green check or red bin) is drawn only while a swipe is in progress. A row at rest paints nothing behind its content, so a dimmed row or a bare line of text never sits on it.
   - **Tap** → open editor. **Tap the completion disc** → toggle complete (never opens the editor).
-  - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete.
+  - **Long-press**, or a tap on the card's overflow button → context menu: Edit, Complete/Uncomplete, Start/Stop timer, Snooze (submenu of the six presets), Duplicate (a fresh copy with new IDs for the task and its subtasks, incomplete, no time entries), Share, Move to quadrant, Delete. Delete reads in `alert`. Snooze and Move to open submenus, so each carries a trailing chevron (auto-mirrored for right-to-left). On the expanded 2×2 grid a long press starts the cross-quadrant drag instead, so there the overflow button is the way to the menu. Grid cards carry the same menu and the same blocked/blocking badges as the phone list.
   - One view model, `TaskActionsViewModel`, owns these row operations. Every screen that draws a task row builds its menu from it. The menu is the same on Matrix, on a smart view list (§8.13), and in Browse search results (§8.14). Delete offers Undo (§8.20) on all three.
-- **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11). A card in select mode has no context menu: no overflow button, and a long press opens nothing.
+- **Multi-select:** a select mode (toolbar toggle or long-press-drag) with checkmarks and the bulk-action bar (§8.11). A card in select mode has no context menu: no overflow button, and a long press opens nothing. The card is one checkbox: it leads with a check mark (a Tide check circle and a 2dp Tide border when selected, an `ink3` ring when not), shows no completion disc, and does not swipe or drag. The toolbar toggle reads as on (Tide on `tideWash`) while the mode lasts, and the bulk bar shows as soon as the mode starts, reading "Tap tasks to select them" until the first pick.
 - **Empty quadrants** show the dashed in-context prompt with tailored copy (§5.10) and an "add to this quadrant" affordance. A fully empty matrix shows "Capture your first task" with an example.
 - **First frame.** `MatrixViewModel.sections` is `StateFlow<List<QuadrantSectionState>?>` whose initial value is **`null`** until Room's first emission; the flag never resets for the ViewModel's lifetime. Gate order: `null` → skeleton; loaded-and-empty → the dashed prompts; else content. "Loaded" means the observer delivered its **first snapshot, even an empty one** — before that, an empty list is indistinguishable from an empty board, which is why cold starts used to flash the four dashed prompts. The **capture bar stays live** through the skeleton (it does not depend on tasks); below it sit four quadrant-section silhouettes in Q1→Q4 order, each a header (26dp icon tile, 120×16dp title bar, 24×12dp count bar) plus **3, 2, 2, 1** card silhouettes — deliberately uneven, because four identical columns read as a loading pattern rather than a preview. Each card silhouette is a 3dp accent-colored spine plus a 14dp title bar and a 10dp metadata bar on a `surface` tile. At expanded width the same silhouettes fill the 2×2 grid cells. There is **no timer and no minimum display time**: if the first snapshot lands within a frame the skeleton is never visibly drawn. Its job is removing the false empty state, not showing a loader. Primitive and shimmer: §5.10.
 - Lists must stay smooth with **hundreds of tasks** (`LazyColumn` keys + stable item contents).
@@ -580,24 +641,27 @@ After parsing, the cleaned title has tokens/URLs removed and whitespace collapse
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 44
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 6 and 7
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 30, and `tasks/todo.md` J, `TaskStore.edit` validating untouched fields
 
 **Behavior.** Full create/edit surface for every field; save validates §7.2 limits; save disabled while the title is empty. Editing `dueDate` or `notifyBefore` **resets reminder state** (`notificationSent = false`, clears `lastNotificationAt` and `snoozedUntil`) so the user gets re-notified.
 
-**What Save writes.** Saving an existing task does not write the row the editor opened. The editor owns twelve fields: title, description, urgent, important, tags, due date, recurrence, subtasks, dependencies, reminder offset, estimate, and snooze. For each one, the user's value is written only where the user changed it. Everything else is the row as it is in the store at the moment of the write, read inside the same transaction (`TaskStore.edit` with `EditorRules.merge`). A completion, a timer, or a snooze that landed while the sheet was open survives the save. Where the user and another writer changed the same field, the user's save wins that field, which is ordinary last-write-wins.
+**What Save writes.** Saving an existing task does not write the row the editor opened. The editor owns twelve fields: title, description, urgent, important, tags, due date, recurrence, subtasks, dependencies, reminder offset, estimate, and snooze. For each one, the user's value is written only where the user changed it. Everything else is the row as it is in the store at the moment of the write, read inside the same transaction (`TaskStore.edit` with `EditorRules.merge`). The draft the user sees is what validates (§7.11). The merged row is only normalized, like any state change to a stored task: a field the user never touched may have arrived by sync over a limit, since iOS counts characters and Android counts UTF-16 units, and it must not fail a save that shows the old, legal value. A completion, a timer, or a snooze that landed while the sheet was open survives the save. Where the user and another writer changed the same field, the user's save wins that field, which is ordinary last-write-wins.
 
 If the task was deleted while the sheet was open, Save writes nothing. The sheet closes with the not-found toast ("That task no longer exists"), and the task stays in Trash.
 
 **Android reimagining** — sections in order:
 - **Title** (multiline-capable field).
 - **Quadrant** — a 2×2 picker mirroring the matrix: each cell titled + accent-colored; selected = accent border + wash fill; unselected = accent border at 35% opacity.
-- **Tags** — chip field: type + comma/enter commits; chips have ≥48dp remove targets; autocomplete from existing tags.
+- **Tags** — chip field: type + comma/enter commits; chips have ≥48dp remove targets; autocomplete from existing tags. Each tag is a 32dp input chip (quadrant wash, accent text, a close icon) inside a 48dp touch area, and a tap anywhere on it removes the tag. The chips wrap. At 20 tags the field gives way to "A task holds at most 20 tags.", and a tag being typed stops at 30 characters, so neither limit fails only at Save.
 - **Notes** (description).
 - **Links** — read-only tappable list auto-detected (http/https) from the notes.
-- **Due date** — toggle + date picker + preset chips (§8.10).
+- **Due date** — a date row ("Pick a date" when there is none) that opens the Material date picker, a time row that opens the Material time picker, and the four preset chips (§8.10). Picking a date keeps the time of day already set, as iOS's date picker does. The time picker opens on the time already set, or 9:00 for an all-day date. Its **All day** button clears the time. A preset chip shows as selected when the due date falls on the day it resolves to, at any time of day. The first edit that gives a task a due date with a reminder asks for the notification permission (§11.2).
 - **Reminder** — visible only when a due date is set: **"None" first, then the seven presets `0, 5, 15, 30, 60, 120, 1440` plus any off-list stored value** (defaults to the global default reminder). The option list is `ReminderOptions.including(stored: Int?)` in `:core:model`: `null` or an already-present value → the presets alone; anything else → the presets **plus `stored`, sorted ascending**. A negative stored value is off-list too — it is rendered, never snapped; the validator, not the picker, owns range rules. **An off-list stored `notifyBefore` renders as its own option rather than snapping to a neighbour**, so opening and saving a task without touching the picker leaves `notifyBefore` byte-for-byte as stored (both siblings honor this; editing never silently rewrites the value). Labels come from one pure formula, `ReminderLabel.of(minutes)` in `:core:model` (a shape mapped to plural string resources in `:app`), in this order: `0` → "At time of event"; `1` → "1 minute before"; `< 60` **or** `minutes % 60 != 0` → "{n} minutes before"; `< 1440` → "{n/60} hour(s) before"; `minutes % 1440 != 0` → "{n/60} hours before"; else "{n/1440} day(s) before". Worked: 5 → "5 minutes before"; 45 → "45 minutes before"; 60 → "1 hour before"; 90 → "90 minutes before" (not "1.5 hours"); 120 → "2 hours before"; 1440 → "1 day before"; 2160 → "36 hours before"; 2880 → "2 days before". "None" writes `notifyBefore = null` and **does not** touch `notificationEnabled` — a declared divergence from the web (which also clears the flag) and iOS (which does both).
 - **Repeat** — Never / Daily / Weekly / Monthly.
-- **Subtasks** — inline checklist: add, toggle, drag-reorder, swipe-delete.
-- **Estimate** — minutes field (1–10080) + "Tracked *Xm* of *Ym*" readout; over-estimate renders in `alert`.
+- **Subtasks** — inline checklist: add, toggle, drag-reorder, swipe-delete. Each row is one checkbox (role and state for TalkBack) with a Material checkbox in `success`, and the add field has the editor's field container. At 50 subtasks the field gives way to a note, and a subtask being typed stops at 100 characters.
+- **Estimate** — minutes field (1–10080) + "Tracked *Xm* of *Ym*" readout; over-estimate renders in `alert`. The field opens the number keyboard, takes at most five digits, and shows its unit ("min") and, from an hour up, its length ("· 1h 30m"). The hint reads "How many minutes it should take".
+- **Field look.** Every text field in the editor (title, notes, add tag, add subtask, estimate) sits in the same `sunken` container, at least 48dp tall.
 - **Snooze** — menu of the six presets + clear (shows current snooze state).
 - **Dependencies** — searchable task picker that runs the cycle check live (§8.8), disabling choices that would create a cycle, with an explanation; lists current blockers/blocked.
 - New tasks reserve their ID at editor-open (so dependency edges made during creation are stable). Cancel/back discards with the standard predictive-back treatment.
@@ -615,13 +679,14 @@ One `CompletionCelebration` owns the haptic and the confetti trigger. Matrix, a 
 ### 8.5 Recurrence engine
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S5
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (recurrence in UTC)
 
 **Completion is a transition.** Only a change from open to completed spawns an instance. The store reads the task inside the write transaction, so a double-fired complete sees the first one's result. A call that asks for the state the task already has writes nothing. That means no instance, no new `completedAt`, no `updatedAt` restamp, and no queue row. A stale notification action and bulk Done over finished tasks both land here.
 
 **Behavior (authoritative).** `recurrence ∈ {none, daily, weekly, monthly}`. When a recurring task is completed, immediately create a **new task instance**:
 - New `id`, `createdAt`, `updatedAt`; `completed = false`.
 - `parentTaskId` = the completed task's `id` — or, if that task was itself an instance, *its* `parentTaskId` (single-level lineage to the original). Lineage is device-local (§7.2).
-- `dueDate` advanced from the **prior due date**: daily +1 day; weekly +7 days; monthly +1 calendar month with month-end clamping (Jan 31 → Feb 28/29). No due date → the instance has none.
+- `dueDate` advanced from the **prior due date**: daily +1 day; weekly +7 days; monthly +1 calendar month with month-end clamping (Jan 31 → Feb 28/29). No due date → the instance has none. The math runs on the device's calendar in its current time zone, as iOS and the web do, so a task due at local midnight stays at local midnight across a daylight-saving change. UTC math made a daily series read a day early after the autumn change.
 - **All subtasks reset to incomplete.** Reminder state reset (`notificationSent = false`; `lastNotificationAt`, `snoozedUntil` cleared).
 - The completed original remains as history; the new instance carries the recurrence forward. Schedule the instance's reminder at spawn time.
 
@@ -651,19 +716,25 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 
 **Behavior (authoritative).** Presets resolve in the device's local time zone: **None** → unset; **Today** → today; **This week** → the **Friday of the current week** (Saturday/Sunday → *next* Friday); **Next week** → the **Monday of next week** (strictly after today).
 
-**Android reimagining.** Preset chips + a Material date picker; cards show relative formatting ("in 3 days", "Due today" emphasized in Tide, overdue in alert).
+**Time of day (an Android addition).** A due date at local midnight is *all day*. That is what the presets write, and it is all iOS and the web can write: both pick a date only, iOS at start of day. Android's editor can also set a time, so a reminder can fire before a meeting at 3 PM rather than at 11:45 PM the night before. The time rides the same `dueDate` instant, so nothing changes on the wire. iOS shows the date and keeps the time on its own date edits. The web shows the date.
+
+**Android reimagining.** Preset chips + a Material date picker and time picker; cards show relative formatting ("in 3 days", "Due today" emphasized in Tide, overdue in alert).
 
 ### 8.11 Bulk actions (multi-select)
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 13
+
 **Behavior.** Operations (authoritative): **complete**, **move to quadrant**, **add tags**, **remove tags**, **set due date**, **delete** — each applies per-task validation, enqueues sync per task, and reports partial failures. Delete confirms first. The Archive screen's bulk bar offers **restore** and **delete permanently** (confirmed: "This can't be undone.").
 
-**Android reimagining.** Select mode on matrix (compact + grid), smart-view lists, and archive: checkmarks, a selection count, and a **bottom action bar**. Undo (snackbar) follows destructive actions where applicable (§8.20).
+**Android reimagining.** Select mode on matrix (compact + grid), smart-view lists, and archive: checkmarks, a selection count, and a **bottom action bar**. The Matrix card's selected look is in §8.1. Undo (snackbar) follows destructive actions where applicable (§8.20).
 
 ### 8.12 Archive
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Accessibility section
+
 **Behavior.** Completed tasks can move to the separate archive store (full task shape + `archivedAt`). **Manual:** archive a completed task; restore to active; delete permanently. **Auto:** when enabled, completed tasks with `completedAt` older than `archiveAfterDays` (30/60/90) move automatically — swept on launch and by the periodic maintenance job. **Archive transitions sync as active-record transitions:** archiving enqueues a *delete* of the remote active record; restoring enqueues a *create/update*. Archived tasks themselves never sync (§9.4's reconcile ignores the archive table).
 
-**Android reimagining.** Archive screen (Browse → Archive / drawer Library): dimmed (≈72% opacity) read-only cards; swipe to Restore (leading) or Delete-permanently (trailing, confirmed); search field; multi-select bulk bar; a toolbar menu exposing the auto-archive toggle + 30/60/90 picker + "Archive now".
+**Android reimagining.** Archive screen (Browse → Archive / drawer Library): read-only cards, drawn as completed cards (an `ink3` title, struck through) and not dimmed, since 72% opacity took their text and buttons under 4.5:1; swipe to Restore (leading) or Delete-permanently (trailing, confirmed); search field; multi-select bulk bar; a toolbar menu exposing the auto-archive toggle + 30/60/90 picker + "Archive now".
 
 ### 8.13 Smart Views & filters
 
@@ -701,10 +772,11 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48
 > Amended 2026-09-21: see `docs/play/2026-09-20-polish-review.md`, finding 49
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 22 and 26, and the Copy section
 
 **Behavior.** Full-text **case-insensitive substring** search across title, description, tags, and subtask titles, live-updating. The command palette matches both **tasks** and **commands** — substring matching (not fuzzy), sectioned results: **Tasks · Smart Views · Actions · Navigation**. Actions: New task, Toggle show completed, Toggle theme, **Send feedback** (navigates to the feedback screen, §8.17 — both siblings expose feedback from the palette). Navigation: Matrix, Dashboard, Archive, Settings, and each smart view.
 
-**Browse root search.** A search field sits at the top of the Browse screen, above the Archive row (§6.1), placeholder **"Search all tasks"**, using the same plain-field treatment as the in-view and archive searches (`GsdType.subhead`, `ink3` hint). It applies at **every** window size class — Browse is one composable and the bottom bar, rail, and drawer all route to it (iOS scopes its equivalent to iPhone only, because iPad and Catalyst replace the Browse tab with a sidebar; Android has no such split).
+**Browse root search.** A search field sits at the top of the Browse screen, above the Archive row (§6.1), placeholder **"Search all tasks"**, using the same field as the in-view and archive searches: a `sunken` container (`GsdShapes.input`) at least 48dp tall, a leading `search` icon in `ink3`, the `GsdType.subhead` text with an `ink3` hint, the keyboard's Search action, and a trailing clear button ("Clear search") while the field holds text. The bare field it replaced read as a label and stood 37dp tall. It applies at **every** window size class — Browse is one composable and the bottom bar, rail, and drawer all route to it (iOS scopes its equivalent to iPhone only, because iPad and Catalyst replace the Browse tab with a sidebar; Android has no such split).
 
 - **Swap rule.** `query = text.trim()`. Empty → the normal Browse list (Archive, Trash, Pinned, Built-in, Custom, New Smart View). Non-empty → a results list that **replaces the whole Browse list**.
 - **No debounce, no minimum length, no throttle** — one non-whitespace character produces results, recomputed on every keystroke. A whitespace-only query counts as empty.
@@ -714,15 +786,16 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 - **Rows and actions** are the smart-view list's composable and `TaskRowActions`: tap → editor sheet; completion disc → toggle with the usual confetti; leading swipe → toggle completion; trailing swipe → delete with Undo (§8.20); blocked/blocking badges computed over the **full** task set, not the filtered one.
 - **Miss** shows the shared search-miss empty state (§8.13). Results show **no skeleton** — they exist only after the task set has loaded; Browse's composable takes the task list as an optional parameter defaulting to `null` (so previews and the Browse-only tests need not supply one), and a query typed before the first snapshot simply matches the empty set and shows the miss state.
 
-**Android reimagining.** Invoked by the toolbar search button on any surface, or Ctrl+K / Ctrl+F on hardware keyboards. Full-screen search surface on compact (keyboard-first); a centered palette dialog on expanded with arrow-key navigation + Enter. Archive keeps its own plain in-list search.
+**Android reimagining.** Invoked by the toolbar search button on any surface, or Ctrl+K / Ctrl+F on hardware keyboards. The palette opens with its query field focused and the keyboard up, at the top of its list, and a new query starts at the top of its results. Its rows carry no keys: the smart views arrive a frame after it opens, and a keyed section header used to hold the scroll where the first section had been, so the palette opened scrolled past them. Full-screen search surface on compact (keyboard-first); a centered palette dialog on expanded with arrow-key navigation + Enter. Archive keeps its own plain in-list search.
 
 ### 8.15 Analytics dashboard
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy and Accessibility sections
 
 **Behavior (authoritative metric set — computed from the current task set, on demand, off the main thread):**
-- **Stat grid:** Active tasks, Completed tasks, Completion rate (completed ÷ total), total Tracked time. **No streaks, no badges — deliberately removed; do not add.**
-- **Completion trend:** for the selected window (**7 / 30 / 90** days), per-day counts of tasks *created* vs *completed* (line/area chart).
+- **Stat grid:** Active tasks, Completed tasks, Completion rate (completed ÷ total), total Tracked time. **No streaks, no badges — deliberately removed; do not add.** Each stat card is one TalkBack node that says its label before its value ("Active: 12").
+- **Completion trend:** for the selected window (**7 / 30 / 90** days), per-day counts of tasks *created* vs *completed* (line/area chart). The chart describes itself with the window's totals ("Last 7 days: 9 created, 6 completed").
 - **Quadrant distribution:** active-task count per quadrant (donut/bar in the quadrant pigments).
 - **Completion by quadrant:** `DashboardStats.quadrantStats` — **always four entries, Q1→Q4** (`Quadrant.entries` order), each a `QuadrantStat(quadrant, total, completed)` with `active = total - completed` and `completionRate = if (total == 0) 0f else completed / total`. **All-time, no window**: `total` counts every row in the quadrant, active or completed. The input is the active table only — archived and trashed rows never reach `Analytics.compute`, because the store observer reads `tasks`; that exclusion is by construction, matching iOS.
 - **Top tags:** per-tag totals (bar).
@@ -734,7 +807,7 @@ Users create/edit/delete **custom** views (name ≤ 60 chars; icon from 10 curat
 
 **Android reimagining.** A stat-card grid (Newsreader numerals) + charts drawn in Compose (Canvas or a light chart lib) using quadrant pigments only; graceful empty state ("No stats yet") when there are no tasks.
 
-**"Completion by Quadrant" rings card.** Positioned after the quadrant-distribution bars and before Top tags. Card chrome: `surface` fill, 1dp `hairline` border, `GsdShapes.card` (22dp), 18dp padding — the StatCard treatment at card radius; title "Completion by Quadrant" in `GsdType.quadrantTitle`, `ink`.
+**"Completion by quadrant" rings card.** Positioned after the quadrant-distribution bars and before Top tags. Card chrome: `surface` fill, 1dp `hairline` border, `GsdShapes.card` (22dp), 18dp padding — the StatCard treatment at card radius; title "Completion by Quadrant" in `GsdType.quadrantTitle`, `ink`.
 
 - **Geometry.** Outer size **196dp**, ring width **13dp**, gap **5dp**; ring `i` (0 = Q1, outermost) has diameter `196 − i × 36` → 196, 160, 124, 88. Each ring draws a full-circle track in the quadrant **wash**, then a value arc in the quadrant **accent**, round caps, starting at 12 o'clock and sweeping clockwise by `completionRate × growth × 360°`. All four on one `Canvas`.
 - **Center.** The overall rate via `Analytics.percent(stats.completionRate)` in `GsdType.title` (Newsreader, `tnum`), `ink`, single line, auto-shrunk to fit the ~67dp hole; beneath it the literal lowercase "complete" in `GsdType.caption`, `ink3`.
@@ -759,6 +832,10 @@ Completed tasks never appear here (`upcoming` is active-only), so they never car
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+>
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 39 and 40, and the Copy section
+
+**Export, import, and erase finish once started.** They run in the app's process-wide scope, not the screen's, so a rotation or a tab switch cannot cancel them midway. Each reports its outcome once, in a snackbar the next time Settings is on screen. The snackbar sits over the Settings scroll, so it shows wherever the user has scrolled.
 
 **Export — envelope 2.1.0.** A seven-store, versioned JSON document, pretty-printed (2-space indent) with **top-level keys sorted** (an Android/iOS exporter convention; the web emits insertion order — key order is not part of the import contract), dates ISO-8601 fractional-ms:
 
@@ -774,9 +851,9 @@ Completed tasks never appear here (`upcoming` is active-only), so they never car
 | `archiveSettings` | singleton, `id: "settings"` |
 | `appPreferences` | singleton, `id: "preferences"` |
 
-Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet.
+Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet. The file opens in mode `wt`, which truncates: a provider may take plain `w` as an overwrite in place, and a shorter export written over a longer file then kept a stale tail. A failure says "Couldn't save the export" instead of passing in silence.
 
-**Import — lenient, version-tolerant.** Order of guards: **10 MB UTF-8 byte cap** → structural decode → record-count cap → per-record lenient decode. **The count cap counts all three task-bearing arrays**: `tasks + archivedTasks + deletedTasks ≤ 10,000` (`smartViews` and the singletons are not counted). `version` accepts a string or a number, normalized to string; **absent is accepted and treated as `"1"`** so an old v1 export keeps importing. Every store key beyond `tasks` is **optional**, and **absent ≠ empty**: an absent key leaves the local store untouched in *both* modes; an empty array *present* in the payload clears that store in replace mode. Per-record failures skip-and-count rather than aborting the whole import — a deliberate Android leniency choice in the iOS style (the web's `importPayloadSchema` rejects the entire payload on any invalid record); reported as "imported N, skipped M". Two modes, chosen after picking a file (`ACTION_OPEN_DOCUMENT`):
+**Import — lenient, version-tolerant.** Order of guards: **10 MB UTF-8 byte cap** → structural decode → record-count cap → per-record lenient decode. **The count cap counts all three task-bearing arrays**: `tasks + archivedTasks + deletedTasks ≤ 10,000` (`smartViews` and the singletons are not counted). `version` accepts a string or a number, normalized to string; **absent is accepted and treated as `"1"`** so an old v1 export keeps importing. Every store key beyond `tasks` is **optional**, and **absent ≠ empty**: an absent key leaves the local store untouched in *both* modes; an empty array *present* in the payload clears that store in replace mode. Per-record failures skip-and-count rather than aborting the whole import — a deliberate Android leniency choice in the iOS style (the web's `importPayloadSchema` rejects the entire payload on any invalid record); reported as "imported N, skipped M". A task over a local limit (Appendix B) is a per-record failure too, so one iOS title with an emoji skips that task and nothing else. The whole import is **one transaction**: a failure part way leaves every store as it was. The file is read and parsed off the main thread; an unreadable file, a malformed one, and one over the caps each get a plain message, never an exception's text. Two modes, chosen after picking a file (`ACTION_OPEN_DOCUMENT`):
 
 - **Replace** — `tasks`: stamp `updatedAt = now`, enqueue `update` for every imported ID **and `delete` for every existing ID not in the import**, then swap the table atomically. `archivedTasks`/`deletedTasks` (when present): clear then insert. The three singletons (when present): put — replace is the **only** mode that applies incoming settings.
 - **Merge** — `tasks`: insert alongside existing; colliding IDs get regenerated (collision-checked against existing + imported + already-assigned), with `dependencies` **and `parentTaskId`** remapped through the complete ID map (forward references included); stamp `updatedAt = now`, enqueue `update` per task. `archivedTasks`/`deletedTasks`: insert; **on id collision the existing local row wins** (skip, no remap); an id already present in the imported or local `tasks` is skipped in either tombstone store — an id lives in one store, never both. `smartViews`: upsert by id, never accepting a payload row with `isBuiltIn: true`. The three singletons are **not applied** in merge — merge combines task lists and never adopts another device's configuration.
@@ -786,37 +863,39 @@ Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet.
 
 Both cross-platform fixtures (`ios-backup-export.json`, `web-backup-2.1.0.json`, byte-identical copies at `core/model/src/test/resources/fixtures/cross-platform/`) round-trip through decode, count validation, and re-export/re-import in the JVM suite.
 
-**Erase all data.** A guarded destructive flow: type **"RESET"** to confirm, with an export-first prompt. Clears tasks, archive, **trash**, custom views, sync queue, pins, archive settings, the pull cursor (§9.4), **and the saved feedback draft together with its submission id**; cancels reminders; **keeps theme, onboarding flags, and the share-title preference**. Both Erase All Data and *Delete account & erase everything* (§8.21) clear the feedback draft in the same step as the local wipe — a reset must not resurrect a draft. Clearing the trash on erase matches iOS (erase "must mean all of it"); the web's `resetEverything` currently omits `deletedTasks`, an upstream bug, not behavior Android copies. If signed in, it erases **everywhere**: all remote records are deleted first (§9.8); only after remote success does the local wipe proceed.
+**Erase all data.** A guarded destructive flow: type **"RESET"** to confirm, with an export-first prompt. Clears tasks, archive, **trash**, custom views, sync queue, pins, archive settings, the pull cursor (§9.4), **and the saved feedback draft together with its submission id**; cancels reminders; **keeps theme, onboarding flags, and the share-title preference**. Both Erase all data and *Delete account & erase everything* (§8.21) clear the feedback draft in the same step as the local wipe — a reset must not resurrect a draft. Clearing the trash on erase matches iOS (erase "must mean all of it"); the web's `resetEverything` currently omits `deletedTasks`, an upstream bug, not behavior Android copies. If signed in, it erases **everywhere**: all remote records are deleted first (§9.8); only after remote success does the local wipe proceed. If the remote step fails, nothing is erased, and Settings says so and asks the user to check the connection and try again.
 
 ### 8.17 Settings
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+>
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 20 and 29, and the Copy section; and `tasks/todo.md`, the Feedback placement item
 
-Sections in order (Material list groups):
+Sections in order (Material list groups). Every tappable row is at least 48dp tall, and no option marks its choice with a text glyph such as " ✓":
 
-1. **Appearance** — Theme (System/Light/Dark); Show Completed Tasks.
+1. **Appearance** — Theme (System/Light/Dark), three radio rows, each a whole 48dp target with the radio 12dp from its label; Show Completed Tasks.
 2. **Sharing** — "Fetch titles for shared links" (default **off**; footer explains it performs a network fetch).
-3. **Account** — signed out: Sign in with Google / Apple / GitHub + a one-line privacy hint; signed in: account email, a **two-tier Apple note** when the session's provider is Apple (§10.4) — relay address (`…@privaterelay.appleid.com`): "Signed in with a private relay email — this is a separate account from your web tasks."; any other Apple sign-in: "Signed in with Apple. If you use Google or GitHub on the web, that’s a different account and won’t show the same tasks." — sync status ("Synced · N pending"), health message when unhealthy, **Sync Now**, **Sync History** (screen: totals + the ~50 most recent entries with status/counts/duration), **Sign Out**, **Delete Account…** (§8.21). There is deliberately **no** sync on/off toggle — signing in *is* enabling sync.
-4. **Archive** — auto-archive toggle; "Archive after" 30/60/90; **Archive Now** + status line.
-5. **Notifications** — Enable Reminders; Default Reminder (15m/30m/1h/2h/1d); Sound; Quiet Hours toggle + from/to pickers (default 22:00–07:00); system-permission status row with a contextual **Enable notifications** / **Open system settings** action.
-6. **Data & Storage** — Export (prepare → share/save); Import (file picker → Merge/Replace choice); Erase All Data (§8.16).
-7. **Feedback** — anonymous, opt-in, no auth header, no identifiers beyond the payload: sentiment toggle (up/down), category chips (idea/praise/gripe/bug), message field (≤1000 chars, live count near the limit), a roadmap vote checklist (Android's 8 slugs: `natural-language-dates, calendar-sync, task-templates, weekly-review, focus-timer, task-notes, shared-lists, wear-os`), and a **"What gets sent" preview** rendering the literal payload object, built by the same pure builder that produces the request body so preview and payload cannot drift. The draft persists locally (DataStore) and clears on success; Send is disabled while the draft is empty. Confirmation is calm ("Thanks — sent."). Wire contract: `POST https://api.vinny.io/api/collections/feedback/records`, no Authorization header, no cookies; exactly 7 snake_case keys (`submission_id`, `sentiment`, `category`, `message`, `votes`, `app_version`, `client_submitted_at` — limits in Appendix B), pinned by an exact-keys test. A 2xx is success; a 400 whose body has `data.submission_id.code == "validation_not_unique"` (a duplicate retry of the same draft) also collapses to success.
+3. **Account** — signed out: Sign in with Google / Apple / GitHub as outlined pill buttons (the onboarding's, §8.19), not bare text links + a one-line privacy hint; signed in: account email, a **two-tier Apple note** when the session's provider is Apple (§10.4) — relay address (`…@privaterelay.appleid.com`): "Signed in with a private relay email. This is a separate account from your web tasks."; any other Apple sign-in: "Signed in with Apple. If you use Google or GitHub on the web, that's a different account and won't show the same tasks." — sync status ("Synced · N pending"), health message when unhealthy, **Sync now**, **Sync history** (screen: totals + the ~50 most recent entries with status/counts/duration), **Sign out**, **Delete account…** (§8.21). There is deliberately **no** sync on/off toggle — signing in *is* enabling sync.
+4. **Archive** — auto-archive toggle; "Archive after" 30/60/90 as chips ("30 days") with a selected state; **Archive now** as its own row, apart from the day chips + status line.
+5. **Notifications** — Enable Reminders; Default Reminder (15m/30m/1h/2h/1d) as chips in the editor's words ("15 minutes before") with a selected state; Sound; Quiet Hours toggle + from/to pickers (default 22:00–07:00): "Quiet from" and "Quiet until" rows print the time in the user's clock, 12 or 24 hours as the device is set, and each opens a time picker; system-permission status row with a contextual **Enable notifications** / **Open system settings** action.
+6. **Data & storage** — Export (prepare → share/save); Import (file picker → Merge/Replace choice); Erase all data (§8.16).
+7. **Feedback** — its own group with one row, "Send feedback", which opens the Feedback screen: a pushed screen with an Up arrow (§6.1), which the palette's Send feedback action also opens (§8.14). The row used to sit at the end of Data & storage. The screen is anonymous, opt-in, no auth header, no identifiers beyond the payload: sentiment toggle (up/down), category chips (idea/praise/gripe/bug), message field (≤1000 chars, live count near the limit), a roadmap vote checklist (Android's 8 slugs: `natural-language-dates, calendar-sync, task-templates, weekly-review, focus-timer, task-notes, shared-lists, wear-os`), and a **"What gets sent" preview** rendering the literal payload object, built by the same pure builder that produces the request body so preview and payload cannot drift. The draft persists locally (DataStore) and clears on success; Send is disabled while the draft is empty. Confirmation is calm ("Thanks — sent."). Wire contract: `POST https://api.vinny.io/api/collections/feedback/records`, no Authorization header, no cookies; exactly 7 snake_case keys (`submission_id`, `sentiment`, `category`, `message`, `votes`, `app_version`, `client_submitted_at` — limits in Appendix B), pinned by an exact-keys test. A 2xx is success; a 400 whose body has `data.submission_id.code == "validation_not_unique"` (a duplicate retry of the same draft) also collapses to success.
 
    **Failure is tiered, and every tier keeps the draft *and its submission id*** so a retry collapses server-side rather than double-filing:
 
    | Condition | Kind | Copy |
    |---|---|---|
-   | Transport error (`IOException`) | `OFFLINE` | "Couldn't reach the server. Your draft is saved — try again when you're online." |
-   | HTTP 429 — the PocketBase rate limit **or** the server hook's quota response | `RATE_LIMITED` | "Too many submissions right now. Your draft is saved — try again later." |
-   | HTTP ≥ 500, including the hook's fail-closed 500 | `SERVER` | "The server had a problem. Your draft is saved — try again shortly." |
+   | Transport error (`IOException`) | `OFFLINE` | "Couldn't reach the server. Your draft is saved. Try again when you're online." |
+   | HTTP 429 — the PocketBase rate limit **or** the server hook's quota response | `RATE_LIMITED` | "Too many submissions right now. Your draft is saved. Try again later." |
+   | HTTP ≥ 500, including the hook's fail-closed 500 | `SERVER` | "The server had a problem. Your draft is saved. Try again shortly." |
    | Any other non-2xx, including a 400 that is **not** the duplicate | `REJECTED` | "The server refused this submission. Your draft is saved." |
 
    Server-side facts, stated so nobody re-derives them from client behavior: the anonymous-feedback hook enforces 30 requests/minute, a 10,000-record aggregate quota, and **180-day retention**; `client_submitted_at` is an untrusted client clock kept for context only. The disclosure copy needs no change — it already states exactly what is sent, and retention is a server policy, not a payload field.
 
    **Declared absence.** The web's returning-user feedback nudge (a dismissible sentence under the Review stat rail, gated on tenure, completion count, and send/dismiss cooldowns) is **web-only by decision**. Android, like iOS, keeps **Settings and the command palette (§8.14) as its only feedback entry points**. Parity audits must not flag this.
-8. **About** — version + build; privacy blurb; Privacy Policy → `https://gsdtaskmanager.com/privacy/`; Contact Support → `gsdapp@vinny.dev`; "How to use GSD" (the Field Guide, §8.19); "Show onboarding again".
+8. **About** — version + build; privacy blurb; Privacy Policy → `https://gsdtaskmanager.com/privacy/`; Contact Support → `gsdapp@vinny.dev` (an email with the subject "GSD Task Manager Support"; with no email app, a toast says so); "How to use GSD" (the Field Guide, §8.19); "Show onboarding again". The mark, tagline, site link, and credit are in §8.19.
 
 ### 8.18 Task sharing (outbound)
 
@@ -824,40 +903,47 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 
 ### 8.19 Onboarding, Help & About
 
-- **Onboarding:** 4 paged, skippable editorial screens on `paper` — **Welcome** (mark + tagline) → **The Matrix** (axes diagram) → **Capture** (shorthand legend in monospace) → **Privacy & sync** (lock motif; "no account required; your data stays on device"). Final page: "Start using GSD" (primary, ink-filled pill) + "Sign in with Google" / "Sign in with Apple" + a quiet sync hint. Cross-fade instead of slide under reduced motion.
-- **Help ("Field Guide"):** a static reference sheet — the board & capture bar; the four quadrants with intent blurbs; quick-add syntax with the example `!! ship the deck #work #q2`; keyboard shortcuts (shown only when a hardware keyboard is relevant); editing/completing/drag; cloud sync (optional); privacy; a link to gsdtaskmanager.com.
-- **About:** mark, tagline "Get the right things done.", version, site link, maker's credit.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 19 and 20, and `tasks/todo.md` K, onboarding sign-in
+
+- **Onboarding:** 4 paged, skippable editorial screens on `paper` — **Welcome** (mark + tagline) → **The Matrix** (axes diagram) → **Capture** (shorthand legend in monospace) → **Privacy & sync** (lock motif; "no account required; your data stays on device"). Final page: "Start using GSD" (primary, ink-filled pill) + "Sign in with Google" / "Sign in with Apple" + a quiet sync hint. No slide under reduced motion: Next changes the page at once, and a swipe still follows the finger (§13.3).
+  - **Layout, as on iOS.** Each page is a hero, a serif title, and one sentence, centered, scrolling when a large font outgrows the page. The heroes: the 92dp mark; a 2×2 of quadrant-wash tiles with "More important →" and "More urgent →" axes; a sample capture line ("Call my wife !! #family") over a four-row token legend; a lock in a 92dp `sunken` circle. The copy: "Get the right things done." · "Four quadrants, one decision." · "Capture in one line." · "Yours, and only yours." Skip sits fixed at the top right and the ink pill ("Next", then "Start using GSD") fixed at the bottom, so neither moves between pages. Page dots sit above the pill (TalkBack reads "Page 2 of 4"). The column is capped at 560dp and keeps clear of the system bars. The page lives in the pager's saved state, so a rotation keeps it.
+  - **Sign-in.** A sign-in button starts that provider's sign-in (§10.2) and then ends onboarding, so the user comes back to Matrix whether or not they finish in the browser. If sign-in cannot start, a toast says so. The hint reads "To sync with the web app and your other devices, use the same email you use there."
+- **Help ("Field Guide"):** a static reference sheet — the board & capture bar; the four quadrants with intent blurbs; quick-add syntax with the example `!! ship the deck #work #q2`; keyboard shortcuts (shown only when a hardware keyboard is relevant); editing/completing/drag; cloud sync (optional); privacy; a link to gsdtaskmanager.com. It scrolls, under the "How to use GSD" title. Each section is a quiet icon and an uppercase label over a card. The shortcuts show when the device reports a hardware keyboard or the screen is at least 600dp wide. Its copy describes shipped sync, with no "when it arrives".
+- **About:** mark, tagline "Get the right things done.", version, site link, maker's credit. In Settings (§8.17) it opens with the 56dp mark, the tagline, one sentence ("GSD turns the Eisenhower matrix into a calm place to decide what matters, then do it."), and "Version X (build N)", then the §8.17 rows, a gsdtaskmanager.com row, and "Crafted by Vinny Carpenter" with the name linking to vinny.dev.
 
 ### 8.20 Undo delete & Trash
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 48 (review of #18)
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 31, the Copy section, and the Accessibility section
 
 **Behavior.** Deleting an active task moves the full record to the trash store with `deletedAt = now`, rather than hard-deleting it. The remote `delete` is enqueued *before* the local move, in the same transaction — the enqueue-before-write invariant, extended; if the enqueue fails, the delete aborts. The store invariant is now three-state: a task id lives in exactly one of `tasks`, `archivedTasks`, `deletedTasks`.
 
 - **Retention: 30 days**, using a **start-of-day (local) cutoff 30 days back** — following iOS; the web uses a rolling `now − 30 d` instant instead, an accepted per-client divergence. Purge deletes strictly older than the cutoff (a row whose `deletedAt` sits exactly on it is kept — strict `<`), running on launch and on the periodic maintenance sweep. Purge enqueues nothing.
 - **Restore** re-activates the record **with its original timestamps preserved** — a faithful undo, matching both siblings — and **enqueues `create`**, safe because the remote record was already deleted at trash time (no LWW contest). Reminders for the restored task are rescheduled.
-- **Delete forever** (single row) and **Empty trash** enqueue nothing — the remote record was already deleted when the task entered the trash.
+- **Delete permanently** (single row) and **Empty trash** enqueue nothing — the remote record was already deleted when the task entered the trash.
 - Trash contents **never sync** (like the archive): a remote delete arriving via SSE/reconcile removes the local active row directly, without creating a local trash entry — only the deleting device holds the recoverable copy.
 - Archiving is unaffected — a separate store; archive is for completed history, trash for deletions. Restoring from trash returns to active, never to archive.
-- Erase All Data clears the trash too (§8.16).
+- Erase all data clears the trash too (§8.16).
 
-**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): dimmed read-only rows showing time remaining ("29 days left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete forever (trailing, confirmed "This can't be undone."), a multi-select bulk bar (Restore / Delete forever), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
+**Android reimagining.** The **undo snackbar stays** as the everyday surface and is now a *view over trash*: delete shows `Deleted "<title>"` + **Undo** (~6 s; extended ~12 s when TalkBack is active), exactly as before, but Undo now calls trash-restore instead of re-creating from an in-memory snapshot — nothing is lost when the snackbar times out anymore. A **Trash screen** lives in Browse as a sibling row below Archive (icon `delete_outline`, live count): read-only rows, not dimmed (§8.12), showing time remaining ("29 days left", "1 day left", `ink3`; final day in `alert`), swipe to Restore (leading) / Delete permanently (trailing, confirmed by a dialog titled `Delete "<title>" permanently?` over "This can't be undone."), a multi-select bulk bar (Restore / Delete permanently), and a toolbar "Empty trash" action (confirmed). Deep link `gsd://trash` (§6.4). Empty state: "Trash is empty" with the §5.10 treatment. No blocking confirmation dialogs for single deletes; calm undo instead. Bulk delete and archive/trash-permanent-delete still confirm (irreversible at scale). The offer also ends when its screen leaves: a tab switch does not bring the same offer back on the next visit. A second delete replaces the first offer.
 
 ### 8.21 Account switching, account deletion, recovery
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S3
+>
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, follow-up S3 and finding 40, and the Copy section
 
 - **Account switch:** when a sign-in resolves to a **different** account than the last known owner *and* local active tasks exist, prompt: **"Different account"** — *Keep my tasks* (merge: local tasks seed-upload into the new account), *Start fresh (erase tasks on this device)* (destructive), *Cancel* (signs back out). Archived tasks never trigger the prompt (they don't sync).
   - **What the decision does.** `SyncCoordinator.confirmOwner` reads the previous owner, erases local data for *Start fresh*, runs the pure `OwnerChange.adopt` in `:core:sync`, and records the new owner last. A different owner **clears the pull cursor**, so the new account is listed in full. *Keep my tasks* also **seeds the queue once**: every active task with no pending or failed row gets one `UPDATE` row carrying the task as stored, with no restamp. Those rows make reconciliation `PROTECT` the tasks until the push lands them, and last-write-wins still decides against anything already in the new account. A same-owner or first sign-in changes nothing, so a task deleted on another device while this one was signed out still deletes here.
-  - **The prompt survives a restart.** The token is saved before the prompt is answered. `SyncCoordinator.start` compares the token's user id with the last confirmed owner. When they differ and active tasks exist, it raises the prompt again and stays signed out, so nothing syncs before the user decides. The rebuilt prompt knows no email, and a blank email is stored as none.
+  - **The prompt survives a restart.** The token is saved before the prompt is answered. `SyncCoordinator.start` compares the token's user id with the last confirmed owner. When they differ and active tasks exist, it raises the prompt again and stays signed out, so nothing syncs before the user decides. The email and provider of an unconfirmed sign-in are saved as a *pending sign-in* before the decision, so the rebuilt prompt keeps both, and Settings shows the email and the right account note once the user answers. Answering clears the pending sign-in.
   - **An unfinished change with nothing to ask about finishes on the next launch.** When the token's user differs from the last confirmed owner and no active tasks exist, `start` clears the pull cursor and records the owner before it signs in. That covers a "Start fresh" that died after its erase. It also covers a first sign-in that died before it recorded its owner. Without a recorded owner, a later switch to another account would find nothing to compare with and would never ask.
 - **Delete account:** confirmation offering *Delete & keep tasks on this device* or *Delete & erase everything* (+ Cancel), warning it's permanent and removes every synced task. The deletion itself is **route-first with a bounded fallback**, orchestrated by a pure `AccountDeleter` in `:core:sync` over the `SyncRemote` plus a small `AccountRemote` port (`deleteAccountViaRoute()`, `deleteUser(id)`), so the whole outcome matrix runs on JVM fakes:
   1. **Preferred:** `DELETE /api/gsd/account` with the auth header. **`204`** means the server erased every task and the user in one transaction — proceed to sign-out (and local erase, if that option was chosen). **Only a `404` falls back** (the route is not deployed — true of `api.vinny.io` today, so the fallback is the live production path). Any other failure, **including a transport error, stops with nothing changed locally.**
   2. **Fallback:** up to **3 passes** of *enumerate* (under §9.4's bounded, fail-closed listing rules) → delete each record with the existing ~100 ms throttle. The **user record (`DELETE /api/collections/users/records/{id}`) is deleted only after a complete listing comes back empty**, then the token is cleared. Retrying is therefore always safe: the user record is never deleted before the task wipe finishes.
-  3. **The outcome is surfaced, always** — the call used to be wrapped in a silent `runCatching`. The outcome line renders **outside the signed-in branch** of the Account group, so it survives the sign-out that a successful deletion performs and the user still sees what happened: listing failed before any delete → "Couldn't list your synced tasks, so nothing was deleted. Check your connection and try again."; some tasks deleted then auth rejected → "Some synced tasks were deleted, but your account is still there. Sign in again, then run Delete account once more."; some tasks deleted then any other failure, or three passes exhausted → "Some synced tasks were deleted, but your account is still there. Try again to finish deleting it."; cloud deleted but the local erase threw → "Cloud account deleted, but local erase was incomplete. Use Erase All Data to retry local cleanup." Success keeps the unchanged sign-out flow. *Delete & erase everything* also clears the saved feedback draft (§8.16).
+  3. **The outcome is surfaced, always** — the call used to be wrapped in a silent `runCatching`. The outcome line renders **outside the signed-in branch** of the Account group, so it survives the sign-out that a successful deletion performs and the user still sees what happened: listing failed before any delete → "Couldn't list your synced tasks, so nothing was deleted. Check your connection and try again."; some tasks deleted then auth rejected → "Some synced tasks were deleted, but your account is still there. Sign in again, then run Delete account once more."; some tasks deleted then any other failure, or three passes exhausted → "Some synced tasks were deleted, but your account is still there. Try again to finish deleting it."; cloud deleted but the local erase threw → "Cloud account deleted, but local erase was incomplete. Use Erase all data to retry local cleanup." Success keeps the unchanged sign-out flow. *Delete & erase everything* also clears the saved feedback draft (§8.16).
 - **Database-unavailable recovery:** if the local DB cannot open even after recovery attempts, show a calm full-screen fallback — "Couldn't open your tasks", reassurance (data not deleted; restart; free storage), Contact Support — and **never** start sync or observation against a broken store.
 
 ---
@@ -942,11 +1028,12 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 ### 9.5 Push & the sync queue
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (two full listings per run)
 
 Every local mutation (create/update/delete/archive/restore/import/bulk) enqueues a queue row: `{ id, taskId, operation: create|update|delete, timestamp (ms), retryCount, payload (full Task JSON for create/update; null for delete), status: pending|failed, lastError?, lastAttemptAt?, failedAt? }`.
 
 Push algorithm:
-1. **Bulk-fetch the remote index once per push** (list since epoch, through the bounded fail-closed walk of §9.4): map `task_id → (recordId, client_updated_at)` — avoids per-item lookups and 429s. If the walk throws `RemoteListingIncomplete`, the push does not proceed on partial data.
+1. **Bulk-fetch the remote index once per push** (list since epoch, through the bounded fail-closed walk of §9.4). A run with nothing queued takes no index, so it lists the whole collection only once, for reconciliation: map `task_id → (recordId, client_updated_at)` — avoids per-item lookups and 429s. If the walk throws `RemoteListingIncomplete`, the push does not proceed on partial data.
 2. Drain pending items oldest-first, each gated by backoff (`retryCount` → wait **5s / 10s / 30s / 60s / 300s**).
 3. **A malformed remote version never authorizes an overwrite.** For a create/update whose task *does* have a record in the remote index, if that record's `client_updated_at` is missing or unparseable (`PbDates.parse` → `null`), the item is **skipped for this drain** — `bumpQueueRetry(…, "Remote task version is missing or malformed", …)`, counting toward the five-failure threshold like any other error — and **no write is issued**. Previously this case fell through to `updateTask`. A missing version may protect or quarantine data; it may not license clobbering it.
 4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it.
@@ -969,12 +1056,18 @@ Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (c
 
 ### 9.7 Sync history & health
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Copy and Accessibility sections
+
 - Record every attempt: `{ id, timestamp, status: success|error|conflict|partial, pushedCount, pulledCount, conflictsResolved, failedCount?, errorMessage?, duration?, deviceId, triggeredBy: user|auto }`. Precedence: error > partial (some pushes failed) > success; remote-won LWW counts as informational conflict, not failure. `triggeredBy = user` only for manual syncs. **Prune to the 500 most recent** after each insert; the history screen shows ~50.
+- **History rows** show the time in the device's clock and locale, the status as a word ("Synced", "Partly synced", "Failed"; it printed the engine's `partial`), the counts, which TalkBack reads as words ("3 sent, 2 received, 1 conflict resolved"), and the duration.
 - **Health evaluation** (priority order): offline → session expired (token expiry ≤ now) → failed items exist → stale queue (oldest pending > 1 hour) → OK. Surface as the quiet status chip (§5.10) + a human message in Settings; never alarming.
 
 ### 9.8 Device identity & remote erase
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 42
+
 - On first run generate a stable `deviceId` (UUID) + a human `deviceName` (model); persist locally. `deviceId` populates `device_id` on pushes (echo filtering) and sync history.
+- **Moved data gets its own id.** The id lives in the database, and a phone-to-phone transfer (§13.4) copies the database. A marker file in `noBackupFilesDir`, which no transfer copies, says this install already has its own id. Without it, `SyncCoordinator.start` replaces the stored id before anything reads it, and writes the marker. Two phones with one id each dropped the other's realtime events as echoes until the next pull.
 - **Erase-all-remote** (used by erase-everywhere and account deletion): list the full remote index fresh, `DELETE` every record (~100 ms throttle), and only clear the local queue after **all** deletes succeed. A dead session throws (so callers refuse to wipe local data on a false "success"); signed-out is a silent no-op.
 
 ---
@@ -1000,11 +1093,12 @@ Lifecycle: SSE runs **foreground only**. On stream end/error: run a full sync (c
 ### 10.3 Token lifecycle
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S1
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, follow-up S1
 
 - PocketBase JWTs live ~14 days; there is **no refresh token**. When the token expires within a **7-day skew**, call `POST /api/collections/users/auth-refresh` (bare-JWT auth header, no body) → fresh `{token, record}`.
 - A **transient** refresh failure (offline, 5xx) falls back to the still-valid stored token — offline-first means network failures **never** sign the user out. Clear the stored token **only** on a definitive 401/403.
 - Decode the JWT payload locally (base64url, no signature verification) for `id` and `exp` only.
-- **Session end.** A definitive rejection clears the token, and the next run reports `notSignedIn`. The coordinator then sets `signedIn = false` and `sessionExpired = true`, and Settings shows "Session expired. Sign in again to keep syncing." above the sign-in options. Signing in again clears the flag. A dead session never syncs as a guest (§9.4).
+- **Session end.** A definitive rejection clears the token, and the next run reports `notSignedIn`. So does a 401 or 403 from any call in a run, the identity check (§9.4) included: the server can revoke a token long before it enters the 7-day window, and the refresh never sees that one. The coordinator then clears the token, so a restart cannot sign back in to the dead session, and sets `signedIn = false` and `sessionExpired = true`, and Settings shows "Session expired. Sign in again to keep syncing." above the sign-in options. Signing in again clears the flag. A dead session never syncs as a guest (§9.4).
 
 ### 10.4 Identity caveats
 
@@ -1023,22 +1117,25 @@ iOS pre-schedules every reminder with the system notification center; Android's 
 ### 11.1 Scheduling model (behavior shared with iOS)
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 5
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (alarm cap)
 
 - A task with a `dueDate`, `notificationEnabled == true`, and a reminder offset (`notifyBefore`, else the global default) gets a reminder at `dueDate − offset` — unless `snoozedUntil` is in the future, in which case the fire time **is** `snoozedUntil`. That holds after the first reminder posted too: a snooze asks for another reminder, so `notificationSent` does not block it. A posted reminder with no future snooze does not fire again.
 - **Reschedule** whenever `dueDate`, `notifyBefore`, `notificationEnabled`, snooze, or completion changes; **cancel** on complete, delete, or disable. Editing `dueDate`/`notifyBefore` resets reminder state (§8.3). Recurring spawns schedule their own reminder at spawn time.
 - **Quiet hours:** a fire time inside the quiet window defers to the window's end.
 - One stable identity per task (`task-<id>`) so reschedules replace, never stack.
-- **Resync on any data change:** remote pulls and SSE writes bypass local mutation hooks, so a debounced (~1 s) full reminder resync runs off the store's change stream — reminders stay correct no matter which device edited the task.
+- **Resync on any data change:** remote pulls and SSE writes bypass local mutation hooks, so a debounced (~1 s) full reminder resync runs off the store's change stream — reminders stay correct no matter which device edited the task. A resync that throws is logged and the stream keeps running, so the next change still reschedules.
+- **At most 400 alarms at once.** Android refuses more than 500 concurrent alarms per app and throws when an app passes the limit. A resync schedules the soonest 400 fire times (equal times break by task id) and cancels the rest. A later resync schedules the next ones, and every posted reminder triggers one. iOS keeps the soonest 64 pending notifications on its own, so it has no rule here.
 
 ### 11.2 Android mechanics
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 47
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 8 and 27, and "Also worth a look" (time zone changes)
 
-- `AlarmManager.setExactAndAllowWhileIdle` for fire times, with the **`SCHEDULE_EXACT_ALARM`** permission (user-grantable special access). If exact alarms are not permitted, degrade gracefully to inexact windows and say so in Settings — never silently fail.
-- A `BroadcastReceiver` posts the notification at alarm time: title = task title, body = description (if any), tap → `gsd://task/<id>`. The tap is that link and nothing else, so the router goes to Matrix first and the task opens from any tab (§6.4).
+- `AlarmManager.setExactAndAllowWhileIdle` for fire times, with the **`SCHEDULE_EXACT_ALARM`** permission (user-grantable special access, denied by default on Android 14 and later). If exact alarms are not permitted, degrade gracefully to inexact windows and say so in Settings — never silently fail. Settings then shows "Exact alarms are off, so reminders may arrive a few minutes late." and an **Allow exact alarms** row that opens the system's page for GSD (`ACTION_REQUEST_SCHEDULE_EXACT_ALARM`). Settings re-reads both permissions each time it resumes, so the rows go away as soon as the user comes back with the permission granted.
+- A `BroadcastReceiver` posts the notification at alarm time: title = task title, body = description (if any), tap → `gsd://task/<id>`. Small icon: the launcher's monochrome tile cluster (`ic_notification`), tinted with Tide (`tint`), category `reminder`. A post that fails is logged, never thrown. The tap is that link and nothing else, so the router goes to Matrix first and the task opens from any tab (§6.4).
 - **Notification channels:** *Reminders* (default importance, sound) and *Reminders (silent)*; the in-app **Sound** toggle selects the channel (channel sound is user-owned on Android — the two-channel split is the honest mapping).
-- **Runtime permission:** `POST_NOTIFICATIONS` requested **contextually** (first reminder enablement / first due date with reminder), never at cold launch. Track `permissionAsked`; reflect OS state in Settings with a path to system settings when denied.
-- **Reboot / update:** alarms die on reboot — a `BOOT_COMPLETED` (+ `MY_PACKAGE_REPLACED`) receiver reschedules everything from the store.
+- **Runtime permission:** `POST_NOTIFICATIONS` requested **contextually** (first reminder enablement / first due date with reminder), never at cold launch. Reminders default to on, so the Settings switch alone never asked. The editor asks once, the first time an edit gives a task a due date with a reminder or changes the reminder on a dated task, while reminders are on and the permission is neither granted nor asked before (`ReminderPermission.shouldAsk` in `:core:model`), as iOS asks when a reminder is picked. Track `permissionAsked`; reflect OS state in Settings with a path to system settings when denied.
+- **Reboot / update / system changes:** alarms die on reboot — a `BOOT_COMPLETED` (+ `MY_PACKAGE_REPLACED`) receiver reschedules everything from the store. The same receiver also takes `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` (a grant turns every inexact alarm exact), `TIMEZONE_CHANGED`, and `TIME_SET`, because a new zone or clock moves quiet-hours deferrals. A reschedule that fails is logged, never thrown.
 - Mark `notificationSent`/`lastNotificationAt` when a reminder posts (device-local, §4.7), through `TaskStore.markReminderSent` so the write never restamps `updatedAt` or queues a push.
 
 ### 11.3 Badges
@@ -1047,7 +1144,9 @@ Android has no numeric app-icon badge API; the notification channel's badge dot 
 
 ### 11.4 Notification actions (Android-native win)
 
-Reminder notifications carry two action buttons: **Complete** (full completion semantics — recurrence spawn, sync enqueue) and **Snooze 1 hour**. Both act through the store without opening the app and dismiss/update the notification.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, follow-up S6
+
+Reminder notifications carry two action buttons: **Complete** (full completion semantics — recurrence spawn, sync enqueue) and **Snooze 1 hour**. Both act through the store without opening the app and dismiss/update the notification. A write that fails is logged and never thrown, because a throw there would crash the process from a notification button. The notification then stays up, so the user can try again or open the task.
 
 ### 11.5 Background work
 
@@ -1059,20 +1158,25 @@ One periodic **WorkManager** job (~hourly, battery-friendly constraints): auto-a
 
 ### 12.1 Home-screen widget (Glance)
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 28
+
 **Today's Focus** — the one widget (parity with shipped iOS):
-- Sizes: small (~2×2; up to 3 tasks) and medium (~4×2; up to 5), "+N more" overflow, "All clear" empty state, "Today's Focus" header with the crosshair glyph.
+- Sizes: small (~2×2; up to 3 tasks) and medium (~4×2; up to 5), "+N more" overflow, "All clear" empty state, "Today's Focus" header with the crosshair glyph. Each task row is 36dp tall (they were about 23dp), and the widget shows as many rows as its height fits, one at least and five at most (`widgetRows`): three at the usual two-cell height, five once resized to about 254dp (resizable to 360dp).
+- Picker: the label "Today's Focus" (the receiver's own label, not the app's "GSD"), the description "Your Do First tasks, a tap away on the home screen.", and a preview layout drawn in the widget's own tokens and dark palette, with the header and three sample rows.
 - Content: the Q1-active task list (title + optional due). Styled with GSD tokens (paper/surface, ink, Rust accents) in both light/dark.
 - Data: a precomputed snapshot pushed by the app on every relevant data change (Glance is push-updated — no timeline needed).
 - Taps: widget body → `gsd://smart-view/today-focus`; each row → `gsd://task/<id>`.
 
 ### 12.2 Share target (the Share-Extension analog)
 
-An `ACTION_SEND` (`text/plain`) share target: sharing a URL or text from any app opens a compact **"Add to GSD"** compose sheet:
-- Editable **Title** — prefilled from shared text; a bare URL derives a readable title from the URL (host/path words). Empty → **"Review link below"**. Clamped to 80 chars.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 9 and 41, and "Also worth a look" (styled shared text), and the Copy section
+
+An `ACTION_SEND` (`text/plain`) share target: sharing a URL or text from any app opens a compact **"Add to GSD"** compose sheet. The activity's window is see-through (`Theme.Gsd.Share`) and the sheet is a Material bottom sheet that scrolls, so it opens over the sharing app, clear of the status bar and the keyboard, in the in-app theme. `EXTRA_TEXT` and `EXTRA_SUBJECT` are read as `CharSequence`, because some apps share styled text and `getStringExtra` drops it.
+- Editable **Title** — prefilled from shared text; a bare URL takes the sharing app's `EXTRA_SUBJECT` as its title when that is present and is not itself an address (browsers put the page title there, as iOS's share sheet carries it), and otherwise derives a readable title from the URL (host/path words). Empty → **"Review link below"**. Clamped to 80 UTF-16 units, never cutting a surrogate pair in half.
 - **Quadrant picker** defaulting to **Eliminate (Q4)**.
 - Comma-separated **tags** field with live chips (normalized: trim/lowercase/dedupe/≤30 chars/max 20).
 - Read-only **Link** section: URLs sanitized by the §8.2 rules land in the description (newline-joined, clamped to 600).
-- **Add** writes directly through the store (same process — no outbox dance needed) and enqueues sync; errors keep the sheet open. Optional post-save title enrichment (fetch the page title) only when the "Fetch titles for shared links" setting is on and the title is still URL-derived.
+- **Add** writes directly through the store (same process — no outbox dance needed) and enqueues sync; errors keep the sheet open, with a validation message as written or plain copy for anything else. Optional post-save title enrichment (fetch the page title) only when the "Fetch titles for shared links" setting is on and the title is still URL-derived. It follows iOS: the address is the first line of the description and must be `https`; the fetch reads at most 64 KB with an 8-second timeout; `og:title` wins over `<title>` (`PageTitleParser` in `:core:model`, the same cases as iOS's tests); and the title is re-checked inside the write, so a title the user edited meanwhile is never overwritten. The task appears at once; the new title lands when the fetch returns, or never if it fails.
 
 ### 12.3 App shortcuts & assistant surface
 
@@ -1102,20 +1206,31 @@ Cold start to interactive quickly (baseline profiles); the matrix smooth with hu
 ### 13.3 Accessibility (baseline — required)
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 12, and the Accessibility section
 
 - **TalkBack:** every interactive element labeled; cards expose a coherent reading order (title, quadrant, due, status) and **custom accessibility actions** for complete/snooze/edit/delete (swipe gestures are not the only path). Composite decorations collapse to a single node rather than reading their parts: a loading skeleton is one node labelled "Loading" (§5.10); the completion rings are one node ("Completion rings, {P}% of all tasks complete"); each rings legend cell is its own node reading "{Quadrant title}: {P}% complete" or "{Quadrant title}: no tasks" (§8.15).
-- **Font scale:** `sp` everywhere; layouts reflow at 2× / non-linear scaling; no clipped fixed-height text.
+- **Font scale:** `sp` everywhere; layouts reflow at 2× / non-linear scaling; no clipped fixed-height text. Every row of chips or tags wraps onto more lines (a `FlowRow`) instead of squeezing its last chips into narrow columns: the editor's due, repeat, and tag chips, card and capture tags, the share sheet, feedback, the smart view editor, Dashboard's range chips, and the bulk tag dialog.
 - **Reduced motion:** confetti and non-essential animation suppressed when animations are disabled (§5.8) — one gate, `ValueAnimator.areAnimatorsEnabled()`, for all of it. It also suppresses the **rings grow-in** (`growth` is 1 from the first frame, §8.15) and the **skeleton shimmer** (the sweeping band is not drawn at all; the silhouette stays static, §5.10). Suppression means *no animation*, not a faster one.
-- **Contrast:** the quadrant accents meet WCAG **AA** against their card backgrounds in both modes (the §5.1 values are pre-verified — don't "brighten" them).
+- **Contrast:** every text color meets WCAG **AA** (4.5:1) on the surfaces it sits on, in both modes; `ContrastTest` checks the token values. Text in a quadrant's color uses its text ink (§5.1). Nothing dims text with opacity.
+- **Text fields:** each field's hint sits inside the field's decoration box, so the field merges it and TalkBack reads it as the field's name, as Material's fields do (the hint beside the field was read as loose text and the field as an unnamed edit box). A field with no hint got one: the editor's "Task title" and "Add notes", and the erase confirmation's "Type RESET".
+- **Headings and live regions:** section captions, the quadrant headers, and screen titles are headings, and a caption is read as written, not in capitals. Errors and results that appear after an action (save errors, sign-in and account-deletion outcomes, feedback results, share errors) are polite live regions.
+- **Roles and state:** every clickable row has a role. The editor's quadrant picker is a radio group; subtasks, roadmap votes, and select-mode cards are checkboxes with their state; the capture chip states where the task will land. A badge reads once ("Blocked by 1", not then "1").
+- **Custom actions:** a card offers Complete (or Uncomplete), Edit, Snooze 1 hour, and Delete; a card in select mode offers none.
 - **Touch targets ≥ 48dp**; full keyboard operability on hardware keyboards.
 
 ### 13.4 Privacy & security
 
-Local-only by default; **no analytics/tracking**. Tokens Keystore-encrypted, never logged. HTTPS only. The §8.2 URL sanitizer is security-relevant — replicate exactly. Logging is structured with secret/content masking: never log task content or tokens.
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 16
+
+Local-only by default; **no analytics/tracking**. Tokens Keystore-encrypted, never logged. **No cloud backup:** `allowBackup="false"`, and the data extraction rules exclude every domain from cloud backup, so the Settings line "Your tasks never leave this device unless you sign in to sync" holds. A phone-to-phone transfer is the user moving their own data, so it carries tasks and settings, but never the sign-in token (its Keystore key stays on the old phone), and the device id is replaced on arrival (§9.8). HTTPS only. The §8.2 URL sanitizer is security-relevant — replicate exactly. Logging is structured with secret/content masking: never log task content or tokens.
 
 ### 13.5 Error handling
 
+> Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look"
+
 Typed errors (not-found / validation / network / auth); human, actionable user copy; technical detail only in logs; sync errors always recoverable (queue persists; manual retry).
+
+Every DataStore (`gsd_prefs`, `gsd_auth`, `gsd_widget`) replaces a file it cannot read with an empty one (`resetOnCorruption`). Without a handler, one corrupted file failed every read of its store. Starting over costs a preference, the widget's snapshot until the next write, or a sign-in.
 
 ### 13.6 Testing & verification
 

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The widget's paper card, 22dp corners, for the picker preview -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/widget_paper" />
+    <corners android:radius="22dp" />
+</shape>

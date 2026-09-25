@@ -5,8 +5,11 @@ import android.net.ConnectivityManager
 import android.net.Network
 import dev.vinny.gsd.auth.CachedTokenStore
 import dev.vinny.gsd.prefs.GsdPrefs
+import dev.vinny.gsd.prefs.PendingSignIn
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SyncOp
+import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
@@ -18,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -38,6 +42,8 @@ class SyncCoordinator(
     private val sse: SseClient,
     private val scope: CoroutineScope,
     private val prefs: GsdPrefs,
+    /** In noBackupFilesDir, the one place a phone-to-phone transfer never copies (see [ensureOwnDeviceId]). */
+    private val deviceMarker: File = File(context.noBackupFilesDir, "device-identity"),
 ) {
     private val foreground = MutableStateFlow(false)
     private val syncRequests = MutableSharedFlow<Boolean>(extraBufferCapacity = 16)
@@ -53,12 +59,15 @@ class SyncCoordinator(
 
     fun start() {
         scope.launch {
+            ensureOwnDeviceId() // first: sync and realtime only begin once this launch signs in, below
             tokens.warm()
             val userId = auth.currentUserId()
             val previous = lastOwnerId()
             if (userId != null && previous != userId) {
-                // The app died before it recorded this owner: the token is saved, the owner is not.
-                val unfinished = AuthResult(tokens.token().orEmpty(), AuthRecord(userId))
+                // The app died before it recorded this owner: the token is saved, the owner is not. The
+                // pending sign-in keeps the email, or Settings would show none until the next sign-in (review S3).
+                val email = prefs.pendingSignIn.first()?.takeIf { it.id == userId }?.email
+                val unfinished = AuthResult(tokens.token().orEmpty(), AuthRecord(userId, email.orEmpty()))
                 if (previous != null && local.activeTasks().isNotEmpty()) {
                     // A different account with tasks to decide about. Ask again and stay signed out,
                     // so nothing syncs before the user decides (spec §8.21).
@@ -86,8 +95,10 @@ class SyncCoordinator(
                     val result = engine.runSync(user)
                     lastResult.value = result
                     if (result.notSignedIn) {
-                        // A definitive refresh rejection cleared the token: the session is over (spec §10.3).
-                        // Expired first, so whoever sees "signed out" also sees why.
+                        // The server rejected the token, or a refresh already cleared it: the session is over
+                        // (spec §10.3). Forget the token too, or a restart would sign back in to a dead
+                        // session (review S1). Expired first, so whoever sees "signed out" also sees why.
+                        auth.signOut()
                         _sessionExpired.value = true
                         _signedIn.value = false
                     }
@@ -176,21 +187,24 @@ class SyncCoordinator(
             pendingAnyTaskIds = (pending + failed).map { it.taskId }.toSet(),
         )
         when (decision) {
-            is SseDecision.ApplyUpsert -> {
-                val existing = local.taskById(event.record.taskId)
-                val incoming = WireMapper.pull(event.record, existing) ?: return
-                if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
-                    return // archived/trashed locally, remote not strictly newer (parity spec P§4)
-                }
-                if (existing == null ||
-                    incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli()
-                ) {
-                    local.upsertFromRemote(incoming)
-                }
-            }
+            is SseDecision.ApplyUpsert -> applyRealtimeUpsert(local, event.record)
             is SseDecision.ApplyDelete -> local.deleteFromRemote(event.record.taskId)
             is SseDecision.Drop -> Unit
         }
+    }
+
+    /**
+     * Gives this install its own device id before anything reads it (spec §9.8). Without the marker,
+     * the data is new or came from another phone, which keeps the old id. Sharing it, each phone
+     * dropped the other's realtime events as echoes until the next pull (review finding 42).
+     */
+    private suspend fun ensureOwnDeviceId() {
+        if (deviceMarker.exists()) return
+        db.syncMetadataDao().get()?.let { row ->
+            db.syncMetadataDao().upsert(row.copy(deviceId = UUID.randomUUID().toString()))
+        }
+        deviceMarker.parentFile?.mkdirs()
+        deviceMarker.createNewFile()
     }
 
     /** Set when a sign-in resolves to a different owner with local tasks present (spec §8.21). */
@@ -201,6 +215,8 @@ class SyncCoordinator(
 
     suspend fun completeOAuthCallback(uri: String): AuthResult {
         val result = auth.completeOAuth(uri)
+        // Saved before the decision, so a prompt rebuilt after a restart still knows the email and provider
+        prefs.setPendingSignIn(PendingSignIn(result.record.id, result.record.email.ifBlank { null }, auth.lastProvider))
         val previous = lastOwnerId()
         val hasLocalTasks = local.activeTasks().isNotEmpty()
         if (previous != null && previous != result.record.id && hasLocalTasks) {
@@ -225,11 +241,19 @@ class SyncCoordinator(
             keepLocalTasks = !eraseLocalFirst, nowMs = System.currentTimeMillis(),
         )
         onOwnerConfirmed(result)
+        prefs.clearPendingSignIn()
         switchPrompt.value = null
         _sessionExpired.value = false
         _signedIn.value = true
         requestSync(true)
     }
+
+    /**
+     * The provider of [userId]'s sign-in. Held in memory until a restart, and in the pending sign-in
+     * after one, so an owner confirmed on a rebuilt prompt still gets the right account note.
+     */
+    suspend fun providerFor(userId: String): String? =
+        auth.lastProvider ?: prefs.pendingSignIn.first()?.takeIf { it.id == userId }?.provider
 
     /** Cancel on the switch prompt signs back out (spec §8.21). */
     suspend fun cancelSwitch() {

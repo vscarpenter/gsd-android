@@ -24,6 +24,9 @@ interface SmartViewDao {
     @Query("SELECT COUNT(*) FROM smart_views")
     suspend fun count(): Int
 
+    @Query("SELECT id FROM smart_views WHERE isBuiltIn = 0")
+    suspend fun customIds(): List<String>
+
     @Upsert
     suspend fun upsert(entity: SmartViewEntity)
 

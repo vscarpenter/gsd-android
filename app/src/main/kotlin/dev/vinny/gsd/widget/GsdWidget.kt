@@ -11,9 +11,12 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
@@ -25,6 +28,7 @@ import androidx.glance.background
 import androidx.glance.action.clickable
 import androidx.glance.color.ColorProvider
 import androidx.glance.LocalSize
+import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
@@ -32,14 +36,20 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
+import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import dev.vinny.gsd.MainActivity
 import dev.vinny.gsd.R
+import dev.vinny.gsd.prefs.resetOnCorruption
 import kotlinx.coroutines.flow.first
 
-private val Context.widgetDataStore: DataStore<Preferences> by preferencesDataStore(name = "gsd_widget")
+private val Context.widgetDataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "gsd_widget",
+    corruptionHandler = resetOnCorruption,
+)
 private val snapshotKey = stringPreferencesKey("today_focus_snapshot")
 
 suspend fun writeWidgetSnapshot(context: Context, snapshot: WidgetSnapshot) {
@@ -60,7 +70,7 @@ class GsdWidget : GlanceAppWidget() {
 
     private val paper = ColorProvider(Color(0xFFF4F1E9), Color(0xFF17150F))
     private val ink = ColorProvider(Color(0xFF211E1A), Color(0xFFF1ECE2))
-    private val ink3 = ColorProvider(Color(0xFF797368), Color(0xFF948A79))
+    private val ink3 = ColorProvider(Color(0xFF6A655C), Color(0xFF948A79))
     private val rust = ColorProvider(Color(0xFFB23A2E), Color(0xFFE0705F))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -68,7 +78,8 @@ class GsdWidget : GlanceAppWidget() {
             context.widgetDataStore.data.first()[snapshotKey],
         )
         provideContent {
-            val rows = if (LocalSize.current.height < 140.dp) 3 else 5
+            // As many 36dp rows as the height fits; they were about 23dp (finding 28)
+            val rows = widgetRows(LocalSize.current.height.value)
             fun deepLink(uri: String) = actionStartActivity(
                 Intent(Intent.ACTION_VIEW, uri.toUri(), context, MainActivity::class.java),
             )
@@ -80,10 +91,20 @@ class GsdWidget : GlanceAppWidget() {
                     .padding(12.dp)
                     .clickable(deepLink("gsd://smart-view/today-focus")),
             ) {
-                Text(
-                    context.getString(R.string.widget_title),
-                    style = TextStyle(color = rust, fontSize = 14.sp, fontWeight = FontWeight.Bold),
-                )
+                // The header with its crosshair glyph (spec §12.1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_focus),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(rust),
+                        modifier = GlanceModifier.size(16.dp),
+                    )
+                    Spacer(modifier = GlanceModifier.width(6.dp))
+                    Text(
+                        context.getString(R.string.widget_title),
+                        style = TextStyle(color = rust, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                    )
+                }
                 Spacer(modifier = GlanceModifier.height(6.dp))
                 if (snapshot.items.isEmpty()) {
                     Text(
@@ -95,8 +116,9 @@ class GsdWidget : GlanceAppWidget() {
                         Row(
                             modifier = GlanceModifier
                                 .fillMaxWidth()
-                                .padding(vertical = 3.dp)
+                                .height(WIDGET_ROW_DP.dp)
                                 .clickable(deepLink("gsd://task/${item.id}")),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
                                 item.title,

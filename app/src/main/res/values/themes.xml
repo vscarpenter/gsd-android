@@ -2,6 +2,15 @@
 <resources>
     <style name="Theme.Gsd" parent="android:Theme.Material.Light.NoActionBar" />
 
+    <!-- The share sheet opens over the app that shared (review finding 9): a see-through window,
+         so the sheet's scrim shows that app instead of a blank page. It follows Theme.Gsd into dark. -->
+    <style name="Theme.Gsd.Share" parent="Theme.Gsd">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
     <!-- Splash: the mark on paper (spec §5.9); content theme takes over after. -->
     <style name="Theme.Gsd.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#F4F1E9</item>

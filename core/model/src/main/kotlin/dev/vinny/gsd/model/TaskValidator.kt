@@ -7,7 +7,7 @@ sealed class TaskValidationError(message: String) : Exception(message) {
     class TitleLength : TaskValidationError("Title must be 1–80 characters")
     class DescriptionLength : TaskValidationError("Description is limited to 600 characters")
     class TooManyTags : TaskValidationError("At most 20 tags")
-    class TagLength(tag: String) : TaskValidationError("Tag \"$tag\" must be 1–30 characters")
+    class TagLength(val tag: String) : TaskValidationError("Tag \"$tag\" must be 1–30 characters")
     class TooManySubtasks : TaskValidationError("At most 50 subtasks")
     class SubtaskTitleLength : TaskValidationError("Subtask titles must be 1–100 characters")
     class TooManyDependencies : TaskValidationError("At most 50 dependencies")

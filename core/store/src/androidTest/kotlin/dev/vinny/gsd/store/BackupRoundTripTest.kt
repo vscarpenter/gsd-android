@@ -260,4 +260,28 @@ class BackupRoundTripTest {
         assertNull(stored.firstOrNull { it.id == "new101" })   // the 101st new id is skipped
         assertEquals(1, summary.skipped)
     }
+
+    /** Review finding 39: one task over a local limit aborted the merge part way through. */
+    @Test
+    fun mergeMode_skipsATaskOverTheLimitAndImportsTheRest() = runTest {
+        val envelope = BackupEnvelope(
+            tasks = listOf(draft("fits-a00001", "fine"), draft("too-long001", "x".repeat(81)), draft("fits-b00001", "also fine")),
+        )
+
+        val summary = applier.apply(BackupImport(envelope, "2.1.0", 0), ImportMode.MERGE)
+
+        assertEquals(ImportSummary(imported = 2, skipped = 1), summary)
+        assertEquals(setOf("fine", "also fine"), taskStore.observeTasks().first().map { it.title }.toSet())
+    }
+
+    @Test
+    fun replaceMode_skipsATaskOverTheLimitAndImportsTheRest() = runTest {
+        taskStore.add(draft("old-task001", "old"))
+        val envelope = BackupEnvelope(tasks = listOf(draft("fits-a00001", "fine"), draft("too-long001", "x".repeat(81))))
+
+        val summary = applier.apply(BackupImport(envelope, "2.1.0", 0), ImportMode.REPLACE)
+
+        assertEquals(ImportSummary(imported = 1, skipped = 1), summary)
+        assertEquals(listOf("fine"), taskStore.observeTasks().first().map { it.title })
+    }
 }

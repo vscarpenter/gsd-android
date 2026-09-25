@@ -1,8 +1,10 @@
 package dev.vinny.gsd
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.preferencesDataStore
 import dev.vinny.gsd.prefs.GsdPrefs
+import dev.vinny.gsd.prefs.resetOnCorruption
 import dev.vinny.gsd.store.ArchiveStore
 import dev.vinny.gsd.store.BackupAssembler
 import dev.vinny.gsd.store.GsdDatabase
@@ -11,9 +13,13 @@ import dev.vinny.gsd.store.SmartViewStore
 import dev.vinny.gsd.store.TaskStore
 import dev.vinny.gsd.store.TrashStore
 import java.time.Clock
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 
-private val Context.dataStore by preferencesDataStore(name = "gsd_prefs")
+private val Context.dataStore by preferencesDataStore(name = "gsd_prefs", corruptionHandler = resetOnCorruption)
 
 /**
  * Manual composition root (spec §3 — no DI framework). One database, one
@@ -21,6 +27,24 @@ private val Context.dataStore by preferencesDataStore(name = "gsd_prefs")
  */
 class AppContainer(context: Context) {
     val clock: Clock = Clock.systemUTC()
+
+    /**
+     * Work for the life of the process: sync, reminders, and a user's import, export, erase, or
+     * account change, which a rotation must not cancel midway (review finding 40). A failure there is
+     * logged, never fatal: a widget write or a purge that throws must not take the app down. The log
+     * names only the exception's class, because a message can carry task text (spec §13.4).
+     */
+    val appScope: CoroutineScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, error ->
+            Log.e("GsdApp", "background work failed: ${error.javaClass.simpleName}")
+        },
+    )
+
+    /** What that work has to tell the user, shown once by Settings, even after a trip elsewhere. */
+    val settingsMessages = dev.vinny.gsd.palette.OneShotRequest<String>()
+
+    /** The last account deletion's outcome. It stays until the next sign-in attempt (spec §8.21). */
+    val accountDeletionMessage = kotlinx.coroutines.flow.MutableStateFlow<Int?>(null)
 
     val db: GsdDatabase = GsdDatabase.build(context)
 
@@ -74,15 +98,18 @@ class AppContainer(context: Context) {
         )
         syncCoordinator.lastOwnerId = { prefs.lastOwnerId.first() }
         syncCoordinator.onOwnerConfirmed = { result ->
-            // A prompt rebuilt after a restart knows the user id but no email (spec §8.21)
             prefs.setLastOwner(result.record.id, result.record.email.ifBlank { null })
-            prefs.setLastAuthProvider(authManager.lastProvider)
+            prefs.setLastAuthProvider(syncCoordinator.providerFor(result.record.id))
         }
         syncCoordinator.start()
     }
 
     companion object {
         const val BACKEND_URL = "https://api.vinny.io"
+        const val SITE_URL = "https://gsdtaskmanager.com"
+        const val PRIVACY_POLICY_URL = "$SITE_URL/privacy/"
+        const val SUPPORT_EMAIL = "gsdapp@vinny.dev"
+        const val MAKER_URL = "https://vinny.dev/"
     }
 }
 
@@ -92,6 +119,8 @@ class PaletteController {
     val openRequests = dev.vinny.gsd.palette.OneShotRequest<Unit>()
     val newTaskRequests = dev.vinny.gsd.palette.OneShotRequest<Unit>()
     val openTaskRequests = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    /** `gsd://quadrant/<id>` and Ctrl+1 to Ctrl+4: the Matrix scrolls to that quadrant (§6.4, §6.6). */
+    val quadrantRequests = dev.vinny.gsd.palette.OneShotRequest<dev.vinny.gsd.model.Quadrant>()
     /** §6.4 deep link held until the nav host consumes it — cold-start safe. */
     val pendingRoute = kotlinx.coroutines.flow.MutableStateFlow<dev.vinny.gsd.nav.GsdRoute?>(null)
 
@@ -105,5 +134,9 @@ class PaletteController {
 
     fun requestOpenTask(taskId: String) {
         openTaskRequests.value = taskId
+    }
+
+    fun requestQuadrant(quadrant: dev.vinny.gsd.model.Quadrant) {
+        quadrantRequests.send(quadrant)
     }
 }

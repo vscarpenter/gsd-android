@@ -1,14 +1,18 @@
 package dev.vinny.gsd.store
 
+import androidx.room.withTransaction
 import dev.vinny.gsd.model.BackupAppPreferences
 import dev.vinny.gsd.model.BackupArchiveSettings
 import dev.vinny.gsd.model.BackupImport
 import dev.vinny.gsd.model.BackupNotificationSettings
 import dev.vinny.gsd.model.MergePlan
 import dev.vinny.gsd.model.SmartViewLimits
+import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskJson
+import dev.vinny.gsd.model.TaskValidationError
+import dev.vinny.gsd.model.TaskValidator
 import java.time.Clock
-import kotlinx.coroutines.flow.first
+import java.time.Instant
 
 enum class ImportMode { MERGE, REPLACE }
 
@@ -31,22 +35,29 @@ class ImportApplier(
     private val taskStore: TaskStore,
     private val clock: Clock,
 ) {
-    suspend fun apply(import: BackupImport, mode: ImportMode): ImportSummary {
+    /**
+     * One transaction for the whole import (review finding 39), so a failure part way leaves the
+     * stores as they were instead of half imported. A task over a local limit is skipped and counted
+     * like a corrupt row (P§2.2): one iOS title with an emoji must not abort the batch.
+     */
+    suspend fun apply(import: BackupImport, mode: ImportMode): ImportSummary = db.withTransaction {
         val env = import.envelope
-        var skipped = import.skipped
+        val now = clock.instant()
+        val (tasks, overLimit) = env.tasks.partition { it.passesValidation(now) }
+        var skipped = import.skipped + overLimit.size
         val imported = when (mode) {
             ImportMode.REPLACE -> {
-                taskStore.replaceAll(env.tasks)
-                env.tasks.size
+                taskStore.replaceAll(tasks)
+                tasks.size
             }
             ImportMode.MERGE -> {
-                val existing = taskStore.observeTasks().first()
-                val merged = MergePlan.compute(existing, env.tasks)
+                val existing = db.taskDao().all().map { it.toTask() }
+                val merged = MergePlan.compute(existing, tasks)
                 merged.forEach { taskStore.add(it) }
                 merged.size
             }
         }
-        val activeIds = taskStore.observeTasks().first().map { it.id }.toSet()
+        val activeIds = db.taskDao().all().map { it.id }.toSet()
 
         // An id that just became active must not remain a tombstone anywhere else — the
         // one-store-per-id invariant (P§3) runs both directions, so this sweeps local
@@ -73,7 +84,7 @@ class ImportApplier(
 
         env.smartViews?.let { views ->
             if (mode == ImportMode.REPLACE) db.smartViewDao().clearCustom()
-            val existingIds = db.smartViewDao().observeAll().first().filter { !it.isBuiltIn }.map { it.id }.toMutableSet()
+            val existingIds = db.smartViewDao().customIds().toMutableSet()
             var admitted = 0
             views.filter { !it.isBuiltIn }.forEach { view ->
                 val isNew = view.id !in existingIds
@@ -89,9 +100,17 @@ class ImportApplier(
             env.appPreferences?.let { db.appPreferencesDao().upsert(it.toEntity()) }
         }
 
-        return ImportSummary(imported, skipped)
+        ImportSummary(imported, skipped)
     }
 }
+
+private fun Task.passesValidation(now: Instant): Boolean =
+    try {
+        TaskValidator.validate(this, now)
+        true
+    } catch (_: TaskValidationError) {
+        false
+    }
 
 private fun BackupNotificationSettings.toEntity(): NotificationSettingsEntity = NotificationSettingsEntity(
     enabled = enabled,

@@ -38,4 +38,15 @@ class GsdPrefsTest {
 
         assertEquals(null, prefs.feedbackDraft.first())
     }
+
+    /** Review follow-up S3: the email and provider of an unconfirmed sign-in outlive a restart. */
+    @Test
+    fun `a pending sign-in round-trips and clears`() = runBlocking {
+        prefs.setPendingSignIn(PendingSignIn("user-b", "b@example.com", null))
+        assertEquals(PendingSignIn("user-b", "b@example.com", null), prefs.pendingSignIn.first())
+
+        prefs.clearPendingSignIn()
+
+        assertEquals(null, prefs.pendingSignIn.first())
+    }
 }

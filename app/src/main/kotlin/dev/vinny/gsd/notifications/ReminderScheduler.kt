@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import dev.vinny.gsd.model.ReminderPlanner
 import dev.vinny.gsd.model.ReminderSettings
 import dev.vinny.gsd.model.Task
@@ -56,9 +57,9 @@ class ReminderScheduler(private val context: Context) {
     }
 
     fun resyncAll(tasks: List<Task>, settings: ReminderSettings, now: Instant) {
-        val zone = ZoneId.systemDefault()
+        val planned = ReminderPlanner.soonest(tasks, settings, now, ZoneId.systemDefault(), MAX_SCHEDULED_REMINDERS)
         tasks.forEach { task ->
-            val fireAt = ReminderPlanner.fireTime(task, settings, now, zone)
+            val fireAt = planned[task.id]
             if (fireAt != null) schedule(task.id, fireAt) else cancel(task.id)
         }
     }
@@ -66,6 +67,9 @@ class ReminderScheduler(private val context: Context) {
     companion object {
         const val ACTION_REMINDER = "dev.vinny.gsd.REMINDER"
         const val EXTRA_TASK_ID = "extra_task_id"
+
+        /** Below the platform's 500 concurrent alarms per app, which throws when passed. */
+        const val MAX_SCHEDULED_REMINDERS = 400
     }
 }
 
@@ -80,10 +84,18 @@ class ReminderResync(
     private val settingsStore: NotificationSettingsStore,
     private val scheduler: ReminderScheduler,
 ) {
+    private companion object {
+        const val TAG = "GsdReminders"
+    }
+
     fun start(scope: CoroutineScope) {
         combine(taskStore.observeTasks(), settingsStore.observe()) { tasks, settings -> tasks to settings }
             .debounce(1_000)
-            .onEach { (tasks, settings) -> scheduler.resyncAll(tasks, settings, Instant.now()) }
+            .onEach { (tasks, settings) ->
+                // One failed resync must not end the stream, or no reminder would change again until a restart.
+                runCatching { scheduler.resyncAll(tasks, settings, Instant.now()) }
+                    .onFailure { Log.w(TAG, "reminder resync failed: ${it.javaClass.simpleName}") }
+            }
             .launchIn(scope)
     }
 }

@@ -7,6 +7,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +19,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -31,7 +35,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,6 +57,8 @@ import dev.vinny.gsd.theme.GsdShapes
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.BadgeStyle
+import dev.vinny.gsd.ui.EmptyState
+import dev.vinny.gsd.ui.SectionHeading
 import dev.vinny.gsd.ui.StatusBadge
 import java.time.Instant
 import java.time.ZoneId
@@ -77,10 +88,15 @@ fun DashboardScreen(container: AppContainer, onOpenOverdue: () -> Unit, modifier
         onOpenTask = { editorViewModel.openExisting(it) },
     )
     if (editorDraft != null) {
-        TaskEditorSheet(viewModel = editorViewModel, onDismiss = {})
+        TaskEditorSheet(
+            viewModel = editorViewModel,
+            reminderSettings = container.notificationSettingsStore,
+            onDismiss = {},
+        )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DashboardContent(
     stats: DashboardStats,
@@ -99,8 +115,13 @@ fun DashboardContent(
         return
     }
     if (stats.active + stats.completed == 0) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(stringResource(R.string.dashboard_empty), style = GsdType.quadrantTitle, color = gsd.ink2)
+        // The §5.10 empty state, worded as on iOS (finding 32)
+        Box(modifier = modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.Center) {
+            EmptyState(
+                icon = Icons.Outlined.BarChart,
+                title = stringResource(R.string.dashboard_empty),
+                body = stringResource(R.string.dashboard_empty_body),
+            )
         }
         return
     }
@@ -117,7 +138,7 @@ fun DashboardContent(
                     .fillMaxWidth()
                     .clip(GsdShapes.input)
                     .background(gsd.alertWash)
-                    .clickable(onClick = onOpenOverdue)
+                    .clickable(role = Role.Button, onClick = onOpenOverdue)
                     .padding(12.dp),
             )
         }
@@ -138,7 +159,7 @@ fun DashboardContent(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(7, 30, 90).forEach { days ->
                 FilterChip(
                     selected = window == days,
@@ -162,7 +183,7 @@ fun DashboardContent(
         }
         if (stats.topTags.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.dashboard_top_tags).uppercase(), style = GsdType.caption, color = gsd.ink3)
+                SectionHeading(stringResource(R.string.dashboard_top_tags))
                 stats.topTags.forEach { (tag, count) ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("#$tag", style = GsdType.metadata, color = gsd.ink2, modifier = Modifier.weight(1f))
@@ -180,12 +201,12 @@ fun DashboardContent(
         }
         if (stats.upcoming.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.dashboard_upcoming).uppercase(), style = GsdType.caption, color = gsd.ink3)
+                SectionHeading(stringResource(R.string.dashboard_upcoming))
                 val formatter = remember(zone) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withZone(zone) }
                 stats.upcoming.forEachIndexed { index, task ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable { onOpenTask(task.id) }.padding(vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clickable(role = Role.Button) { onOpenTask(task.id) }.padding(vertical = 10.dp),
                     ) {
                         Text(task.title, style = GsdType.subhead, color = gsd.ink, modifier = Modifier.weight(1f))
                         task.dueDate?.let { due ->
@@ -207,12 +228,15 @@ fun DashboardContent(
 @Composable
 private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
     val gsd = LocalGsdColors.current
+    // One node, label first: TalkBack read the number before saying what it counted (review, Accessibility)
+    val spoken = stringResource(R.string.dashboard_stat_a11y, label, value)
     Column(
         modifier = modifier
             .clip(GsdShapes.input)
             .background(gsd.surface)
             .border(1.dp, gsd.hairline, GsdShapes.input)
-            .padding(16.dp),
+            .padding(16.dp)
+            .clearAndSetSemantics { contentDescription = spoken },
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(value, style = GsdType.title, color = gsd.ink) // Newsreader numerals (spec §5.4)
@@ -226,8 +250,16 @@ private fun TrendChart(stats: DashboardStats) {
     val gsd = LocalGsdColors.current
     val maxValue = stats.trend.maxOf { maxOf(it.created, it.completed) }.coerceAtLeast(1)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(stringResource(R.string.dashboard_trend).uppercase(), style = GsdType.caption, color = gsd.ink3)
-        Canvas(modifier = Modifier.fillMaxWidth().height(96.dp)) {
+        SectionHeading(stringResource(R.string.dashboard_trend))
+        // A chart says nothing to TalkBack, so it gets the totals in words (review, Accessibility)
+        val summary = pluralStringResource(
+            R.plurals.dashboard_trend_a11y,
+            stats.trend.size,
+            stats.trend.size,
+            stats.trend.sumOf { it.created },
+            stats.trend.sumOf { it.completed },
+        )
+        Canvas(modifier = Modifier.fillMaxWidth().height(96.dp).semantics { contentDescription = summary }) {
             val stepX = size.width / (stats.trend.size - 1).coerceAtLeast(1)
             fun path(selector: (dev.vinny.gsd.model.TrendPoint) -> Int): Path {
                 val path = Path()
@@ -262,11 +294,11 @@ private fun QuadrantBars(title: String, values: Map<Quadrant, Float>, format: (F
     val gsd = LocalGsdColors.current
     val max = values.values.maxOrNull()?.coerceAtLeast(1f) ?: 1f
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title.uppercase(), style = GsdType.caption, color = gsd.ink3)
+        SectionHeading(title)
         Quadrant.entries.forEach { quadrant ->
             val value = values[quadrant] ?: 0f
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(quadrant.title, style = GsdType.metadata, color = gsd.accent(quadrant),
+                Text(quadrant.title, style = GsdType.metadata, color = gsd.accentInk(quadrant),
                     modifier = Modifier.width(72.dp))
                 Box(
                     modifier = Modifier
