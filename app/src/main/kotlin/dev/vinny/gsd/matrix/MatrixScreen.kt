@@ -140,7 +140,7 @@ fun MatrixScreen(
                 state = captureState,
                 onTextChange = captureViewModel::onTextChange,
                 onCycleOverride = captureViewModel::cycleOverride,
-                onSubmit = { captureViewModel.submit(onError = {}) },
+                onSubmit = captureViewModel::submit,
                 onDetails = { editorViewModel.openNew(captureViewModel.draftForEditor()) },
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )

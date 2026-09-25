@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -40,12 +41,20 @@ import dev.vinny.gsd.R
 import dev.vinny.gsd.model.CaptureParser
 import dev.vinny.gsd.model.ParsedCapture
 import dev.vinny.gsd.model.Quadrant
+import dev.vinny.gsd.model.TaskValidationError
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.theme.cursor
 import dev.vinny.gsd.ui.HintedField
+import dev.vinny.gsd.ui.announced
+import dev.vinny.gsd.ui.validationMessage
 
-data class CaptureState(val text: String = "", val override: Quadrant? = null) {
+/** [error] is why the store rejected the last submit; it clears as soon as the text changes. */
+data class CaptureState(
+    val text: String = "",
+    val override: Quadrant? = null,
+    val error: TaskValidationError? = null,
+) {
     val parsed: ParsedCapture get() = CaptureParser.parse(text)
     val effectiveQuadrant: Quadrant get() = override ?: Quadrant.from(parsed.urgent, parsed.important)
     val isAuto: Boolean get() = override == null
@@ -105,6 +114,14 @@ fun CaptureBarContent(
                 decorationBox = { inner -> HintedField(hint, state.text.isEmpty(), GsdType.body, inner) },
             )
             QuadrantChip(state, onCycleOverride)
+        }
+        state.error?.let { error ->
+            Text(
+                LocalContext.current.resources.validationMessage(error),
+                style = GsdType.metadata,
+                color = gsd.alert,
+                modifier = Modifier.padding(horizontal = 16.dp).announced(),
+            )
         }
         val tags = state.parsed.tags
         if (tags.isNotEmpty()) {

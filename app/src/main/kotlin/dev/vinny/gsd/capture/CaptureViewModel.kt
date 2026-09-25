@@ -17,15 +17,15 @@ class CaptureViewModel(private val store: TaskStore) : ViewModel() {
     val state: StateFlow<CaptureState> = _state.asStateFlow()
 
     fun onTextChange(text: String) {
-        _state.value = _state.value.copy(text = text)
+        _state.value = _state.value.copy(text = text, error = null)
     }
 
     fun cycleOverride() {
         _state.value = _state.value.cycled()
     }
 
-    /** Adds the parsed task; keeps the raw text in place on validation failure (spec §8.2). */
-    fun submit(onError: (TaskValidationError) -> Unit) {
+    /** Adds the parsed task. A rejected one keeps its raw text and records why (spec §8.2). */
+    fun submit() {
         val current = _state.value
         val parsed = current.parsed
         if (parsed.title.isEmpty()) return
@@ -45,7 +45,7 @@ class CaptureViewModel(private val store: TaskStore) : ViewModel() {
                 )
                 _state.value = CaptureState() // clear for rapid serial capture
             } catch (error: TaskValidationError) {
-                onError(error)
+                _state.value = _state.value.copy(error = error)
             }
         }
     }

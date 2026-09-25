@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTextInput
 import dev.vinny.gsd.model.Quadrant
+import dev.vinny.gsd.model.TaskValidationError
 import dev.vinny.gsd.theme.GsdTheme
 import org.junit.Rule
 import org.junit.Test
@@ -52,6 +53,22 @@ class CaptureBarTest {
         }
         rule.onNodeWithText("#auth").assertIsDisplayed()
         rule.onNodeWithText("#web").assertIsDisplayed()
+    }
+
+    @Test
+    fun aRejectedCaptureShowsWhyUnderTheField() {
+        rule.setContent {
+            GsdTheme {
+                CaptureBarContent(
+                    state = CaptureState(text = "x".repeat(81), error = TaskValidationError.TitleLength()),
+                    onTextChange = {},
+                    onCycleOverride = {},
+                    onSubmit = {},
+                    onDetails = {},
+                )
+            }
+        }
+        rule.onNodeWithText("A title needs 1 to 80 characters.").assertIsDisplayed()
     }
 
     @Test
