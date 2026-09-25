@@ -45,7 +45,7 @@ class ChipWrapTest {
     @Test
     fun theRepeatChipsWrap() {
         atFontScaleTwoOnANarrowPhone {
-            RepeatSection(draft = Task(title = "t", createdAt = t0, updatedAt = t0), onEdit = {})
+            RepeatSection(draft = Task(title = "t", urgent = false, important = false, createdAt = t0, updatedAt = t0), onEdit = {})
         }
         listOf("Never", "Daily", "Weekly", "Monthly").forEach(::assertOneLineTall)
     }
@@ -55,6 +55,8 @@ class ChipWrapTest {
         val task = Task(
             title = "t",
             tags = listOf("groceries", "household", "weekend", "errands"),
+            urgent = false,
+            important = false,
             createdAt = t0,
             updatedAt = t0,
         )

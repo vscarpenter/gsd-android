@@ -109,6 +109,7 @@ fun MatrixScreen(
             }
         }
     }
+    val selectionMode by viewModel.selectionMode.collectAsStateWithLifecycle()
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             GsdTopBar(
@@ -148,7 +149,6 @@ fun MatrixScreen(
                 actions.toggleCompleted(task.id)
             }
             val context = androidx.compose.ui.platform.LocalContext.current
-            val selectionMode by viewModel.selectionMode.collectAsStateWithLifecycle()
             val selection by viewModel.selection.collectAsStateWithLifecycle()
             val rowActions: (dev.vinny.gsd.model.Task) -> TaskRowActions = if (selectionMode) {
                 { task ->

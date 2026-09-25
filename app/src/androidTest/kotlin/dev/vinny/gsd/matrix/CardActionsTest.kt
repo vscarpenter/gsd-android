@@ -26,7 +26,7 @@ class CardActionsTest {
     val rule = createComposeRule()
 
     private val t0 = Instant.parse("2026-07-19T12:00:00.000Z")
-    private val task = Task(id = "task-under-test-00000", title = "Renew passport", createdAt = t0, updatedAt = t0)
+    private val task = Task(id = "task-under-test-00000", title = "Renew passport", urgent = false, important = false, createdAt = t0, updatedAt = t0)
 
     @Test
     fun aCardOffersCompleteEditSnoozeAndDelete() {

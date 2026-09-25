@@ -52,7 +52,7 @@ class TaskEditorViewModelTest {
 
     @Test
     fun anExistingTaskOpensWithNoUnsavedChanges() = runTest {
-        val saved = store.add(Task(title = "existing", createdAt = t0, updatedAt = t0))
+        val saved = store.add(Task(title = "existing", urgent = false, important = false, createdAt = t0, updatedAt = t0))
         viewModel.openExisting(saved.id)
         viewModel.draft.first { it != null }
         assertFalse(viewModel.hasUnsavedChanges())

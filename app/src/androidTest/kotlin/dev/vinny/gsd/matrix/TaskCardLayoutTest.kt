@@ -54,6 +54,8 @@ class TaskCardLayoutTest {
     fun aLongTitleIsNotCutOffAtFontScaleTwo() {
         val task = Task(
             title = "Renew passport before the October trip to Lisbon with the whole family",
+            urgent = false,
+            important = false,
             createdAt = t0,
             updatedAt = t0,
         )
@@ -76,6 +78,8 @@ class TaskCardLayoutTest {
         fun dueIn(days: Long) = Task(
             title = "due in $days",
             dueDate = ZonedDateTime.now().plusDays(days).toInstant(),
+            urgent = false,
+            important = false,
             createdAt = t0,
             updatedAt = t0,
         )
