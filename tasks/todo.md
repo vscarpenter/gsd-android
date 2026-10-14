@@ -10,9 +10,9 @@ Parity backlog B-46 (Android half) and B-47, the web's PR #603 rules. Why: `docs
       `SyncCoordinator.afterCleanSync` after every clean run (`SyncResult.clean`). "Signed in" comes from the
       saved session, since the coordinator may still be starting when WorkManager launches the process.
 - [x] Spec §8.12, §9.5, §11.5 amended. An independent review found no compile errors; its fixes are in.
-- [ ] **Not yet run:** this container and the Mac's Linux VM can't reach Maven or Gradle, so nothing was
-      compiled. Run `./gradlew :core:sync:test :app:testDebugUnitTest`, then with `gsd-test` running,
-      `./gradlew :core:store:connectedAndroidTest :app:connectedAndroidTest`.
+- [x] **Gates, run by the owner on the Mac** (the cloud workspace can't reach Maven or Gradle):
+      `:core:sync:test` and `:app:testDebugUnitTest` pass, and on `gsd-test`, `connectedAndroidTest` passes
+      68 store tests and 231 app tests with none failed.
 
 ## Left to do (as of 2026-09-24)
 
