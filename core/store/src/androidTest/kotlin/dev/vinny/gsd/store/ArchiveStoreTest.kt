@@ -3,7 +3,9 @@ package dev.vinny.gsd.store
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TaskJson
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
@@ -15,6 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -47,6 +50,37 @@ class ArchiveStoreTest {
         assertNull(store.get(added.id))
         assertEquals(1, archive.observeArchived().first().size)
         assertTrue(db.syncQueueDao().pending().any { it.operation == SyncOp.DELETE && it.taskId == added.id })
+    }
+
+    /** Parity backlog B-47: the push keeps a remote edit newer than the version that was archived. */
+    @Test
+    fun archiveDeleteCarriesTheArchivedVersion() = runTest {
+        val added = store.add(draft())
+        store.setCompleted(added.id, true)
+        val archivedVersion = store.get(added.id)!!.updatedAt
+        // Archive later than the last edit, so a delete stamped with the archive time would fail here
+        val later = ArchiveStore(db, Clock.offset(fixed, Duration.ofMinutes(5)))
+
+        later.archive(added.id)
+
+        val delete = db.syncQueueDao().pending().single { it.operation == SyncOp.DELETE && it.taskId == added.id }
+        val payload = TaskJson.decodeOrNull(TaskJson.json.parseToJsonElement(delete.payloadJson!!))
+        assertEquals(archivedVersion, payload!!.updatedAt)
+    }
+
+    /**
+     * Codex on PR #32: a change still queued for the task (an edit waiting out its backoff, or one
+     * that failed) would push after the delete, and an update with no remote record creates one.
+     */
+    @Test
+    fun archiveReplacesTheTasksOlderQueueRows() = runTest {
+        val added = store.add(draft())
+        store.setCompleted(added.id, true) // the create and the completion are both still queued
+
+        archive.archive(added.id)
+
+        val rows = db.syncQueueDao().pending().filter { it.taskId == added.id }
+        assertEquals(listOf(SyncOp.DELETE), rows.map { it.operation })
     }
 
     @Test
@@ -92,5 +126,32 @@ class ArchiveStoreTest {
         assertEquals(1, swept)
         assertNull(store.get(oldDone.id))
         assertEquals("fresh done", store.get(freshDone.id)!!.title)
+    }
+
+    private suspend fun completedDaysAgo(title: String, days: Long): Task {
+        val added = store.add(draft(title))
+        store.setCompleted(added.id, true)
+        store.update(store.get(added.id)!!.copy(completedAt = fixed.instant().minus(days, ChronoUnit.DAYS)))
+        return added
+    }
+
+    @Test
+    fun sweepIfEnabledLeavesEverythingWhileAutoArchiveIsOff() = runTest {
+        val oldDone = completedDaysAgo("old done", days = 40)
+        db.archiveSettingsDao().upsert(ArchiveSettingsEntity(enabled = false, archiveAfterDays = 30))
+
+        assertEquals(0, archive.sweepIfEnabled())
+        assertNotNull(store.get(oldDone.id))
+    }
+
+    @Test
+    fun sweepIfEnabledUsesTheConfiguredThreshold() = runTest {
+        val sixtyOne = completedDaysAgo("61 days", days = 61)
+        val forty = completedDaysAgo("40 days", days = 40)
+        db.archiveSettingsDao().upsert(ArchiveSettingsEntity(enabled = true, archiveAfterDays = 60))
+
+        assertEquals(1, archive.sweepIfEnabled())
+        assertNull(store.get(sixtyOne.id))
+        assertNotNull(store.get(forty.id))
     }
 }

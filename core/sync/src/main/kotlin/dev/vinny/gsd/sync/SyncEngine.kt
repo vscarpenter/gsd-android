@@ -19,7 +19,14 @@ data class SyncResult(
     val error: String? = null,
     /** True when the run did nothing because no owner was signed in. */
     val notSignedIn: Boolean = false,
-)
+) {
+    /**
+     * The run pulled, pushed, and reconciled without an error, though some pushes may still be failing
+     * ("partial"). Work that must see data at least as fresh as the server, such as the auto-archive
+     * sweep, waits for a clean run (parity backlog B-46).
+     */
+    val clean: Boolean get() = error == null
+}
 
 class MalformedRemoteVersion : Exception("Remote task version is missing or malformed")
 
@@ -174,6 +181,10 @@ class SyncEngine(
                         pushed++
                     }
                     SyncOp.DELETE -> {
+                        if (remoteEditedAfterArchive(item, index[item.taskId]?.second)) {
+                            local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-47)
+                            continue
+                        }
                         index[item.taskId]?.let { remote.deleteTask(it.first) }
                         index.remove(item.taskId)
                         local.markQueueItemDone(item.id)
@@ -196,6 +207,20 @@ class SyncEngine(
             }
         }
         return pushed to failures
+    }
+
+    /**
+     * An archive's delete carries the task as it was archived (spec §9.5). A remote newer than that
+     * version means another device edited the task after this copy last synced: a pull missed the
+     * edit, or it landed between the pull and the archive. Archiving the stale copy must not delete it
+     * (parity backlog B-47). A delete with no payload (trash) and a remote with no usable version keep
+     * the plain delete.
+     */
+    private fun remoteEditedAfterArchive(item: SyncQueueEntity, remoteStamp: Instant?): Boolean {
+        if (remoteStamp == null) return false
+        val archived = item.payloadJson?.let { raw -> TaskJson.decodeOrNull(TaskJson.json.parseToJsonElement(raw)) }
+            ?: return false
+        return remoteStamp.toEpochMilli() > archived.updatedAt.toEpochMilli()
     }
 
     /**

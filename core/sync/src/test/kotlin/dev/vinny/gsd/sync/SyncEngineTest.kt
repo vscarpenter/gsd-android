@@ -10,6 +10,7 @@ import java.time.ZoneOffset
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -400,6 +401,59 @@ class SyncEngineTest {
         assertEquals("remote newer", remote.records["r9"]!!.title) // untouched
         assertEquals(0, result.pushed)
         assertTrue(local.queue.isEmpty()) // skipped item resolved, not retried forever
+    }
+
+    /**
+     * Parity backlog B-47: an archive's delete carries the task as archived. Another device's edit can
+     * predate the delete yet postdate that version (a pull missed it, or it landed between the pull and
+     * the archive). Archiving a stale copy must not delete the newer task.
+     */
+    @Test
+    fun `an archive delete is skipped when the remote was edited after the archived version`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val archived = task("reopened", "done here", now.minusSeconds(500))
+        remote.records["r1"] = WireMapper.push(task("reopened", "reopened elsewhere", now.minusSeconds(200)), "other", "user-1")
+        local.tombstones["reopened"] = now.minusSeconds(100).toEpochMilli() // archived after that edit
+        local.queue += queueItem(1, archived, SyncOp.DELETE)
+
+        val result = engine(remote, local).runSync(false)
+
+        assertEquals("reopened elsewhere", remote.records["r1"]?.title) // the newer edit survives
+        assertEquals(0, result.pushed)
+        assertTrue(local.queue.isEmpty()) // resolved, not retried
+    }
+
+    @Test
+    fun `an archive delete still deletes when the remote holds the archived version`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val archived = task("archived", "done", now.minusSeconds(500))
+        remote.records["r1"] = WireMapper.push(archived, "this-device", "user-1")
+        local.tombstones["archived"] = now.minusSeconds(100).toEpochMilli()
+        local.queue += queueItem(1, archived, SyncOp.DELETE)
+
+        val result = engine(remote, local).runSync(false)
+
+        assertTrue(remote.records.isEmpty())
+        assertEquals(1, result.pushed)
+    }
+
+    /** Parity backlog B-46: the auto-archive sweep waits for a clean run, which means its pull completed. */
+    @Test
+    fun `a run is clean when it finished without an error, push failures included`() = runTest {
+        val partialLocal = FakeLocal().apply { queue += queueItem(1, task("doomed"), retryCount = 4, lastAttemptAt = 0L) }
+        val failingRemote = FakeRemote().apply { failOnTaskIds += "doomed" }
+        val downRemote = FakeRemote().apply { listResponder = { _, _ -> throw PocketBaseApi.HttpError(500, "down") } }
+
+        val success = engine(FakeRemote(), FakeLocal()).runSync(false)
+        val partial = engine(failingRemote, partialLocal).runSync(false)
+        val pullFailed = engine(downRemote, FakeLocal()).runSync(false)
+        val signedOut = SyncEngine(FakeRemote(), FakeLocal(), clock, throttleMs = 0, ownerId = { null }).runSync(false)
+
+        assertTrue(success.clean)
+        assertEquals("partial", partial.status)
+        assertTrue(partial.clean)
+        assertFalse(pullFailed.clean)
+        assertFalse(signedOut.clean)
     }
 
     @Test

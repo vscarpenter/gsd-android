@@ -3,6 +3,7 @@ package dev.vinny.gsd.sync
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
+import android.util.Log
 import dev.vinny.gsd.auth.CachedTokenStore
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.prefs.PendingSignIn
@@ -94,6 +95,7 @@ class SyncCoordinator(
                     auth.ensureFreshToken()
                     val result = engine.runSync(user)
                     lastResult.value = result
+                    if (result.clean) runAfterCleanSync()
                     if (result.notSignedIn) {
                         // The server rejected the token, or a refresh already cleared it: the session is over
                         // (spec §10.3). Forget the token too, or a restart would sign back in to a dead
@@ -212,6 +214,24 @@ class SyncCoordinator(
 
     var lastOwnerId: suspend () -> String? = { null }
     var onOwnerConfirmed: suspend (AuthResult) -> Unit = {}
+
+    /**
+     * Work that must see data at least as fresh as the server. Signed in, the auto-archive sweep runs
+     * here rather than on its own schedule: archiving deletes the server copy, so sweeping a stale
+     * local copy could delete a task another device reopened (parity backlog B-46).
+     */
+    var afterCleanSync: suspend () -> Unit = {}
+
+    /** A failure here is logged and never ends the loop that runs every later sync. */
+    private suspend fun runAfterCleanSync() {
+        try {
+            afterCleanSync()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w("GsdSync", "after-sync work failed: ${error.javaClass.simpleName}")
+        }
+    }
 
     suspend fun completeOAuthCallback(uri: String): AuthResult {
         val result = auth.completeOAuth(uri)

@@ -12,6 +12,9 @@ import java.io.File
 import java.time.Clock
 import java.time.Instant
 import java.util.Base64
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -72,7 +75,9 @@ class SyncCoordinatorSessionTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = GsdDatabase.buildInMemory(context)
         prefsFile = File.createTempFile("gsd-prefs", ".preferences_pb", context.cacheDir)
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        // A handler, so an exception that escapes the coordinator ends its loop (and the test times
+        // out) instead of crashing the instrumentation process
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, _ -> })
     }
 
     @After
@@ -172,5 +177,34 @@ class SyncCoordinatorSessionTest {
         assertTrue(fixture.coordinator.sessionExpired.value)
         assertEquals(null, fixture.tokens.token())
         assertEquals(listOf("synced-task"), fixture.local.activeTasks().map { it.id })
+    }
+
+    /** Parity backlog B-46: the auto-archive sweep hangs off a clean sync, once its pull has landed. */
+    @Test
+    fun aCleanSyncRunsTheAfterSyncWork() = runBlocking {
+        val fixture = signedInFixture()
+        val ran = CompletableDeferred<Unit>()
+        fixture.coordinator.afterCleanSync = { ran.complete(Unit) }
+
+        fixture.coordinator.requestSync(true)
+
+        withTimeoutOrNull(5_000) { ran.await() } ?: fail("afterCleanSync never ran")
+    }
+
+    /** A sweep that throws must not end the loop that runs every later sync. */
+    @Test
+    fun aFailingAfterSyncStepKeepsSyncing() = runBlocking {
+        val fixture = signedInFixture()
+        val calls = AtomicInteger()
+        val later = CompletableDeferred<Unit>()
+        fixture.coordinator.afterCleanSync = {
+            if (calls.incrementAndGet() == 1) throw IllegalStateException("sweep failed")
+            later.complete(Unit)
+        }
+
+        fixture.coordinator.requestSync(true)
+        fixture.coordinator.requestSync(true)
+
+        withTimeoutOrNull(5_000) { later.await() } ?: fail("syncing stopped after the step failed")
     }
 }
