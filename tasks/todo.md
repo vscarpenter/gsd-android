@@ -11,7 +11,8 @@ updates." Diagnosis, dates, tester email, and draft answers: `docs/play/producti
 - [ ] Alpha track: add the countries testers live in. It targets the US only today.
 - [ ] Send the tester email and recruit 6 or more real testers. 12 are opted in, so one opt-out resets the clock.
 - [ ] Ship 0.10.1 (versionCode 12) around 2026-10-20 with fixes for tester reports, logged in the round 3 doc.
-- [ ] Privacy page: add Android, the feedback form, and the backup rule (round 3 doc, last section).
+- [x] Privacy page: Android, the feedback form, the backup rule, and account deletion, on `gsdtaskmanager.com`
+      branch `fix/privacy-android-feedback` (`099eaf9`). Merge and deploy it before applying.
 - [ ] Apply on 2026-10-23 or 2026-10-24, once the Console enables the button. Save the answers first.
 
 ## Resuming from here (2026-10-13): archive after a pull (`fix/archive-after-pull`)

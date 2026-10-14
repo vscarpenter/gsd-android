@@ -244,7 +244,7 @@ last [N] days of testing brought no new crash or data-loss report.
 - [ ] Pre-launch report for 0.10.1 reviewed.
 - [ ] Release smoke on the Pixel done (open since Aug 29): sync, a reminder, the widget, a deep link, one
       real sign-in.
-- [ ] The privacy policy covers Android (see below).
+- [ ] The privacy policy update is merged and deployed (`gsdtaskmanager.com` `fix/privacy-android-feedback`).
 - [ ] The Console's Data safety form matches `data-safety.md`, including the feedback row.
 - [ ] Answers saved here before you submit.
 
@@ -256,7 +256,9 @@ backup rule. It also says your data "never leaves your device unless you turn on
 that without sync "there is no server in the picture," which leaves out feedback: a feedback message
 reaches the server with sync off. This isn't
 why Google asked for more testing, but the policy must describe what the app does before the listing goes
-public. Three changes cover it:
+public. Three changes cover it. **Done 2026-10-14** on `gsdtaskmanager.com` branch
+`fix/privacy-android-feedback` (`099eaf9`), which also corrects the synced-data bullet: turning off sync
+never cleared the server, and Delete account does. Merge and deploy it before you apply.
 
 1. In "Data stored on your device" and "Optional sync," add Android next to iPhone, iPad, and Mac.
 2. Add a "Feedback" section: what the form sends (the message, a thumbs up or down, a category, roadmap
