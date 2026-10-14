@@ -1,5 +1,20 @@
 # GSD Android — progress
 
+## Resuming from here (2026-10-13): production access, round 3 (`release/0.10.0`)
+
+Google declined production access on 2026-09-21 and again on 2026-10-09: "testers were not engaged" and
+"you didn't follow testing best practices, which may include gathering and acting on user feedback through
+updates." Diagnosis, dates, tester email, and draft answers: `docs/play/production-access-round-3.md`.
+
+- [x] Cut `release/0.10.0` from `main` at `e4f1d8d`: versionCode 11, versionName 0.10.0 (`4813ff5`).
+- [ ] Gates on the Mac, signed bundle, upload 0.10.0 to Alpha with the notes in the round 3 doc.
+- [ ] Alpha track: add the countries testers live in. It targets the US only today.
+- [ ] Send the tester email and recruit 6 or more real testers. 12 are opted in, so one opt-out resets the clock.
+- [ ] Ship 0.10.1 (versionCode 12) around 2026-10-20 with fixes for tester reports, logged in the round 3 doc.
+- [x] Privacy page: Android, the feedback form, the backup rule, and account deletion, on `gsdtaskmanager.com`
+      branch `fix/privacy-android-feedback` (`099eaf9`). Merge and deploy it before applying.
+- [ ] Apply on 2026-10-23 or 2026-10-24, once the Console enables the button. Save the answers first.
+
 ## Resuming from here (2026-10-13): archive after a pull (`fix/archive-after-pull`)
 
 Parity backlog B-46 (Android half) and B-47, the web's PR #603 rules. Why: `docs/2026-10-13-archive-after-pull.md`.
@@ -35,9 +50,8 @@ in front of an item is its finding number in the review, which holds the evidenc
 - [x] **Closed-test gate.** Done. 12 testers stayed opted in for 14 days, and the owner applied for production
       access on 2026-09-20 at 8:08 PM. The Console says "We have your application for production access" and
       that a review usually takes 7 days or less. Production is still Inactive.
-- [ ] **Wait for Google's answer.** It comes by email to the account owner. Keep the closed test running and
-      the testers opted in until it arrives. Use the wait to finish the fixes and cut the new build, so the
-      build that goes to Production is not 0.9.0.
+- [x] **Wait for Google's answer.** It came 2026-09-21 at 6:06 PM: "More testing required." A second
+      application was declined the same way on 2026-10-09. See `docs/play/production-access-round-3.md`.
 - [x] **18. Pick the production version.** Decided 2026-09-21: this build is 0.9.1, and 1.0.0 waits for the
       build that goes to Production.
 - [x] **Cut a new build.** Done 2026-09-21: 0.9.1 (versionCode 10), bump `3c62197` on `release/0.9.1`. Every
@@ -51,7 +65,7 @@ in front of an item is its finding number in the review, which holds the evidenc
 - [x] **Upload the new build to Closed testing.** Done 2026-09-21 at 8:35 PM CDT, driven through Chrome:
       release 10 (0.9.1) on the Alpha track, sent for review on Save because managed publishing is off.
       Google published it at 9:08 PM the same night, so testers have it.
-- [ ] **Promote 0.9.1 to Production** once Google grants access and the closed-test release publishes.
+- [ ] **Promote to Production** once Google grants access: 0.10.1, or a 1.0.0 that testers have run first.
 
 ### B. Broken behavior (fix before production)
 
