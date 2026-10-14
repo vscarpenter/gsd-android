@@ -115,6 +115,12 @@ build that goes to Production.
 - Still unwalked on a signed build: sync, a reminder firing, the widget, a deep link, and one real
   sign-in. 0.9.1 has published, so do them now from the Play-installed build on the Pixel.
 
+## Production access declined twice; 0.10.0 prepared (2026-10-13)
+Google declined production access on 2026-09-21 and 2026-10-09 ("More testing required"). Bump commit
+`4813ff5` on `release/0.10.0` sets versionCode 11, versionName 0.10.0. Not built or uploaded yet. The
+diagnosis, the 14-day plan, the release notes, and draft answers for the next application are in
+`production-access-round-3.md`.
+
 ## Owner steps
 Play Console account: **vinnycarpenterdev@gmail.com**.
 
