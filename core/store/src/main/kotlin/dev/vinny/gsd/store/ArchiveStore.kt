@@ -65,6 +65,9 @@ class ArchiveStore(private val db: GsdDatabase, private val clock: Clock) {
         if (!entity.completed) throw NotCompleted()
         val now = clock.instant()
         db.withTransaction {
+            // The delete replaces whatever is still queued for the task. The push skips a row waiting
+            // out its backoff, so an older edit could otherwise go up after the delete and recreate it.
+            db.syncQueueDao().deleteForTask(id)
             // The delete carries the task as archived, so the push can keep an edit another device
             // made after this copy last synced (parity backlog B-47).
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.DELETE, entity.toTask(), now))

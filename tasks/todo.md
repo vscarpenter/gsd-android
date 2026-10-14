@@ -10,6 +10,10 @@ Parity backlog B-46 (Android half) and B-47, the web's PR #603 rules. Why: `docs
       `SyncCoordinator.afterCleanSync` after every clean run (`SyncResult.clean`). "Signed in" comes from the
       saved session, since the coordinator may still be starting when WorkManager launches the process.
 - [x] Spec §8.12, §9.5, §11.5 amended. An independent review found no compile errors; its fixes are in.
+- [x] **Codex on PR #32:** archiving now replaces the task's older queue rows, since the drain skips a row in
+      backoff and an older update could recreate the record after the delete. New test
+      `ArchiveStoreTest.archiveReplacesTheTasksOlderQueueRows`. Needs one more
+      `./gradlew :core:store:connectedAndroidTest` on `gsd-test` before the push.
 - [x] **Gates, run by the owner on the Mac** (the cloud workspace can't reach Maven or Gradle):
       `:core:sync:test` and `:app:testDebugUnitTest` pass, and on `gsd-test`, `connectedAndroidTest` passes
       68 store tests and 231 app tests with none failed.

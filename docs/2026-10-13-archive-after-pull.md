@@ -32,6 +32,10 @@ that another device had reopened.
   `client_updated_at` is newer than the payload's `updatedAt`. After a normal sync the two are equal,
   so ordinary archives still delete. In the worst case this device keeps the task archived while
   others keep it active. Nothing is lost.
+- **Archiving replaces the task's queued rows.** The drain skips a row that is waiting out its
+  backoff, so an older update for the task could push after the delete and recreate the record
+  (an update with no remote record becomes a create). Archiving now deletes the task's queue rows
+  in the same transaction that queues the delete. Raised by Codex on PR #32.
 
 The web shipped the same two rules in gsd-task-manager PR #603 (`cdd14f6`). iOS gates its sweep on a
 clean sync the same way (gsd-iosapp PR #21).
@@ -41,6 +45,9 @@ clean sync the same way (gsd-iosapp PR #21).
 - **Manual "Archive now"** in Settings and on the Archive screen still sweeps directly; its deletes get
   the B-47 guard.
 - **A delete with no payload** (moving a task to trash) still deletes without a version check. The
-  queue-time edit-beats-delete guard is parity backlog B-42.
+  queue-time edit-beats-delete guard is parity backlog B-42. Trash deletes also leave older queue rows
+  in place, so the backoff reordering above can still recreate a trashed task.
+- **The index is read once per push** (§9.5), so an edit that lands between that read and an archive's
+  delete is not seen. Closing that fully needs a conditional delete on the server.
 - **A remote record with no usable version** doesn't block an archive's delete. Whether it should is
   parity decision D-9.

@@ -68,6 +68,21 @@ class ArchiveStoreTest {
         assertEquals(archivedVersion, payload!!.updatedAt)
     }
 
+    /**
+     * Codex on PR #32: a change still queued for the task (an edit waiting out its backoff, or one
+     * that failed) would push after the delete, and an update with no remote record creates one.
+     */
+    @Test
+    fun archiveReplacesTheTasksOlderQueueRows() = runTest {
+        val added = store.add(draft())
+        store.setCompleted(added.id, true) // the create and the completion are both still queued
+
+        archive.archive(added.id)
+
+        val rows = db.syncQueueDao().pending().filter { it.taskId == added.id }
+        assertEquals(listOf(SyncOp.DELETE), rows.map { it.operation })
+    }
+
     @Test
     fun archiveRefusesIncompleteTask() = runTest {
         val added = store.add(draft())
