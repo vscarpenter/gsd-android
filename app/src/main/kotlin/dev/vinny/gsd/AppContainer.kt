@@ -101,6 +101,8 @@ class AppContainer(context: Context) {
             prefs.setLastOwner(result.record.id, result.record.email.ifBlank { null })
             prefs.setLastAuthProvider(syncCoordinator.providerFor(result.record.id))
         }
+        // Signed in, auto-archive runs only after a pull has landed (parity backlog B-46)
+        syncCoordinator.afterCleanSync = { archiveStore.sweepIfEnabled() }
         syncCoordinator.start()
     }
 

@@ -11,24 +11,21 @@ import dev.vinny.gsd.GsdApp
 import java.util.concurrent.TimeUnit
 
 /**
- * The one periodic maintenance job (spec §11.5): trash retention purge
- * (unconditional, parity spec P§3), then auto-archive sweep when enabled.
- * Opportunistic sync joins in Phase 5. Reminders never depend on this — they
- * are pre-scheduled alarms.
+ * The one periodic maintenance job (spec §11.5). Reminders never depend on it; they are
+ * pre-scheduled alarms.
  */
 class MaintenanceWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val container = (applicationContext as GsdApp).container
-        // Retention purge (parity spec P§3): unconditional, not user-configurable.
-        container.trashStore.purgeExpired()
-        val settings = container.db.archiveSettingsDao().get()
-        if (settings?.enabled == true) {
-            container.archiveStore.sweep(settings.archiveAfterDays)
-        }
-        // Opportunistic background sync when signed in (spec §11.5)
-        if (container.syncCoordinator.signedIn.value) {
-            container.syncCoordinator.requestSync(false)
-        }
+        runMaintenance(
+            // The saved session, not the coordinator's flag: when WorkManager starts the process for
+            // this job, the coordinator may not have signed in yet, and a false "signed out" would
+            // sweep a stale local copy (parity backlog B-46).
+            signedIn = container.authManager.currentUserId() != null,
+            purgeTrash = { container.trashStore.purgeExpired() },
+            sweepArchive = { container.archiveStore.sweepIfEnabled() },
+            requestSync = { container.syncCoordinator.requestSync(false) },
+        )
         return Result.success()
     }
 
@@ -44,4 +41,21 @@ class MaintenanceWorker(context: Context, params: WorkerParameters) : CoroutineW
             )
         }
     }
+}
+
+/**
+ * Trash retention purge first: unconditional and not user-configurable (parity spec P§3). Then, signed
+ * out, the auto-archive sweep. Signed in, an opportunistic sync instead (spec §11.5), and the sweep
+ * runs after the next clean sync (SyncCoordinator.afterCleanSync). Archiving deletes the
+ * server copy, so a sweep from a stale local copy could delete a task another device reopened (parity
+ * backlog B-46).
+ */
+internal suspend fun runMaintenance(
+    signedIn: Boolean,
+    purgeTrash: suspend () -> Unit,
+    sweepArchive: suspend () -> Unit,
+    requestSync: () -> Unit,
+) {
+    purgeTrash()
+    if (signedIn) requestSync() else sweepArchive()
 }

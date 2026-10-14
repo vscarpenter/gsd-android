@@ -1,5 +1,19 @@
 # GSD Android — progress
 
+## Resuming from here (2026-10-13): archive after a pull (`fix/archive-after-pull`)
+
+Parity backlog B-46 (Android half) and B-47, the web's PR #603 rules. Why: `docs/2026-10-13-archive-after-pull.md`.
+
+- [x] **B-47.** An archive's delete now carries the archived task, and the push skips it when the remote is
+      newer than that version (`SyncEngine.remoteEditedAfterArchive`). Trash deletes are unchanged (B-42).
+- [x] **B-46.** Signed in, `MaintenanceWorker` syncs instead of sweeping, and the sweep runs from
+      `SyncCoordinator.afterCleanSync` after every clean run (`SyncResult.clean`). "Signed in" comes from the
+      saved session, since the coordinator may still be starting when WorkManager launches the process.
+- [x] Spec §8.12, §9.5, §11.5 amended. An independent review found no compile errors; its fixes are in.
+- [ ] **Not yet run:** this container and the Mac's Linux VM can't reach Maven or Gradle, so nothing was
+      compiled. Run `./gradlew :core:sync:test :app:testDebugUnitTest`, then with `gsd-test` running,
+      `./gradlew :core:store:connectedAndroidTest :app:connectedAndroidTest`.
+
 ## Left to do (as of 2026-09-24)
 
 Every numbered finding in `docs/play/2026-09-20-polish-review.md` that code can fix is now fixed, along with

@@ -91,7 +91,7 @@ All clients share one self-hosted **PocketBase** backend and one wire schema. A 
 
 - **Concurrency:** Kotlin coroutines + `Flow`. The sync engine serializes its runs (one sync at a time; concurrent triggers coalesce).
 - **DI:** a **manual composition root** in the `Application`/root activity (constructor injection, no Hilt/Koin). The iOS app wires everything explicitly in one `init()`; match that simplicity. One database, shared repositories handed to both the TaskStore and the SyncEngine so a pulled write reaches UI observers and a local mutation reaches the sync drain.
-- **Background:** WorkManager for the periodic maintenance job (auto-archive sweep + opportunistic sync, §11.5); `AlarmManager` exact alarms for reminders (§11.2).
+- **Background:** WorkManager for the periodic maintenance job (trash purge, then the auto-archive sweep when signed out or an opportunistic sync when signed in, §11.5); `AlarmManager` exact alarms for reminders (§11.2).
 - **Token storage:** Android **Keystore-encrypted** storage (encrypt the PocketBase JWT with a Keystore key; persist ciphertext in DataStore). Never plain SharedPreferences, never logged.
 - **The fast feedback loop is `:core:model` + `:core:sync` JVM tests, not the emulator.** `./gradlew :core:model:test` must stay sub-second-fast and cover all pure logic. Instrumented/emulator tests are for Room migrations and UI smoke only.
 
@@ -731,8 +731,10 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 ### 8.12 Archive
 
 > Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, the Accessibility section
+>
+> Amended 2026-10-13: see `docs/2026-10-13-archive-after-pull.md`
 
-**Behavior.** Completed tasks can move to the separate archive store (full task shape + `archivedAt`). **Manual:** archive a completed task; restore to active; delete permanently. **Auto:** when enabled, completed tasks with `completedAt` older than `archiveAfterDays` (30/60/90) move automatically — swept on launch and by the periodic maintenance job. **Archive transitions sync as active-record transitions:** archiving enqueues a *delete* of the remote active record; restoring enqueues a *create/update*. Archived tasks themselves never sync (§9.4's reconcile ignores the archive table).
+**Behavior.** Completed tasks can move to the separate archive store (full task shape + `archivedAt`). **Manual:** archive a completed task; restore to active; delete permanently. **Auto:** when enabled, completed tasks with `completedAt` older than `archiveAfterDays` (30/60/90) move automatically. Signed out, the periodic maintenance job sweeps (§11.5). Signed in, the sweep runs after every **clean** sync (`SyncResult.clean`: no error, so the pull, push, and reconciliation all finished; push failures may remain), because archiving deletes the server copy and a sweep from a stale local copy could delete a task another device reopened. "Archive now" sweeps at once either way; its deletes still get §9.5's archived-version guard. **Archive transitions sync as active-record transitions:** archiving enqueues a *delete* of the remote active record, carrying the task as archived (§9.5); restoring enqueues a *create/update*. Archived tasks themselves never sync (§9.4's reconcile ignores the archive table).
 
 **Android reimagining.** Archive screen (Browse → Archive / drawer Library): read-only cards, drawn as completed cards (an `ink3` title, struck through) and not dimmed, since 72% opacity took their text and buttons under 4.5:1; swipe to Restore (leading) or Delete-permanently (trailing, confirmed); search field; multi-select bulk bar; a toolbar menu exposing the auto-archive toggle + 30/60/90 picker + "Archive now".
 
@@ -1029,14 +1031,16 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (two full listings per run)
+>
+> Amended 2026-10-13: see `docs/2026-10-13-archive-after-pull.md`
 
-Every local mutation (create/update/delete/archive/restore/import/bulk) enqueues a queue row: `{ id, taskId, operation: create|update|delete, timestamp (ms), retryCount, payload (full Task JSON for create/update; null for delete), status: pending|failed, lastError?, lastAttemptAt?, failedAt? }`.
+Every local mutation (create/update/delete/archive/restore/import/bulk) enqueues a queue row: `{ id, taskId, operation: create|update|delete, timestamp (ms), retryCount, payload (full Task JSON for create/update, and for an archive's delete, where it is the task as archived; null for any other delete), status: pending|failed, lastError?, lastAttemptAt?, failedAt? }`.
 
 Push algorithm:
 1. **Bulk-fetch the remote index once per push** (list since epoch, through the bounded fail-closed walk of §9.4). A run with nothing queued takes no index, so it lists the whole collection only once, for reconciliation: map `task_id → (recordId, client_updated_at)` — avoids per-item lookups and 429s. If the walk throws `RemoteListingIncomplete`, the push does not proceed on partial data.
 2. Drain pending items oldest-first, each gated by backoff (`retryCount` → wait **5s / 10s / 30s / 60s / 300s**).
 3. **A malformed remote version never authorizes an overwrite.** For a create/update whose task *does* have a record in the remote index, if that record's `client_updated_at` is missing or unparseable (`PbDates.parse` → `null`), the item is **skipped for this drain** — `bumpQueueRetry(…, "Remote task version is missing or malformed", …)`, counting toward the five-failure threshold like any other error — and **no write is issued**. Previously this case fell through to `updateTask`. A missing version may protect or quarantine data; it may not license clobbering it.
-4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it.
+4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it. **An archive's delete is skipped** (marked done, no request) when the remote's `client_updated_at` is newer than the archived payload's `updatedAt`: another device edited the task after this copy last synced, either in an edit a pull missed or one that landed between the pull and the archive, and that edit must survive. After a normal sync the two stamps are equal, so ordinary archives still delete. A delete with no payload, or whose remote record has no usable version, deletes as before.
 5. **Throttle ~100 ms between operations.** On HTTP **429, abort the entire push loop** immediately (items stay pending for the next cycle).
 6. Other errors bump `retryCount` + `lastError`; at **5 failures** the item becomes `failed` — kept, surfaced for retry, never dropped. Failed items auto-requeue (reset to pending) on **launch, foreground, network-regained, and manual sync** — deliberately *not* on the periodic cadence or post-mutation pushes, so a poison item can't hammer a rejecting server every two minutes.
 
@@ -1150,7 +1154,7 @@ Reminder notifications carry two action buttons: **Complete** (full completion s
 
 ### 11.5 Background work
 
-One periodic **WorkManager** job (~hourly, battery-friendly constraints): auto-archive sweep (§8.12) + an **opportunistic sync** when signed in (Android can do what iOS couldn't reliably — data is fresh on next open). Reminders never depend on background work; they're pre-scheduled alarms.
+One periodic **WorkManager** job (~hourly, battery-friendly constraints): the trash retention purge, then the auto-archive sweep (§8.12) when signed out, or an **opportunistic sync** when signed in (Android can do what iOS couldn't reliably — data is fresh on next open). Signed in (a saved session, read directly rather than from the coordinator, which may still be starting), the job never sweeps the local copy; the sweep runs after the next clean sync (§8.12), which is usually the next time the app opens (amended 2026-10-13, `docs/2026-10-13-archive-after-pull.md`). Reminders never depend on background work; they're pre-scheduled alarms.
 
 ---
 

@@ -51,8 +51,8 @@ interface ArchiveSettingsDao {
 
 /**
  * Archive transitions sync as active-record transitions (spec §8.12):
- * archiving enqueues a remote DELETE; restoring enqueues a CREATE. Archived
- * rows themselves never sync.
+ * archiving enqueues a remote DELETE that carries the archived task;
+ * restoring enqueues a CREATE. Archived rows themselves never sync.
  */
 class ArchiveStore(private val db: GsdDatabase, private val clock: Clock) {
     class NotCompleted : Exception("Only completed tasks can be archived")
@@ -65,7 +65,9 @@ class ArchiveStore(private val db: GsdDatabase, private val clock: Clock) {
         if (!entity.completed) throw NotCompleted()
         val now = clock.instant()
         db.withTransaction {
-            db.syncQueueDao().insert(SyncQueueEntity.tombstone(id, now))
+            // The delete carries the task as archived, so the push can keep an edit another device
+            // made after this copy last synced (parity backlog B-47).
+            db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.DELETE, entity.toTask(), now))
             db.archivedTaskDao().upsert(entity.toArchived(archivedAt = now.toEpochMilli()))
             db.taskDao().deleteById(id)
         }
@@ -93,6 +95,12 @@ class ArchiveStore(private val db: GsdDatabase, private val clock: Clock) {
             .filter { it.completed && it.completedAt != null && it.completedAt < cutoff }
         eligible.forEach { archive(it.id) }
         return eligible.size
+    }
+
+    /** The automatic sweep: runs only while auto-archive is on. Returns how many tasks it archived. */
+    suspend fun sweepIfEnabled(): Int {
+        val settings = db.archiveSettingsDao().get() ?: return 0
+        return if (settings.enabled) sweep(settings.archiveAfterDays) else 0
     }
 }
 
