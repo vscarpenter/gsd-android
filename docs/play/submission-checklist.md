@@ -115,6 +115,22 @@ build that goes to Production.
 - Still unwalked on a signed build: sync, a reminder firing, the widget, a deep link, and one real
   sign-in. 0.9.1 has published, so do them now from the Play-installed build on the Pixel.
 
+## 0.10.0 closed-test release, submitted 2026-10-15
+Built from `main` at `d2ffa88` (merge of #33; versionCode 11, versionName 0.10.0). Gates on the Mac:
+`:core:model:test`, `:core:sync:test`, `:app:testDebugUnitTest`, `:app:assembleRelease`,
+`:app:bundleRelease`, all green in 1m 10s. `connectedAndroidTest` was not run for this build; the
+same code passed it on #32 (68 store, 231 app).
+- Artifacts: `app/build/outputs/bundle/release/gsd-0.10.0-versionCode11.aab` (7,125,745 bytes, SHA-256
+  starts `0d304c5e9170ec52`) and `.../apk/release/gsd-0.10.0-versionCode11.apk` (5,449,110 bytes). aapt2:
+  `versionCode='11' versionName='0.10.0'`, targetSdk 36. jarsigner verified the bundle.
+- Console: Closed testing - Alpha → Create new release → bundle uploaded → release name `11 (0.10.0)`,
+  en-US notes from `production-access-round-3.md` → Save → Publishing overview → Send 1 change for
+  review at 8:00 AM CDT. Only warning: native code without debug symbols (same as every prior upload).
+  Device coverage 5,567 phones, 3,947 tablets, none dropped. Status after submit: **Changes in review**.
+- Already true in the Console, so no action needed: the Alpha track targets 178 countries/regions, and
+  the dashboard shows 12 testers opted in for 5 days continuously (the 14-day clock restarted about
+  2026-10-10, so day 14 is about 2026-10-24).
+
 ## Production access declined twice; 0.10.0 prepared (2026-10-13)
 Google declined production access on 2026-09-21 and 2026-10-09 ("More testing required"). Bump commit
 `4813ff5` on `release/0.10.0` sets versionCode 11, versionName 0.10.0. Not built or uploaded yet. The

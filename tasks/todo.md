@@ -7,8 +7,8 @@ Google declined production access on 2026-09-21 and again on 2026-10-09: "tester
 updates." Diagnosis, dates, tester email, and draft answers: `docs/play/production-access-round-3.md`.
 
 - [x] Cut `release/0.10.0` from `main` at `e4f1d8d`: versionCode 11, versionName 0.10.0 (`4813ff5`).
-- [ ] Gates on the Mac, signed bundle, upload 0.10.0 to Alpha with the notes in the round 3 doc.
-- [ ] Alpha track: add the countries testers live in. It targets the US only today.
+- [x] Gates on the Mac, signed bundle, upload 0.10.0 to Alpha with the notes in the round 3 doc. Submitted 2026-10-15 8:00 AM CDT from `d2ffa88`; see `docs/play/submission-checklist.md`.
+- [x] Alpha track: add the countries testers live in. Checked 2026-10-15: the track already targets 178 countries/regions.
 - [ ] Send the tester email and recruit 6 or more real testers. 12 are opted in, so one opt-out resets the clock.
 - [ ] Ship 0.10.1 (versionCode 12) around 2026-10-20 with fixes for tester reports, logged in the round 3 doc.
 - [x] Privacy page: Android, the feedback form, the backup rule, and account deletion, on `gsdtaskmanager.com`
