@@ -28,7 +28,7 @@ class ReminderReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val task = container.store.get(taskId) ?: return@launch
-                if (task.completed || !task.notificationEnabled) return@launch
+                if (task.completed || task.isSaved || !task.notificationEnabled) return@launch
                 val settings = container.notificationSettingsStore.get()
                 val channel = if (settings.soundEnabled) Channels.REMINDERS else Channels.REMINDERS_SILENT
 

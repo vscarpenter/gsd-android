@@ -23,7 +23,7 @@ data class WidgetSnapshot(val items: List<WidgetItem>, val totalActive: Int) {
 
         fun build(tasks: List<Task>, now: Instant, zone: ZoneId): WidgetSnapshot {
             val focus = tasks
-                .filter { it.quadrant == Quadrant.DO_FIRST && !it.completed }
+                .filter { it.quadrant == Quadrant.DO_FIRST && !it.completed && !it.isSaved }
                 .sortedWith(compareBy(nullsLast()) { it.dueDate })
             return WidgetSnapshot(
                 items = focus.take(5).map { task ->
