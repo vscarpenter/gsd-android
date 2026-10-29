@@ -8,7 +8,7 @@ Each task is one red/green cycle and one commit.
 1. [x] `:core:model` — `Task.savedAt`; `SavedPlacement` (save, return, guards);
        Saved left out of `FilterCriteria`, `Analytics`, `ReminderPlanner`; the
        `web-saved-14.2.0.json` fixture imports with placement intact.
-2. [~] `:core:sync` — pull contract version 3 with a merge-same-version backfill;
+2. [x] `:core:sync` — pull contract version 3 with a merge-same-version backfill;
        `saved_at` on the wire (`""` clears); queued payloads take `savedAt` from
        the current row; an incoming return resets device-local reminder state.
 3. [~] `:core:store` — Room 2 → 3 (`savedAt` on three task tables,
@@ -36,7 +36,7 @@ Next:
 
 1. First run (17:59): `:core:model:test` 195/195 green; `:app:assembleDebug` built. Three
    `SavedSyncTest` failures came from test ids shorter than the mapper's 4-character minimum, fixed
-   in `f38c9cb`. Re-run `./gradlew :core:sync:testDebugUnitTest :app:testDebugUnitTest`.
+   in `f38c9cb`. Second run (18:03): `:core:sync` 115/115 and `:app` 89/89 green.
 2. Done: `3.json` committed in `7c470d6`.
 3. Run the instrumented store tests on an emulator: `./gradlew :core:store:connectedDebugAndroidTest`
    (`MigrationTest`, `TaskStoreSavedTest`).
