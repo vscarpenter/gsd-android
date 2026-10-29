@@ -50,19 +50,19 @@ class SavedSyncTest {
     @Test
     fun `an older build's cursor re-pulls once and merges the field it dropped`() = runTest {
         val local = FakeLocal().apply {
-            tasks["s1"] = task("s1") // pulled by 0.10.0, which dropped saved_at
+            tasks["save-1"] = task("save-1") // pulled by 0.10.0, which dropped saved_at
             savedCursor = PbDates.cursorAfter(pulledAt.plusSeconds(3_600)) // already past the record
             contractVersion = 0
         }
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("s1", savedAt = savedAt), "mac", "user-1")
+        remote.records["r1"] = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
         val cursors = mutableListOf<String>()
         remote.honorCursor(pulledAt, cursors)
 
         val result = engine(remote, local).runSync(false)
 
         assertEquals("1970-01-01 00:00:00.000Z", cursors.first())
-        assertEquals(savedAt, local.tasks["s1"]!!.savedAt)
+        assertEquals(savedAt, local.tasks["save-1"]!!.savedAt)
         assertEquals(0, result.conflicts)
         assertEquals(SyncEngine.PULL_CONTRACT_VERSION, local.contractVersion)
         assertEquals(PbDates.cursorAfter(pulledAt.plusSeconds(3_600)), local.savedCursor) // never moved back
@@ -72,9 +72,9 @@ class SavedSyncTest {
     @Test
     fun `after the backfill the next pull is incremental again`() = runTest {
         val stored = PbDates.cursorAfter(pulledAt.plusSeconds(3_600))
-        val local = FakeLocal().apply { tasks["s1"] = task("s1"); savedCursor = stored; contractVersion = 0 }
+        val local = FakeLocal().apply { tasks["save-1"] = task("save-1"); savedCursor = stored; contractVersion = 0 }
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("s1", savedAt = savedAt), "mac", "user-1")
+        remote.records["r1"] = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
         val cursors = mutableListOf<String>()
         remote.honorCursor(pulledAt, cursors)
 
@@ -88,24 +88,24 @@ class SavedSyncTest {
     @Test
     fun `a current cursor keeps the strictly-newer rule`() = runTest {
         val local = FakeLocal().apply {
-            tasks["s1"] = task("s1")
+            tasks["save-1"] = task("save-1")
             savedCursor = "1970-01-01 00:00:00.000Z"
         }
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("s1", savedAt = savedAt), "mac", "user-1")
+        remote.records["r1"] = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
 
         engine(remote, local).runSync(false)
 
-        assertNull(local.tasks["s1"]!!.savedAt) // equal stamp: no-op outside a backfill
+        assertNull(local.tasks["save-1"]!!.savedAt) // equal stamp: no-op outside a backfill
     }
 
     @Test
     fun `a failed backfill pull stamps nothing and pushes nothing`() = runTest {
         val local = FakeLocal().apply {
-            tasks["s1"] = task("s1", updatedAt = now)
+            tasks["save-1"] = task("save-1", updatedAt = now)
             savedCursor = PbDates.cursorAfter(pulledAt)
             contractVersion = 0
-            queue += queueItem(1, task("s1", updatedAt = now))
+            queue += queueItem(1, task("save-1", updatedAt = now))
         }
         val remote = FakeRemote()
         remote.listResponder = { _, _ -> throw PocketBaseApi.HttpError(500, "boom") }
@@ -127,13 +127,13 @@ class SavedSyncTest {
 
     @Test
     fun `a change queued before the upgrade pushes the current row's placement, never an empty one`() = runTest {
-        val edited = task("s1", updatedAt = now) // queued by 0.10.0: its payload has no savedAt
+        val edited = task("save-1", updatedAt = now) // queued by 0.10.0: its payload has no savedAt
         val local = FakeLocal().apply {
-            tasks["s1"] = edited.copy(savedAt = savedAt) // the backfill already merged it
+            tasks["save-1"] = edited.copy(savedAt = savedAt) // the backfill already merged it
             queue += queueItem(1, edited)
         }
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("s1", savedAt = savedAt), "mac", "user-1")
+        remote.records["r1"] = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
 
         engine(remote, local).runSync(false)
 
@@ -143,11 +143,11 @@ class SavedSyncTest {
     @Test
     fun `a queued change for a row that is gone leaves saved_at off the wire`() = runTest {
         val local = FakeLocal().apply {
-            queue += queueItem(1, task("s1", updatedAt = now))
-            tombstones["s1"] = now.toEpochMilli() // archived here since it was queued, so pull leaves it out
+            queue += queueItem(1, task("save-1", updatedAt = now))
+            tombstones["save-1"] = now.toEpochMilli() // archived here since it was queued, so pull leaves it out
         }
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("s1", savedAt = savedAt), "mac", "user-1")
+        remote.records["r1"] = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
 
         engine(remote, local).runSync(false)
 
@@ -158,10 +158,10 @@ class SavedSyncTest {
 
     @Test
     fun `a return to the matrix pushes an empty saved_at, which clears it on the server`() = runTest {
-        val returned = task("s1", updatedAt = now)
-        val local = FakeLocal().apply { tasks["s1"] = returned; queue += queueItem(1, returned) }
+        val returned = task("save-1", updatedAt = now)
+        val local = FakeLocal().apply { tasks["save-1"] = returned; queue += queueItem(1, returned) }
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("s1", savedAt = savedAt), "mac", "user-1")
+        remote.records["r1"] = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
 
         engine(remote, local).runSync(false)
 
@@ -170,7 +170,7 @@ class SavedSyncTest {
 
     @Test
     fun `the mapper reads saved_at, and an empty one means the matrix`() {
-        val wire = WireMapper.push(task("s1", savedAt = savedAt), "mac", "user-1")
+        val wire = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
         assertEquals(savedAt, WireMapper.pull(wire, null)!!.savedAt)
         assertNull(WireMapper.pull(wire.copy(savedAt = ""), null)!!.savedAt)
         assertNull(WireMapper.pull(wire.copy(savedAt = null), null)!!.savedAt)
@@ -178,10 +178,10 @@ class SavedSyncTest {
 
     @Test
     fun `a return pulled from another device resets this device's reminder state`() {
-        val local = task("s1", savedAt = savedAt).copy(
+        val local = task("save-1", savedAt = savedAt).copy(
             notificationSent = true, lastNotificationAt = pulledAt, snoozedUntil = now,
         )
-        val wire = WireMapper.push(task("s1", updatedAt = now), "mac", "user-1")
+        val wire = WireMapper.push(task("save-1", updatedAt = now), "mac", "user-1")
         val merged = WireMapper.pull(wire, local)!!
         assertNull(merged.savedAt)
         assertFalse(merged.notificationSent)
