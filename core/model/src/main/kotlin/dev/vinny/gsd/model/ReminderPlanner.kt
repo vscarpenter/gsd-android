@@ -41,7 +41,7 @@ object QuietHours {
 object ReminderPlanner {
     fun fireTime(task: Task, settings: ReminderSettings, now: Instant, zone: ZoneId): Instant? {
         if (!settings.enabled || !task.notificationEnabled) return null
-        if (task.completed) return null
+        if (task.completed || task.isSaved) return null
         val due = task.dueDate ?: return null
 
         val snoozed = task.snoozedUntil?.takeIf { it.isAfter(now) }

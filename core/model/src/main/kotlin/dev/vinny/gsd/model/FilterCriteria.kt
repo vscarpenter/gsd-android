@@ -39,6 +39,7 @@ data class FilterCriteria(
     val searchQuery: String = "",
 ) {
     fun matches(task: Task, allTasks: List<Task>, now: Instant, zone: ZoneId): Boolean {
+        if (task.isSaved) return false // Saved lives outside active views; allTasks keeps it for blocking
         val today = now.atZone(zone).toLocalDate()
         if (quadrants.isNotEmpty() && task.quadrant.id !in quadrants) return false
         when (status) {
