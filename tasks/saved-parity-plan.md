@@ -40,7 +40,10 @@ Next:
 2. Done: `3.json` committed in `7c470d6`.
 3. Run the instrumented store tests on an emulator: `./gradlew :core:store:connectedDebugAndroidTest`
    (`MigrationTest`, `TaskStoreSavedTest`).
-4. Task 4 so far keeps Saved items off the matrix, the widget, and reminders. Still to build: Move
-   to Saved with Undo, the Saved screen with search and Return to matrix, the palette label, and
-   bulk skipping Saved.
+4. Task 4 (18:30, not yet run): Move to Saved in the row menu with Undo; the Saved screen from
+   Browse (search, notes, Return to matrix with a quadrant and date review, delete with Undo); a
+   Saved entry in the palette, and Saved task results labelled and routed to Saved. Bulk needs no
+   change: it acts on the matrix, which no longer shows Saved items. Run
+   `./gradlew :core:model:test :app:testDebugUnitTest :app:assembleDebug`, then
+   `SavedScreenTest` on an emulator.
 5. Then tasks 5 and 6.

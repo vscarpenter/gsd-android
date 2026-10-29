@@ -225,6 +225,7 @@ fun MatrixScreen(
         viewModel.clearBulkResult()
     }
     UndoDeleteEffect(actions, snackbarHost)
+    UndoSaveEffect(actions, snackbarHost)
     if (editorDraft != null) {
         TaskEditorSheet(
             viewModel = editorViewModel,
@@ -265,11 +266,13 @@ fun MatrixScreen(
                 when (nav) {
                     dev.vinny.gsd.palette.PaletteNav.MATRIX -> onNavigate("matrix")
                     dev.vinny.gsd.palette.PaletteNav.DASHBOARD -> onNavigate("dashboard")
+                    dev.vinny.gsd.palette.PaletteNav.SAVED -> onNavigate("saved")
                     dev.vinny.gsd.palette.PaletteNav.ARCHIVE -> onNavigate("archive")
                     dev.vinny.gsd.palette.PaletteNav.SETTINGS -> onNavigate("settings")
                 }
             },
             onDismiss = { paletteVisible = false },
+            onOpenSaved = { onNavigate("saved") },
         )
     }
 }

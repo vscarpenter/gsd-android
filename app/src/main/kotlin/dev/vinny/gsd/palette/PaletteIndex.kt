@@ -6,7 +6,7 @@ import dev.vinny.gsd.model.Task
 /** Palette commands. Their words come from resources, through the labels [PaletteIndex.query] takes. */
 enum class PaletteAction { NEW_TASK, TOGGLE_SHOW_COMPLETED, TOGGLE_THEME, SEND_FEEDBACK }
 
-enum class PaletteNav { MATRIX, DASHBOARD, ARCHIVE, SETTINGS }
+enum class PaletteNav { MATRIX, DASHBOARD, SAVED, ARCHIVE, SETTINGS }
 
 data class PaletteResults(
     val tasks: List<Task>,

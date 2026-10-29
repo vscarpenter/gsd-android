@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Adjust
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -72,6 +73,7 @@ import dev.vinny.gsd.matrix.TaskBadges
 import dev.vinny.gsd.matrix.TaskRowActions
 import dev.vinny.gsd.matrix.TaskRowWithMenu
 import dev.vinny.gsd.matrix.UndoDeleteEffect
+import dev.vinny.gsd.matrix.UndoSaveEffect
 import dev.vinny.gsd.matrix.rememberCompletionCelebration
 import dev.vinny.gsd.matrix.taskRowActions
 import dev.vinny.gsd.model.DependencyGraph
@@ -136,6 +138,7 @@ fun BrowseScreen(
     onNewView: () -> Unit,
     onEditView: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenSaved: () -> Unit = {},
 ) {
     val viewModel: BrowseViewModel = viewModel { BrowseViewModel(container.store, container.smartViewStore) }
     val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
@@ -152,6 +155,8 @@ fun BrowseScreen(
     Box(modifier = modifier.fillMaxSize()) {
         BrowseContent(
             state = state,
+            onOpenSaved = onOpenSaved,
+            savedCount = tasks.orEmpty().count { it.isSaved },
             onOpenArchive = onOpenArchive,
             trashCount = trashed.size,
             onOpenTrash = onOpenTrash,
@@ -170,6 +175,7 @@ fun BrowseScreen(
         SnackbarHost(hostState = snackbarHost, modifier = Modifier.align(Alignment.BottomCenter).imePadding())
     }
     UndoDeleteEffect(actions, snackbarHost)
+    UndoSaveEffect(actions, snackbarHost)
     if (editorDraft != null) {
         TaskEditorSheet(
             viewModel = editorViewModel,
@@ -182,6 +188,8 @@ fun BrowseScreen(
 @Composable
 fun BrowseContent(
     state: BrowseState,
+    onOpenSaved: () -> Unit = {},
+    savedCount: Int = 0,
     onOpenArchive: () -> Unit,
     trashCount: Int,
     onOpenTrash: () -> Unit,
@@ -217,6 +225,27 @@ fun BrowseContent(
                 contentPadding = PaddingValues(20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                item(key = "saved") {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpenSaved)
+                            .padding(vertical = 12.dp).testTag("browse_saved"),
+                    ) {
+                        Icon(Icons.Outlined.BookmarkBorder, contentDescription = null, tint = gsd.ink2)
+                        Text(
+                            stringResource(R.string.browse_saved),
+                            style = GsdType.cardTitle,
+                            color = gsd.ink,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "$savedCount",
+                            style = GsdType.metadata.copy(fontFeatureSettings = "tnum"),
+                            color = gsd.ink2,
+                        )
+                    }
+                }
                 item(key = "archive") {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
