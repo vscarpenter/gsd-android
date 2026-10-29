@@ -115,7 +115,7 @@ internal fun TaskEntity.toArchived(archivedAt: Long): ArchivedTaskEntity = Archi
     notifyBefore = notifyBefore, notificationEnabled = notificationEnabled,
     notificationSent = notificationSent, lastNotificationAt = lastNotificationAt,
     snoozedUntil = snoozedUntil, estimatedMinutes = estimatedMinutes,
-    timeEntriesJson = timeEntriesJson, archivedAt = archivedAt,
+    timeEntriesJson = timeEntriesJson, archivedAt = archivedAt, savedAt = savedAt,
 )
 
 internal fun ArchivedTaskEntity.toTask(): Task = TaskEntity(
@@ -126,5 +126,5 @@ internal fun ArchivedTaskEntity.toTask(): Task = TaskEntity(
     notifyBefore = notifyBefore, notificationEnabled = notificationEnabled,
     notificationSent = notificationSent, lastNotificationAt = lastNotificationAt,
     snoozedUntil = snoozedUntil, estimatedMinutes = estimatedMinutes,
-    timeEntriesJson = timeEntriesJson,
+    timeEntriesJson = timeEntriesJson, savedAt = savedAt,
 ).toTask()

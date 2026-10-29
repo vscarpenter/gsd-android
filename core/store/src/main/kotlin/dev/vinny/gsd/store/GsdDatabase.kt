@@ -30,7 +30,7 @@ class SyncOpConverter {
         SyncMetadataEntity::class,
         SyncHistoryEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(SyncOpConverter::class)
@@ -66,10 +66,24 @@ abstract class GsdDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Saved placement (web ADR 0018) on all three task tables, and the pull contract version the sync
+         * cursor was written under (spec 2026-10-29 §2). An existing cursor reads 0, so the first sync
+         * after the upgrade re-pulls once and picks up `saved_at` for rows this build already holds.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (table in listOf("tasks", "archived_tasks", "deleted_tasks")) {
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `savedAt` INTEGER")
+                }
+                db.execSQL("ALTER TABLE `sync_metadata` ADD COLUMN `contractVersion` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         /** Keeps Room a private concern of this module — callers never see the builder. */
         fun build(context: Context): GsdDatabase =
             Room.databaseBuilder(context, GsdDatabase::class.java, "gsd.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
 
         /** Hermetic store for tests. */

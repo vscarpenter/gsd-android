@@ -2,6 +2,7 @@ package dev.vinny.gsd.store
 
 import androidx.room.withTransaction
 import dev.vinny.gsd.model.RecurrenceEngine
+import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskDuplicator
 import dev.vinny.gsd.model.TaskJson
@@ -68,10 +69,12 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
      * The row is read inside the transaction, as in [edit], so a snooze or a timer write can never
      * overwrite an editor save that committed a moment earlier.
      */
-    suspend fun change(id: String, transform: (Task) -> Task): Task? {
+    suspend fun change(id: String, refuseSaved: Boolean = false, transform: (Task) -> Task): Task? {
         val now = clock.instant()
         return db.withTransaction {
             val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
+            // Saved work waits for a return to the matrix (web ADR 0018): nothing is written
+            if (refuseSaved && current.isSaved) return@withTransaction current
             val changed = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, changed, now))
             db.taskDao().upsert(changed.toEntity())
@@ -118,6 +121,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         return db.withTransaction {
             val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
             if (current.completed == completed) return@withTransaction current
+            if (completed && current.isSaved) return@withTransaction current // completes only after a return
             val updated = TaskValidator.normalize(
                 current.copy(completed = completed, completedAt = if (completed) now else null),
                 now,
@@ -134,9 +138,24 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         }
     }
 
-    suspend fun snooze(id: String, until: Instant?): Task? = change(id) { it.copy(snoozedUntil = until) }
+    suspend fun snooze(id: String, until: Instant?): Task? =
+        change(id, refuseSaved = true) { it.copy(snoozedUntil = until) }
 
-    suspend fun startTimer(id: String): Task? = change(id) { TimeTracking.start(it, clock.instant()) }
+    suspend fun startTimer(id: String): Task? =
+        change(id, refuseSaved = true) { TimeTracking.start(it, clock.instant()) }
+
+    /** Throws [SavedPlacement.CannotSave] for a completed task or one with a running timer. */
+    suspend fun moveToSaved(id: String): Task? = change(id) { SavedPlacement.save(it, clock.instant()) }
+
+    /** Back to active work with the quadrant and date the user reviewed; resets reminder state. */
+    suspend fun returnToMatrix(id: String, urgent: Boolean, important: Boolean, dueDate: Instant?): Task? =
+        change(id) { SavedPlacement.returnToMatrix(it, urgent, important, dueDate) }
+
+    /** Notes are the description. What the user typed validates; the rest of the row is read fresh. */
+    suspend fun editNotes(id: String, notes: String): Task? {
+        val current = get(id) ?: return null
+        return edit(id, current.copy(description = notes)) { it.copy(description = notes) }
+    }
 
     suspend fun stopTimer(id: String): Task? = change(id) { TimeTracking.stop(it, clock.instant()) }
 
