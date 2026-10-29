@@ -59,6 +59,12 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
         db.syncMetadataDao().upsert(metadata().copy(cursor = null))
     }
 
+    override suspend fun pullContractVersion(): Int = db.syncMetadataDao().get()?.contractVersion ?: 0
+
+    override suspend fun savePullContractVersion(version: Int) {
+        db.syncMetadataDao().upsert(metadata().copy(contractVersion = version))
+    }
+
     override suspend fun enqueueUpdate(task: Task, nowMs: Long) {
         db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, task, Instant.ofEpochMilli(nowMs)))
     }

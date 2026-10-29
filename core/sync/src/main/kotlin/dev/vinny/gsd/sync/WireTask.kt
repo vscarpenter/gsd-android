@@ -39,6 +39,8 @@ data class WireTask(
     @SerialName("completed_at") val completedAt: String = "",
     @SerialName("last_notification_at") val lastNotificationAt: String = "",
     @SerialName("snoozed_until") val snoozedUntil: String = "",
+    /** ISO when Saved, "" to clear (iOS spec §7.1). Null leaves the key off, so the server keeps its value. */
+    @SerialName("saved_at") val savedAt: String? = null,
     val completed: Boolean = false,
     val recurrence: String = "none",
     val tags: List<String> = emptyList(),

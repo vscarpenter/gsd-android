@@ -45,6 +45,15 @@ class SyncEngine(
     private val throttleMs: Long = 100,
     private val ownerId: suspend () -> String? = { null },
 ) {
+    companion object {
+        /**
+         * Bump when a build first reads a new synced field, in step with the web's
+         * `SYNC_CONFIG.PULL_CURSOR_VERSION` and iOS `SyncCursor.contractVersion`. 3 is `saved_at`.
+         */
+        const val PULL_CONTRACT_VERSION = 3
+        private const val EPOCH_CURSOR = "1970-01-01 00:00:00.000Z"
+    }
+
     private val mutex = Mutex()
 
     private val backoffMs = longArrayOf(5_000, 10_000, 30_000, 60_000, 300_000)
@@ -101,7 +110,11 @@ class SyncEngine(
         var pulled = 0
         var conflicts = 0
         var maxApplied: Instant? = null
-        val cursor = local.cursor() ?: "1970-01-01 00:00:00.000Z"
+        val stored = local.cursor()
+        // An older build's cursor sits past rows it stored without a field this build reads: re-pull once
+        // and merge same-version rows, before any push could send that field empty (spec 2026-10-29 §2).
+        val backfill = stored != null && local.pullContractVersion() < PULL_CONTRACT_VERSION
+        val cursor = if (backfill) EPOCH_CURSOR else stored ?: EPOCH_CURSOR
         BoundedListing.collect(cursor, remote::listTasks) { result ->
             result.items.forEachIndexed { index, wire ->
                 val existing = local.taskById(wire.taskId)
@@ -115,6 +128,8 @@ class SyncEngine(
                         conflicts++ // remote won over a local copy — informational (spec §9.7)
                         true
                     }
+                    backfill && incoming.updatedAt.toEpochMilli() == existing.updatedAt.toEpochMilli() ->
+                        true // the same version: merge what an older build dropped, not a conflict
                     else -> false // equal or local newer → no-op (spec §9.3)
                 }
                 if (apply) {
@@ -126,7 +141,11 @@ class SyncEngine(
                 }
             }
         }
-        maxApplied?.let { local.saveCursor(PbDates.cursorAfter(it)) }
+        maxApplied?.let { applied ->
+            val next = PbDates.cursorAfter(applied)
+            if (!backfill || next > stored!!) local.saveCursor(next) // a backfill never moves the cursor back
+        }
+        if (stored == null || backfill) local.savePullContractVersion(PULL_CONTRACT_VERSION)
         return pulled to conflicts
     }
 
@@ -170,7 +189,13 @@ class SyncEngine(
                             local.markQueueItemDone(item.id) // LWW payload guard: pull delivers remote (spec §9.3)
                             continue
                         }
-                        val wire = WireMapper.push(payload, deviceId, owner)
+                        // Placement comes from the current row: a payload queued by an older build has none
+                        val current = local.taskById(item.taskId)
+                        val wire = if (current != null) {
+                            WireMapper.push(payload.copy(savedAt = current.savedAt), deviceId, owner)
+                        } else {
+                            WireMapper.push(payload, deviceId, owner, sendSavedAt = false)
+                        }
                         if (remoteEntry != null) {
                             remote.updateTask(remoteEntry.first, wire)
                         } else {

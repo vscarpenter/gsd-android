@@ -28,6 +28,8 @@ private class FakeSseLocal : SyncLocalStore {
     override suspend fun cursor(): String? = null
     override suspend fun saveCursor(cursor: String) = Unit
     override suspend fun clearCursor() = Unit
+    override suspend fun pullContractVersion(): Int = SyncEngine.PULL_CONTRACT_VERSION
+    override suspend fun savePullContractVersion(version: Int) = Unit
     override suspend fun enqueueUpdate(task: Task, nowMs: Long) = Unit
     override suspend fun deviceId(): String = "this-device"
     override suspend fun insertHistory(entry: SyncHistoryEntry) = Unit
