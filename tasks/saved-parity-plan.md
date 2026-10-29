@@ -5,7 +5,7 @@ Backlog: B-49 (Saved), B-50 (fixture), then B-13, B-14, B-42 (sync safety).
 
 Each task is one red/green cycle and one commit.
 
-1. [~] `:core:model` — `Task.savedAt`; `SavedPlacement` (save, return, guards);
+1. [x] `:core:model` — `Task.savedAt`; `SavedPlacement` (save, return, guards);
        Saved left out of `FilterCriteria`, `Analytics`, `ReminderPlanner`; the
        `web-saved-14.2.0.json` fixture imports with placement intact.
 2. [~] `:core:sync` — pull contract version 3 with a merge-same-version backfill;
@@ -34,9 +34,10 @@ What's New tab was open.
 
 Next:
 
-1. Run `./gradlew :core:model:test :core:sync:testDebugUnitTest :app:testDebugUnitTest
-   :app:assembleDebug`. Fix anything red.
-2. The build writes `core/store/schemas/dev.vinny.gsd.store.GsdDatabase/3.json`. Commit it.
+1. First run (17:59): `:core:model:test` 195/195 green; `:app:assembleDebug` built. Three
+   `SavedSyncTest` failures came from test ids shorter than the mapper's 4-character minimum, fixed
+   in `f38c9cb`. Re-run `./gradlew :core:sync:testDebugUnitTest :app:testDebugUnitTest`.
+2. Done: `3.json` committed in `7c470d6`.
 3. Run the instrumented store tests on an emulator: `./gradlew :core:store:connectedDebugAndroidTest`
    (`MigrationTest`, `TaskStoreSavedTest`).
 4. Task 4 so far keeps Saved items off the matrix, the widget, and reminders. Still to build: Move
