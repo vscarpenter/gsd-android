@@ -17,6 +17,18 @@ object SavedPlacement {
         return task.copy(savedAt = task.savedAt ?: now)
     }
 
+    /** The Saved list, newest first. [query] matches the title, the notes, or a tag, ignoring case. */
+    fun library(tasks: List<Task>, query: String = ""): List<Task> {
+        val q = query.trim().lowercase()
+        return tasks
+            .filter { it.isSaved }
+            .filter { task ->
+                q.isEmpty() || q in task.title.lowercase() || q in task.description.lowercase() ||
+                    task.tags.any { q in it.lowercase() }
+            }
+            .sortedWith(compareByDescending<Task> { it.savedAt }.thenBy { it.id })
+    }
+
     /** Back to active work with the quadrant and date the user reviewed. */
     fun returnToMatrix(task: Task, urgent: Boolean, important: Boolean, dueDate: Instant?): Task =
         resetReminderState(task.copy(savedAt = null, urgent = urgent, important = important, dueDate = dueDate))

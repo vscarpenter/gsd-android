@@ -129,4 +129,22 @@ class SavedPlacementTest {
         val settings = ReminderSettings()
         assertNull(ReminderPlanner.fireTime(task(savedAt = savedAt).copy(notificationSent = false, snoozedUntil = null), settings, now, zone))
     }
+
+    @Test
+    fun `the library lists Saved tasks only, newest first`() {
+        val older = task(savedAt = savedAt, id = "older").copy(title = "older")
+        val newer = task(savedAt = savedAt.plusSeconds(60), id = "newer").copy(title = "newer")
+        val active = task(id = "active")
+        assertEquals(listOf("newer", "older"), SavedPlacement.library(listOf(older, active, newer)).map { it.id })
+    }
+
+    @Test
+    fun `library search matches title, notes, and tags, ignoring case and spaces`() {
+        val byTitle = task(savedAt = savedAt, id = "title").copy(title = "Kitchen remodel ideas")
+        val byNote = task(savedAt = savedAt, id = "note").copy(title = "Read later", description = "https://example.com/KITCHEN")
+        val byTag = task(savedAt = savedAt, id = "tag").copy(title = "Tiles", tags = listOf("kitchen"))
+        val miss = task(savedAt = savedAt, id = "miss").copy(title = "Garden")
+        val found = SavedPlacement.library(listOf(byTitle, byNote, byTag, miss), "  kitchen ").map { it.id }.toSet()
+        assertEquals(setOf("title", "note", "tag"), found)
+    }
 }
