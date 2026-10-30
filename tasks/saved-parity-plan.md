@@ -40,7 +40,8 @@ Next:
 2. Done: `3.json` committed in `7c470d6`.
 3. Run the instrumented store tests on an emulator: `./gradlew :core:store:connectedDebugAndroidTest`
    (`MigrationTest`, `TaskStoreSavedTest`).
-4. Task 4 (18:30, not yet run): Move to Saved in the row menu with Undo; the Saved screen from
+4. Task 4 (20:24 run: model 197/197, app 93/93, assembleDebug green; `SavedScreenTest` still
+   needs an emulator): Move to Saved in the row menu with Undo; the Saved screen from
    Browse (search, notes, Return to matrix with a quadrant and date review, delete with Undo); a
    Saved entry in the palette, and Saved task results labelled and routed to Saved. Bulk needs no
    change: it acts on the matrix, which no longer shows Saved items. Run
