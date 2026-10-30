@@ -11,7 +11,7 @@ Each task is one red/green cycle and one commit.
 2. [x] `:core:sync` — pull contract version 3 with a merge-same-version backfill;
        `saved_at` on the wire (`""` clears); queued payloads take `savedAt` from
        the current row; an incoming return resets device-local reminder state.
-3. [~] `:core:store` — Room 2 → 3 (`savedAt` on three task tables,
+3. [x] `:core:store` — Room 2 → 3 (`savedAt` on three task tables,
        `contractVersion` on `sync_metadata`); `TaskStore` save, return, notes,
        and refusals (complete, timer, snooze while Saved).
 4. [x] `:app` — matrix, widget, reminders, bulk, and palette leave Saved out or
@@ -53,5 +53,6 @@ Next:
 
 Green on the JVM: model 197, sync 121, app 93, and `assembleDebug`. Still owed, on an emulator:
 `./gradlew :core:store:connectedDebugAndroidTest :app:connectedDebugAndroidTest` (the v2 → v3
-migration, `TaskStoreSavedTest`, `SavedScreenTest`). Task 3 stays `[~]` until those run. Then the
-end-to-end check against a local PocketBase (spec §5) and the tester build for Play.
+migration, `TaskStoreSavedTest`, `SavedScreenTest`). **Done 20:54 on the `gsd-shot` AVD (API 36):
+store 76/76, app 237/237.** Left: the end-to-end check against a local PocketBase (spec §5), the PR,
+and a 0.10.x tester build for Play.
