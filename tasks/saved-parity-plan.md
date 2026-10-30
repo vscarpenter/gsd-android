@@ -17,8 +17,8 @@ Each task is one red/green cycle and one commit.
 4. [~] `:app` — matrix, widget, reminders, bulk, and palette leave Saved out or
        label it; Move to Saved with Undo; the Saved screen with search and
        Return to matrix.
-5. [ ] `:core:sync` — B-13 (5xx is transient), B-14 (session fence), B-42
-       (stale-delete guard).
+5. [~] `:core:sync` — B-14 (session fence) and B-42 (stale-delete guard), written test-first, not
+       yet run. B-13 needs no change: the 2026-10-12 audit misread web #583 (see the spec §4).
 6. [ ] Fold the spec's §6 amendments into `docs/gsd-android-spec.md`.
 
 Verification: `./gradlew :core:model:test :core:sync:testDebugUnitTest
