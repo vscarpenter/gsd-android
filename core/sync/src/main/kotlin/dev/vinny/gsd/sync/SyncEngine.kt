@@ -34,6 +34,12 @@ class MalformedRemoteVersion : Exception("Remote task version is missing or malf
 class NotSignedIn : Exception("Not signed in")
 
 /**
+ * The account this run started for signed out, or another signed in, before a write (parity backlog B-14,
+ * web #538). The run stops where it is: nothing pulled lands, nothing is deleted, and no retry is spent.
+ */
+class StaleSyncSession : Exception("Sync session ended before this write")
+
+/**
  * The last-write-wins sync engine (spec §9.3–§9.5): pull → push → deletion
  * reconciliation, one run at a time. Every rule here is exercised by JVM
  * tests over fakes — this class must stay free of Android imports.
@@ -68,7 +74,7 @@ class SyncEngine(
         var notSignedIn = false
         try {
             val owner = ownerId() ?: throw NotSignedIn()
-            val pullOutcome = pull()
+            val pullOutcome = pull(owner)
             pulled = pullOutcome.first
             conflicts = pullOutcome.second
 
@@ -106,7 +112,15 @@ class SyncEngine(
         result
     }
 
-    private suspend fun pull(): Pair<Int, Int> {
+    /**
+     * Checked just before each write rather than inside its Room transaction: the session lives in the
+     * token store, not the database, so a sign-out can still land between the check and one write.
+     */
+    private suspend fun fence(owner: String) {
+        if (ownerId() != owner) throw StaleSyncSession()
+    }
+
+    private suspend fun pull(owner: String): Pair<Int, Int> {
         var pulled = 0
         var conflicts = 0
         var maxApplied: Instant? = null
@@ -133,6 +147,7 @@ class SyncEngine(
                     else -> false // equal or local newer → no-op (spec §9.3)
                 }
                 if (apply) {
+                    fence(owner)
                     local.upsertFromRemote(incoming)
                     pulled++
                     PbDates.parse(result.updatedStamps.getOrNull(index))?.let { stamp ->
@@ -141,6 +156,7 @@ class SyncEngine(
                 }
             }
         }
+        fence(owner)
         maxApplied?.let { applied ->
             val next = PbDates.cursorAfter(applied)
             if (!backfill || next > stored!!) local.saveCursor(next) // a backfill never moves the cursor back
@@ -164,6 +180,7 @@ class SyncEngine(
         var failures = 0
         val now = clock.instant()
         for (item in pending) {
+            fence(owner) // outside the item's try: a session that ended must not spend this item's retries
             if (item.retryCount > 0) {
                 val waitMs = backoffMs[(item.retryCount - 1).coerceAtMost(backoffMs.lastIndex)]
                 val lastAttempt = item.lastAttemptAt ?: 0L
@@ -206,8 +223,9 @@ class SyncEngine(
                         pushed++
                     }
                     SyncOp.DELETE -> {
-                        if (remoteEditedAfterArchive(item, index[item.taskId]?.second)) {
-                            local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-47)
+                        val remoteStamp = index[item.taskId]?.second
+                        if (remoteEditedAfterArchive(item, remoteStamp) || remoteEditedAfterQueued(item, remoteStamp)) {
+                            local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-42, B-47)
                             continue
                         }
                         index[item.taskId]?.let { remote.deleteTask(it.first) }
@@ -233,6 +251,10 @@ class SyncEngine(
         }
         return pushed to failures
     }
+
+    /** Any delete, Trash or manual, is stale once the server copy changed after it was queued (B-42). */
+    private fun remoteEditedAfterQueued(item: SyncQueueEntity, remoteStamp: Instant?): Boolean =
+        remoteStamp != null && remoteStamp.toEpochMilli() > item.timestamp
 
     /**
      * An archive's delete carries the task as it was archived (spec §9.5). A remote newer than that
@@ -266,6 +288,7 @@ class SyncEngine(
         if (unprotected.isEmpty()) return
         remote.confirmIdentity(owner)
         unprotected.forEach { task ->
+            fence(owner)
             if (task.id in failed) local.abandonToTrash(task.id, now) // ABANDON
             else local.deleteFromRemote(task.id)                      // APPLY
         }
