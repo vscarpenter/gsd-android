@@ -380,11 +380,11 @@ The app adapts by **window size class**, the Android analog of the iPhone/iPad s
 A **bottom navigation bar** with four destinations:
 
 1. **Matrix** — the primary surface: a pinned **capture bar** at top, then the four quadrants as a **vertical stack of quadrant sections** (each a header with live count + its task rows; four quadrants can't be shown legibly at once on a phone). Pull-to-refresh triggers a manual sync when signed in. Top app bar: brand lockup, search/palette button, show-completed toggle, select-mode toggle, sync status chip.
-2. **Browse** — a **search field** at the very top ("Search all tasks", §8.14), then an **Archive** row, then Smart Views in sections: **Pinned**, **Built-in**, **Custom**, plus a "+" to create a custom view. Each row shows a live match count. Row swipes: pin/unpin (leading); edit/delete (trailing, custom views only). While the search field holds a non-whitespace query the results list **replaces** the whole Browse list; the field is not a width-gated affordance — Browse is one composable at every size class (§6.2), so the search applies to the rail and drawer layouts too.
+2. **Browse** — a **search field** at the very top ("Search all tasks", §8.14), then a **Saved** row (§8.22, live count), then an **Archive** row, then Smart Views in sections: **Pinned**, **Built-in**, **Custom**, plus a "+" to create a custom view. Each row shows a live match count. Row swipes: pin/unpin (leading); edit/delete (trailing, custom views only). While the search field holds a non-whitespace query the results list **replaces** the whole Browse list; the field is not a width-gated affordance — Browse is one composable at every size class (§6.2), so the search applies to the rail and drawer layouts too.
 3. **Dashboard** — analytics (§8.15).
 4. **Settings** — §8.17.
 
-Archive is deliberately *inside* Browse, not a fifth destination.
+Archive is deliberately *inside* Browse, not a fifth destination. Saved (§8.22) sits there too, for the same reason. When the §6.2 drawer is built, its **Library** section lists Saved above Archive.
 
 Tapping a destination keeps one copy of it on the back stack, and the tab being left keeps its own stack. Tapping Matrix always lands on the Matrix root. A deep link (§6.4) or a palette row (§8.14) that names one of the four destinations behaves exactly like a tap on it. Any other route pushes over the current screen, and the Matrix tab still returns to Matrix from there. The selected tab is the one whose stack is showing, not the one whose route matches: Browse stays selected on a smart view, Archive, or Trash opened from it, and a screen a deep link pushes straight over Matrix counts as Matrix's. Only a tab's own stack is saved on a tab switch. A screen pushed straight over Matrix belongs to no tab and nothing would restore it, so a tab switch pops it without saving, and Navigation releases its view model.
 
@@ -470,6 +470,8 @@ All entities must be representable in the Room store, in the JSON import/export 
 
 ### 7.2 Task (the core entity)
 
+> Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
+
 | Field | Type | Required | Default | Constraints / Notes |
 |---|---|---|---|---|
 | `id` | String | yes | generated | ≥ 4 chars, unique, URL-safe |
@@ -496,6 +498,7 @@ All entities must be representable in the Room store, in the JSON import/export 
 | `estimatedMinutes` | Int? | no | — | 1–10080 (7 days); a stored/received `0` means "unset" |
 | `timeSpent` | Int? | no | — | total tracked whole minutes, **calculated** from `timeEntries` |
 | `timeEntries` | [TimeEntry] | yes | `[]` | 0–1000 items |
+| `savedAt` | Date? | no | — | non-null keeps the task **outside the matrix** (§8.22). Synced as `saved_at`; kept in backups and in the archive and trash tables |
 
 **Subtask:** `{ id, title (1–100 chars), completed }`.
 **TimeEntry (rich local form):** `{ id, startedAt, endedAt? (nil while running), notes? (0–200 chars) }`. The wire form is a lossy `{id, startedAt, minutes}` (§9.2).
@@ -541,6 +544,10 @@ Canonical display/iteration order: Q1, Q2, Q3, Q4. Never let the persisted quadr
 ### 7.9 FilterCriteria (powers smart views, filters, search)
 
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
+>
+> Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
+
+A **Saved** task (§8.22) never matches any criteria. The `allTasks` argument still holds it, so a Saved prerequisite keeps blocking its dependents, Ready to Work included.
 
 A predicate bundle; all present criteria are **ANDed**. camelCase-Codable:
 
@@ -568,7 +575,7 @@ A predicate bundle; all present criteria are **ANDed**. camelCase-Codable:
 
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 
-Mirror the separation used by both sibling clients (Dexie schema v16 / GRDB v6): **`tasks`**, **`archivedTasks`** (same shape + `archivedAt`, a separate table), **`deletedTasks`** (same shape + `deletedAt`, indexed on `deletedAt` — the 30-day trash, §8.20), **`smartViews`**, **`notificationSettings`**, **`archiveSettings`**, **`appPreferences`**, **`syncQueue`** (§9.5), **`syncMetadata`** (cursor + device identity), **`syncHistory`** (§9.7). Collections (`tags`, `subtasks`, `dependencies`, `timeEntries`) are **JSON TEXT columns** (§7.3 encoding), not child tables — matching Dexie/PocketBase/GRDB shapes. Index `quadrant`, `completed`, `updatedAt`, `dueDate`. Versioned Room migrations from day one; a row with an unrecognized enum degrades gracefully (`recurrence` → `none`) rather than failing the fetch. The schema is at **Room v2** — `MIGRATION_1_2` adds `deleted_tasks`, the first real (non-fresh-install) migration, covered by an instrumented migration test.
+Mirror the separation used by both sibling clients (Dexie schema v16 / GRDB v6): **`tasks`**, **`archivedTasks`** (same shape + `archivedAt`, a separate table), **`deletedTasks`** (same shape + `deletedAt`, indexed on `deletedAt` — the 30-day trash, §8.20), **`smartViews`**, **`notificationSettings`**, **`archiveSettings`**, **`appPreferences`**, **`syncQueue`** (§9.5), **`syncMetadata`** (cursor + device identity), **`syncHistory`** (§9.7). Collections (`tags`, `subtasks`, `dependencies`, `timeEntries`) are **JSON TEXT columns** (§7.3 encoding), not child tables — matching Dexie/PocketBase/GRDB shapes. Index `quadrant`, `completed`, `updatedAt`, `dueDate`. Versioned Room migrations from day one; a row with an unrecognized enum degrades gracefully (`recurrence` → `none`) rather than failing the fetch. The schema is at **Room v2** — `MIGRATION_1_2` adds `deleted_tasks`, the first real (non-fresh-install) migration, covered by an instrumented migration test. **Room v3** (`MIGRATION_2_3`, 2026-10-29) adds a nullable `savedAt` to `tasks`, `archived_tasks`, and `deleted_tasks`, and `contractVersion INTEGER NOT NULL DEFAULT 0` to `sync_metadata` (§9.4); an existing cursor therefore reads version 0 and triggers one backfill.
 
 ### 7.11 Validation
 
@@ -950,6 +957,21 @@ Every card menu and the editor expose **Share**: a plain-text rendering via the 
 
 ---
 
+### 8.22 Saved
+
+> Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
+> Web ADR 0018 (`gsd-taskmanager/docs/adr/0018-saved-task-placement.md`) and iOS ADR 0001 are the behavior authority.
+
+**Behavior.** Saved keeps a task outside the matrix without completing, archiving, or deleting it. It is the same task row with `savedAt` set (`SavedPlacement`, `:core:model`): identity, tags, dates, and dependencies all survive. Notes are the task's `description` (600 UTF-16 units, the existing limit). Saving never completes a task or spawns a recurrence, and a task with a running timer must stop it first.
+
+- **Move to Saved:** in the row menu (§8.1) whenever `SavedPlacement.canSave` holds: not completed, no running timer. A snackbar offers Undo on the §8.20 timing; Undo clears `savedAt` and changes nothing else.
+- **While Saved,** `TaskStore` writes nothing for complete, start timer, or snooze, so a reminder action, a bulk action, or a stale screen can't complete or time a Saved task.
+- **Return to matrix** reviews the quadrant and the due date (Keep, None, Today, This week, Next week; presets land on local midnight, meaning all day), clears `savedAt`, and resets this device's reminder state (`notificationSent`, `lastNotificationAt`, `snoozedUntil`). A return pulled from another device resets it too.
+- **Left out of:** the matrix and its counts (§8.1), smart views and Browse search (§7.9, §8.13), analytics (§8.15), reminders (§11; `ReminderPlanner.fireTime` returns null and the receiver re-checks), the widget (§12.1), and bulk selection, which only sees the matrix (§8.11).
+- **Kept in:** the dependency graph, backups (§8.16, which now keep `savedAt`), erase, account and import checks, and the palette (§8.14), which labels a Saved result "· Saved" and opens the Saved screen instead of the editor. The palette also lists Saved as a destination.
+
+**Surface.** A **Saved** screen opens from the Browse row (§6.1): its own search over title, notes, and tags; rows on the muted `surface2` ground (no quadrant wash), newest first, with the title, up to four lines of notes, and tags; Return to matrix, Edit notes (a dialog with a live "n of 600" count), and Delete (moves to Trash with the §8.20 Undo). Empty state: "Nothing saved yet". No deep link: no sibling client has one.
+
 ## 9. Sync & Backend
 
 Sync is **optional and opt-in**. With no account the app is fully functional offline and nothing leaves the device. Signed in, tasks sync bidirectionally with the self-hosted **PocketBase** at **`https://api.vinny.io`**, shared with the web app, the iOS app, and the MCP server.
@@ -971,6 +993,7 @@ snake_case fields. The collection exists; read/write these exact names:
 | `urgent`, `important` | bool | |
 | `quadrant` | string | **write** the §7.8 id (`urgent-important` …); **ignore on read** — always recompute from the flags |
 | `due_date`, `completed_at`, `last_notification_at`, `snoozed_until` | string | ISO-8601 ms (`T`/`Z`) or `""` for nil |
+| `saved_at` | string | ISO-8601 ms when Saved (§8.22); `""` returns the task to the matrix and **must be sent to clear it**. Omitted only when push can't read the task's current row (§9.5), so the server keeps its value. Added 2026-10-29 |
 | `completed` | bool | |
 | `recurrence` | string | `none`/`daily`/`weekly`/`monthly` |
 | `tags` | json [string] | |
@@ -997,6 +1020,7 @@ Decode defensively: only `task_id` is required; every other field tolerates abse
 - No local copy → reconstruct everything from the wire; time entries get `endedAt = startedAt + minutes×60`, `notes = nil`; `parentTaskId = nil`.
 - Local copy exists (remote won LWW) → remote wins for synced fields, but **preserve from local:** `parentTaskId`, `notificationSent`, `lastNotificationAt`, `snoozedUntil`, **and `timeSpent` + `timeEntries`** (prefer the rich local copy over the lossy wire form).
 - `quadrant` is always recomputed from `urgent`/`important`.
+- `saved_at` maps to `savedAt` (`""` or absent means the matrix). When the local copy was Saved and the incoming one isn't, the device-local reminder fields reset instead of being preserved (§8.22).
 
 ### 9.3 Conflict resolution — last-write-wins
 
@@ -1004,6 +1028,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 ### 9.4 Pull, cursor, and deletion reconciliation
 
+> Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
+>
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
@@ -1012,6 +1038,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 - **Endpoint:** `GET /api/collections/tasks/records?page={n}&perPage=200&sort=updated,id&filter=updated >= "{cursor}"` (filter URL-encoded; page through **all** pages until `page ≥ totalPages`; response envelope `{page, perPage, totalItems, totalPages, items}`). No owner filter is sent — the server's API rule scopes rows. The decoded page is `TaskListPage(page, totalPages, totalItems, items, updatedStamps)` — `totalItems` sits **directly after `totalPages`** and defaults to `items.size`, which is what lets the bounded-listing rules below read it on every walk.
 - **Cursor:** the max applied **server `updated`** stamp, stored in the PocketBase space-separated form; first sync uses `"1970-01-01 00:00:00.000Z"`. After a successful sync, advance to `maxApplied − 5 seconds` (the overlap rewind that catches boundary writes). A record whose `updated` is unparseable still applies but doesn't advance the cursor. An owner change clears the cursor (§8.21), and so does a local erase, in the same transaction as the data (§8.16). The cursor means "everything up to here is on this device", so it never outlives the tasks it describes. Nothing else clears it.
+- **Pull contract version** (2026-10-29; web ADR 0019, iOS `docs/2026-10-27-synced-field-backfill.md`). `SyncEngine.PULL_CONTRACT_VERSION` (3, for `saved_at`) is stored as `sync_metadata.contractVersion` beside the cursor. A cursor stamped with an older version was written by a build that dropped a field this build reads, and the rows it already pulled will never come back on their own: their `updated` is behind the cursor, and an equal `client_updated_at` is a no-op. The next pull therefore lists from the epoch once and **merges same-version records** through the mapper (device-local fields survive; not counted as conflicts). The cursor never moves backward during that pull, and the version is stamped only after the pull completes; a fresh or cleared cursor stamps it after its first full pull. Push runs after pull in the same run, so nothing is pushed before the backfill lands. Bump the constant whenever a build first reads a new synced field, in step with the web's `PULL_CURSOR_VERSION` and iOS `SyncCursor.contractVersion`.
+- **Session fence** (2026-10-29, parity backlog B-14; web #538). A run records its owner when it starts and checks it before every pulled upsert, the cursor save, each push item, and each reconciliation delete. A sign-out or account switch mid-run throws `StaleSyncSession` and ends the run: nothing pulled lands, nothing is deleted or trashed, and no item spends a retry. The check runs just before each write rather than inside its transaction, because the session lives in the token store, not Room. SSE writes are covered by its owner check (§9.6).
 - **Apply loop:** per record — validate; skip malformed (never abort the pull); apply LWW (§9.3); on upsert preserve device-local fields (§9.2). Count remote-won overwrites as `conflictsResolved`.
 - **Tombstone suppression (archive + trash).** Before the LWW upsert, check whether the record's `task_id` is in `archivedTasks` or `deletedTasks`. If so, compare the remote `client_updated_at` against that row's `archivedAt`/`deletedAt` as millisecond instants: remote **strictly newer** → the remote edit wins — remove the tombstone row and apply the record as a normal active upsert (deliberate cross-device resurrection: the user edited it elsewhere after archiving/deleting here); otherwise (older, equal, either timestamp missing or unparseable) → **drop the record, fail closed** — never resurrect on bad data. Without this guard a remote record for a locally-archived-or-trashed task would resurrect as an active duplicate. This mirrors the web's `isRemoteNewerThanArchive` guard, extended to both tombstone stores; iOS's pull/SSE paths do not yet have it (sibling backlog item, not Android's to fix).
 - **Bounded, fail-closed listings.** Every full-listing walk — the pull loop, the remote index, remote erase (§9.8), and the account-deletion fallback (§8.21) — goes through one `BoundedListing.collect(...)` with `MAX_REMOTE_TASKS = 10,000` (page size stays 200). It **throws `RemoteListingIncomplete` and never returns partial data** when: `totalItems` exceeds the cap; the returned `page` is not the one requested; `totalItems` changes between pages; a page comes back empty before the last page; the materialized item count exceeds the cap or, at the end, differs from `totalItems`; or the walk sees a **duplicate `task_id`**. Consequences: the pull aborts and the run reports `error`; **deletion reconciliation is skipped for that run** — a partial or over-cap enumeration may never drive deletion; remote erase and account deletion abort before touching anything. The stable tie-break `sort=updated,id` exists so paging cannot reshuffle rows mid-walk. One consequence worth naming: a remote record that fails lenient decode is dropped from `items` but still counted in `totalItems`, so the final `all.size != expectedTotal` check trips — correctly, fail-closed — on **every** listing until that row is repaired or deleted server-side; there is no client-side retry that fixes it.
@@ -1029,6 +1057,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 ### 9.5 Push & the sync queue
 
+> Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
+>
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (two full listings per run)
 >
@@ -1040,7 +1070,7 @@ Push algorithm:
 1. **Bulk-fetch the remote index once per push** (list since epoch, through the bounded fail-closed walk of §9.4). A run with nothing queued takes no index, so it lists the whole collection only once, for reconciliation: map `task_id → (recordId, client_updated_at)` — avoids per-item lookups and 429s. If the walk throws `RemoteListingIncomplete`, the push does not proceed on partial data.
 2. Drain pending items oldest-first, each gated by backoff (`retryCount` → wait **5s / 10s / 30s / 60s / 300s**).
 3. **A malformed remote version never authorizes an overwrite.** For a create/update whose task *does* have a record in the remote index, if that record's `client_updated_at` is missing or unparseable (`PbDates.parse` → `null`), the item is **skipped for this drain** — `bumpQueueRetry(…, "Remote task version is missing or malformed", …)`, counting toward the five-failure threshold like any other error — and **no write is issued**. Previously this case fell through to `updateTask`. A missing version may protect or quarantine data; it may not license clobbering it.
-4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it. **An archive's delete is skipped** (marked done, no request) when the remote's `client_updated_at` is newer than the archived payload's `updatedAt`: another device edited the task after this copy last synced, either in an edit a pull missed or one that landed between the pull and the archive, and that edit must survive. After a normal sync the two stamps are equal, so ordinary archives still delete. Archiving also removes the task's older queue rows in the same transaction: the drain skips a row waiting out its backoff, so an older update could otherwise push after the delete and recreate the record. A delete with no payload, or whose remote record has no usable version, deletes as before.
+4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it. **An archive's delete is skipped** (marked done, no request) when the remote's `client_updated_at` is newer than the archived payload's `updatedAt`: another device edited the task after this copy last synced, either in an edit a pull missed or one that landed between the pull and the archive, and that edit must survive. After a normal sync the two stamps are equal, so ordinary archives still delete. Archiving also removes the task's older queue rows in the same transaction: the drain skips a row waiting out its backoff, so an older update could otherwise push after the delete and recreate the record. **Any delete is skipped** the same way when the remote's `client_updated_at` is newer than the queue row's `timestamp` (2026-10-29, parity backlog B-42; web `isStaleDelete`): a Trash or manual delete must not remove an edit another device made after the delete was queued. A delete whose remote record has no usable version deletes as before. A create or update takes `savedAt` from the task's **current row**, not the queued payload, because a payload an older build queued has no placement; with no current row it leaves `saved_at` off the record (§9.1).
 5. **Throttle ~100 ms between operations.** On HTTP **429, abort the entire push loop** immediately (items stay pending for the next cycle).
 6. Other errors bump `retryCount` + `lastError`; at **5 failures** the item becomes `failed` — kept, surfaced for retry, never dropped. Failed items auto-requeue (reset to pending) on **launch, foreground, network-regained, and manual sync** — deliberately *not* on the periodic cadence or post-mutation pushes, so a poison item can't hammer a rejecting server every two minutes.
 

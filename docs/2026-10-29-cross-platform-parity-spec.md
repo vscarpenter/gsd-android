@@ -1,6 +1,6 @@
 # GSD Android — Cross-Platform Parity Specification (October 2026 round)
 
-> **Status:** draft brief, 2026-10-29. Not yet approved or planned. Written from the 2026-10-29 parity round (the GSD Project's `parity/` docs: backlog B-49, B-13, B-14, B-42; roadmap phase 1).
+> **Status:** approved and landed 2026-10-29 on `feat/saved-parity` (plan: `tasks/saved-parity-plan.md`). The §6 amendments are folded into `docs/gsd-android-spec.md`, which is the spec of record again; this document remains the dated record of why. B-13 turned out to be no gap (§4). Written from the 2026-10-29 parity round (the GSD Project's `parity/` docs: backlog B-49, B-13, B-14, B-42; roadmap phase 1).
 >
 > **Precedence:** once approved, this document wins over `docs/gsd-android-spec.md` for every section it touches until its amendments (§6) are folded in. Everything it doesn't touch stays governed by the main spec and the 2026-08-29 and 2026-09-06 parity specs.
 >

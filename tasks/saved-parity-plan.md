@@ -14,12 +14,12 @@ Each task is one red/green cycle and one commit.
 3. [~] `:core:store` — Room 2 → 3 (`savedAt` on three task tables,
        `contractVersion` on `sync_metadata`); `TaskStore` save, return, notes,
        and refusals (complete, timer, snooze while Saved).
-4. [~] `:app` — matrix, widget, reminders, bulk, and palette leave Saved out or
+4. [x] `:app` — matrix, widget, reminders, bulk, and palette leave Saved out or
        label it; Move to Saved with Undo; the Saved screen with search and
        Return to matrix.
-5. [~] `:core:sync` — B-14 (session fence) and B-42 (stale-delete guard), written test-first, not
-       yet run. B-13 needs no change: the 2026-10-12 audit misread web #583 (see the spec §4).
-6. [ ] Fold the spec's §6 amendments into `docs/gsd-android-spec.md`.
+5. [x] `:core:sync` — B-14 (session fence) and B-42 (stale-delete guard); 121/121 green (20:39). B-13 needs no change: the 2026-10-12 audit misread web #583 (see the spec §4).
+6. [x] Fold the spec's §6 amendments into `docs/gsd-android-spec.md` (§6.1, §7.2, §7.9, §7.10,
+       new §8.22, §9.1, §9.2, §9.4, §9.5).
 
 Verification: `./gradlew :core:model:test :core:sync:testDebugUnitTest
 :core:store:testDebugUnitTest :app:testDebugUnitTest :app:assembleDebug`, run
@@ -48,3 +48,10 @@ Next:
    `./gradlew :core:model:test :app:testDebugUnitTest :app:assembleDebug`, then
    `SavedScreenTest` on an emulator.
 5. Then tasks 5 and 6.
+
+## Before the PR (2026-10-29, 20:45)
+
+Green on the JVM: model 197, sync 121, app 93, and `assembleDebug`. Still owed, on an emulator:
+`./gradlew :core:store:connectedDebugAndroidTest :app:connectedDebugAndroidTest` (the v2 → v3
+migration, `TaskStoreSavedTest`, `SavedScreenTest`). Task 3 stays `[~]` until those run. Then the
+end-to-end check against a local PocketBase (spec §5) and the tester build for Play.
