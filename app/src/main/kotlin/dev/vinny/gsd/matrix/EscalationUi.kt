@@ -14,11 +14,11 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.testTag as semanticsTestTag
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Escalation
@@ -74,8 +74,10 @@ internal fun EscalationTag(escalation: EscalationResult, modifier: Modifier = Mo
             .clip(CircleShape)
             .background(gsd.wash(target))
             .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clearAndSetSemantics { contentDescription = description }
-            .testTag("escalation_tag"),
+            .clearAndSetSemantics {
+                contentDescription = description
+                semanticsTestTag = "escalation_tag"
+            },
     ) {
         Icon(Icons.Outlined.ArrowUpward, contentDescription = null, tint = gsd.accentInk(target), modifier = Modifier.size(14.dp))
         Text(stringResource(R.string.escalation_tag), style = GsdType.metadata, color = gsd.accentInk(target))
