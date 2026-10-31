@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -106,7 +107,11 @@ private fun QuadrantCell(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         QuadrantHeader(section)
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Fills the cell, so a pull from an empty quadrant reaches the pull-to-refresh box too
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(), // with no items, a lazy list measures to its minimum
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             items(section.tasks, key = { it.id }) { task ->
                 val badges = TaskBadges(
                     blocked = DependencyGraph.uncompletedBlockers(allVisible, task).size,
