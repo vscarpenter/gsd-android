@@ -195,16 +195,24 @@ fun MatrixScreen(
                     )
                 }
             } else {
-                MatrixList(
-                    sections = sections,
-                    onToggleComplete = onToggle,
-                    onOpen = editorViewModel::openExisting,
-                    onDelete = { actions.delete(it.id) },
-                    rowActions = rowActions,
-                    selection = selection.takeIf { selectionMode },
-                    listState = listState,
+                val signedIn by container.syncCoordinator.signedIn.collectAsStateWithLifecycle()
+                val finishedRuns by container.syncCoordinator.finishedRuns.collectAsStateWithLifecycle()
+                MatrixPullToRefresh(
+                    signedIn = signedIn,
+                    finishedRuns = finishedRuns,
+                    onRefresh = { container.syncCoordinator.requestSync(user = true) },
                     modifier = Modifier.weight(1f),
-                )
+                ) {
+                    MatrixList(
+                        sections = sections,
+                        onToggleComplete = onToggle,
+                        onOpen = editorViewModel::openExisting,
+                        onDelete = { actions.delete(it.id) },
+                        rowActions = rowActions,
+                        selection = selection.takeIf { selectionMode },
+                        listState = listState,
+                    )
+                }
             }
         }
         ConfettiOverlay(trigger = celebration.confettiTrigger)

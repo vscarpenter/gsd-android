@@ -379,7 +379,7 @@ The app adapts by **window size class**, the Android analog of the iPhone/iPad s
 
 A **bottom navigation bar** with four destinations:
 
-1. **Matrix** — the primary surface: a pinned **capture bar** at top, then the four quadrants as a **vertical stack of quadrant sections** (each a header with live count + its task rows; four quadrants can't be shown legibly at once on a phone). Pull-to-refresh triggers a manual sync when signed in. Top app bar: brand lockup, search/palette button, show-completed toggle, select-mode toggle, sync status chip.
+1. **Matrix** — the primary surface: a pinned **capture bar** at top, then the four quadrants as a **vertical stack of quadrant sections** (each a header with live count + its task rows; four quadrants can't be shown legibly at once on a phone). Pull-to-refresh triggers a manual sync when signed in; signed out there is no gesture, and the spinner holds until a sync run finishes (amended 2026-10-31). Top app bar: brand lockup, search/palette button, show-completed toggle, select-mode toggle, sync status chip.
 2. **Browse** — a **search field** at the very top ("Search all tasks", §8.14), then a **Saved** row (§8.22, live count), then an **Archive** row, then Smart Views in sections: **Pinned**, **Built-in**, **Custom**, plus a "+" to create a custom view. Each row shows a live match count. Row swipes: pin/unpin (leading); edit/delete (trailing, custom views only). While the search field holds a non-whitespace query the results list **replaces** the whole Browse list; the field is not a width-gated affordance — Browse is one composable at every size class (§6.2), so the search applies to the rail and drawer layouts too.
 3. **Dashboard** — analytics (§8.15).
 4. **Settings** — §8.17.
