@@ -124,6 +124,7 @@ private fun QuadrantCell(
                     modifier = reorderMotion(),
                     enabled = selection == null,
                     onSnooze = { actions.onSnooze(QuickSnooze) },
+                    onMarkUrgent = actions.onMarkUrgent,
                 ) {
                     TaskRowWithMenu(
                         task = task,

@@ -226,6 +226,7 @@ fun MatrixScreen(
     }
     UndoDeleteEffect(actions, snackbarHost)
     UndoSaveEffect(actions, snackbarHost)
+    UndoUrgentEffect(actions, snackbarHost)
     if (editorDraft != null) {
         TaskEditorSheet(
             viewModel = editorViewModel,
@@ -334,6 +335,7 @@ fun MatrixList(
                         modifier = reorderMotion(),
                         enabled = selection == null,
                         onSnooze = { actions.onSnooze(QuickSnooze) },
+                        onMarkUrgent = actions.onMarkUrgent,
                     ) {
                         TaskRowWithMenu(
                             task = task,

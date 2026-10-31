@@ -4,7 +4,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import dev.vinny.gsd.model.EscalationWindow
 import dev.vinny.gsd.model.FeedbackCategory
 import dev.vinny.gsd.model.FeedbackDraft
 import dev.vinny.gsd.model.Sentiment
@@ -23,6 +25,7 @@ data class PendingSignIn(val id: String, val email: String?, val provider: Strin
 class GsdPrefs(private val dataStore: DataStore<Preferences>) {
     private object Keys {
         val showCompleted = booleanPreferencesKey("showCompleted")
+        val escalationWindow = intPreferencesKey("escalationWindowDays")
         val theme = stringPreferencesKey("theme")
         val hasOnboarded = booleanPreferencesKey("hasOnboarded")
         val fetchShareTitles = booleanPreferencesKey("fetchShareTitles")
@@ -84,6 +87,8 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
     }
 
     val showCompleted: Flow<Boolean> = dataStore.data.map { it[Keys.showCompleted] ?: true }
+    /** "Escalate tasks due within", in days; null is Off. Per device and outside the backup (spec-escalation.md §4). */
+    val escalationWindow: Flow<Int?> = dataStore.data.map { EscalationWindow.fromStored(it[Keys.escalationWindow]) }
     val theme: Flow<ThemePref> = dataStore.data.map { prefs ->
         prefs[Keys.theme]?.let { raw -> ThemePref.entries.firstOrNull { it.name == raw } } ?: ThemePref.SYSTEM
     }
@@ -92,6 +97,10 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setShowCompleted(value: Boolean) {
         dataStore.edit { it[Keys.showCompleted] = value }
+    }
+
+    suspend fun setEscalationWindow(days: Int?) {
+        dataStore.edit { it[Keys.escalationWindow] = EscalationWindow.toStored(days) }
     }
 
     suspend fun setTheme(value: ThemePref) {

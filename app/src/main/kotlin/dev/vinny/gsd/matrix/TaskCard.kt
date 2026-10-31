@@ -61,6 +61,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
+import dev.vinny.gsd.model.EscalationResult
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdShapes
@@ -89,6 +90,7 @@ fun TaskCard(
     onOpenMenu: (() -> Unit)? = null,
     longPressOpensMenu: Boolean = true,
     selected: Boolean? = null,
+    escalation: EscalationResult? = null,
 ) {
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(task.quadrant)
@@ -163,7 +165,7 @@ fun TaskCard(
                         }
                     }
                 }
-                MetadataRow(task, badges)
+                MetadataRow(task, badges, escalation)
                 SubtaskProgress(task)
             }
             // A card with no menu shows no button. A long press and the button open the same menu (§8.1).
@@ -196,12 +198,12 @@ private fun SelectionMark(selected: Boolean) {
 }
 
 @Composable
-private fun MetadataRow(task: Task, badges: TaskBadges) {
+private fun MetadataRow(task: Task, badges: TaskBadges, escalation: EscalationResult?) {
     val gsd = LocalGsdColors.current
     val running = TimeTracking.runningEntry(task)
     val snoozed = task.snoozedUntil?.takeIf { it.isAfter(Instant.now()) }
     val hasAny = task.dueDate != null || task.recurrence != dev.vinny.gsd.model.Recurrence.NONE ||
-        badges.blocked > 0 || badges.blocking > 0 || running != null || task.timeSpent > 0 || snoozed != null
+        badges.blocked > 0 || badges.blocking > 0 || escalation != null || running != null || task.timeSpent > 0 || snoozed != null
     if (!hasAny) return
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         task.dueDate?.let { due ->
@@ -215,6 +217,7 @@ private fun MetadataRow(task: Task, badges: TaskBadges) {
             )
             Text(label, style = GsdType.metadata, color = color, maxLines = 1)
         }
+        if (escalation != null) EscalationTag(escalation)
         if (task.recurrence != dev.vinny.gsd.model.Recurrence.NONE) {
             Icon(Icons.Outlined.Repeat, contentDescription = null, tint = gsd.ink3, modifier = Modifier.size(14.dp))
         }

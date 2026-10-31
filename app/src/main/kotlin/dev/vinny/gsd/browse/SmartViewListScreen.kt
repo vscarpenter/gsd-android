@@ -43,6 +43,7 @@ import dev.vinny.gsd.matrix.TaskRowActions
 import dev.vinny.gsd.matrix.TaskRowWithMenu
 import dev.vinny.gsd.matrix.UndoDeleteEffect
 import dev.vinny.gsd.matrix.UndoSaveEffect
+import dev.vinny.gsd.matrix.UndoUrgentEffect
 import dev.vinny.gsd.matrix.rememberCompletionCelebration
 import dev.vinny.gsd.matrix.taskRowActions
 import dev.vinny.gsd.model.DependencyGraph
@@ -97,6 +98,7 @@ fun SmartViewListScreen(
     }
     UndoDeleteEffect(actions, snackbarHost)
     UndoSaveEffect(actions, snackbarHost)
+    UndoUrgentEffect(actions, snackbarHost)
     if (editorDraft != null) {
         TaskEditorSheet(
             viewModel = editorViewModel,
@@ -176,6 +178,7 @@ fun ViewListContent(
                             onDelete = actions.onDelete,
                             modifier = reorderMotion(),
                             onSnooze = { actions.onSnooze(QuickSnooze) },
+                            onMarkUrgent = actions.onMarkUrgent,
                         ) {
                             TaskRowWithMenu(task = task, badges = badges, actions = actions)
                         }
