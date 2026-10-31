@@ -15,6 +15,13 @@ interface SyncMetadataDao {
     suspend fun upsert(entity: SyncMetadataEntity)
 }
 
+data class SyncHistoryTotals(
+    val totalSyncs: Int = 0,
+    val successes: Int = 0,
+    val totalPushed: Int = 0,
+    val totalPulled: Int = 0,
+)
+
 @Dao
 interface SyncHistoryDao {
     @Insert
@@ -25,6 +32,14 @@ interface SyncHistoryDao {
 
     @Query("SELECT COUNT(*) FROM sync_history")
     suspend fun count(): Int
+
+    /** Over the retained rows, so the pruning limit (spec §9.7) caps them, as on web and iOS. */
+    @Query(
+        "SELECT COUNT(*) AS totalSyncs, COALESCE(SUM(status = 'success'), 0) AS successes, " +
+            "COALESCE(SUM(pushedCount), 0) AS totalPushed, COALESCE(SUM(pulledCount), 0) AS totalPulled " +
+            "FROM sync_history",
+    )
+    fun observeTotals(): Flow<SyncHistoryTotals>
 
     /** Keep only the 500 most recent (spec §9.7). */
     @Query(

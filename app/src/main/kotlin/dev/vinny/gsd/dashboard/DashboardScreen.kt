@@ -226,7 +226,7 @@ fun DashboardContent(
 }
 
 @Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
+internal fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
     val gsd = LocalGsdColors.current
     // One node, label first: TalkBack read the number before saying what it counted (review, Accessibility)
     val spoken = stringResource(R.string.dashboard_stat_a11y, label, value)
