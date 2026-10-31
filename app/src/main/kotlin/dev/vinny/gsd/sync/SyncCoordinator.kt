@@ -189,7 +189,7 @@ class SyncCoordinator(
             pendingAnyTaskIds = (pending + failed).map { it.taskId }.toSet(),
         )
         when (decision) {
-            is SseDecision.ApplyUpsert -> applyRealtimeUpsert(local, event.record)
+            is SseDecision.ApplyUpsert -> applyRealtimeUpsert(local, event.record, java.time.Instant.now())
             is SseDecision.ApplyDelete -> local.deleteFromRemote(event.record.taskId)
             is SseDecision.Drop -> Unit
         }

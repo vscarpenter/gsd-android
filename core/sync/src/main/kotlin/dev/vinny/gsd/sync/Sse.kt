@@ -1,5 +1,6 @@
 package dev.vinny.gsd.sync
 
+import java.time.Instant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -97,10 +98,10 @@ object SseApplyRules {
  * (SyncCoordinator.applyRealtime, a different Gradle module) — public, not
  * internal, so both call sites can reach it.
  */
-suspend fun resolveTombstone(local: SyncLocalStore, taskId: String, remoteUpdatedAtMs: Long?): Boolean {
+suspend fun resolveTombstone(local: SyncLocalStore, taskId: String, remoteUpdatedAt: Instant?, now: Instant): Boolean {
     val tombstoneMs = local.tombstoneAtMs(taskId) ?: return true // no tombstone: apply normally
-    if (remoteUpdatedAtMs == null) return false // fail closed
-    if (remoteUpdatedAtMs <= tombstoneMs) return false // suppressed
+    if (remoteUpdatedAt == null) return false // fail closed
+    if (!RemoteStamp.isNewer(remoteUpdatedAt, tombstoneMs, now)) return false // suppressed
     local.removeTombstone(taskId) // deliberate resurrection, exactly once
     return true
 }
@@ -110,12 +111,14 @@ suspend fun resolveTombstone(local: SyncLocalStore, taskId: String, remoteUpdate
  * P§4), then last-write-wins against the local copy (spec §9.3). It lives here, not in the app's
  * coordinator, so the guard's wiring has a JVM test.
  */
-suspend fun applyRealtimeUpsert(local: SyncLocalStore, record: WireTask) {
+suspend fun applyRealtimeUpsert(local: SyncLocalStore, record: WireTask, now: Instant) {
     val existing = local.taskById(record.taskId)
-    val incoming = WireMapper.pull(record, existing) ?: return
-    if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
+    val mapped = WireMapper.pull(record, existing) ?: return
+    if (!resolveTombstone(local, mapped.id, mapped.updatedAt, now)) {
         return // archived/trashed locally, remote not strictly newer (parity spec P§4)
     }
+    if (RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)) return
+    val incoming = mapped.copy(updatedAt = RemoteStamp.capped(mapped.updatedAt, now))
     if (existing == null || incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli()) {
         local.upsertFromRemote(incoming)
     }
