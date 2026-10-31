@@ -39,6 +39,11 @@ object QuietHours {
  * A future snooze *is* the fire time; quiet hours defer to the window's end.
  */
 object ReminderPlanner {
+    /** The local hour an all-day task's reminder fires. One constant, so a change is one line. */
+    const val ALL_DAY_REMINDER_HOUR = 9
+
+    private const val MINUTES_PER_DAY = 1440L
+
     fun fireTime(task: Task, settings: ReminderSettings, now: Instant, zone: ZoneId): Instant? {
         if (!settings.enabled || !task.notificationEnabled) return null
         if (task.completed || task.isSaved) return null
@@ -47,10 +52,25 @@ object ReminderPlanner {
         val snoozed = task.snoozedUntil?.takeIf { it.isAfter(now) }
         // A future snooze asks for another reminder, even after the first one posted (iOS does the same).
         if (task.notificationSent && snoozed == null) return null
-        val base = snoozed
-            ?: due.minusSeconds((task.notifyBefore ?: settings.defaultReminderMinutes) * 60L)
+        val offsetMinutes = task.notifyBefore ?: settings.defaultReminderMinutes
+        val base = snoozed ?: baseFireTime(due, offsetMinutes, zone)
         if (!base.isAfter(now)) return null
         return deferPastQuietHours(base, settings, zone)
+    }
+
+    /**
+     * A timed task fires its offset before the due time. An all-day task (due at local midnight) has
+     * no time to count back from, so it fires at [ALL_DAY_REMINDER_HOUR] on the due day, one day
+     * earlier for each whole day of offset (D-1; the due-time corpus pins this). Counting back from
+     * midnight fired it at 23:45 the night before.
+     */
+    private fun baseFireTime(due: Instant, offsetMinutes: Int, zone: ZoneId): Instant {
+        if (DueTime.timeOf(due, zone) != null) return due.minusSeconds(offsetMinutes * 60L)
+        return due.atZone(zone).toLocalDate()
+            .minusDays(offsetMinutes / MINUTES_PER_DAY)
+            .atTime(ALL_DAY_REMINDER_HOUR, 0)
+            .atZone(zone)
+            .toInstant()
     }
 
     /**

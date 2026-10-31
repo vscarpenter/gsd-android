@@ -27,12 +27,6 @@ class DueTimeCorpusTest {
 
     private val displayTime = DateTimeFormatter.ofPattern("HH:mm")
 
-    /**
-     * SKIPPED UNTIL AND-REM: ReminderPlanner still fires an all-day task at due minus offset, so these
-     * cases can't pass yet. AND-REM adds the 09:00 rule and deletes this constant and the filter below.
-     */
-    private val skippedUntilAndRem = "allDayReminderFire"
-
     @Test
     fun `all corpus cases match`() {
         val raw = checkNotNull(
@@ -40,9 +34,7 @@ class DueTimeCorpusTest {
         ).readBytes().decodeToString()
         val cases = Json.parseToJsonElement(raw).jsonObject.getValue("cases").jsonArray.map { it.jsonObject }
         assertEquals(CASE_COUNT, cases.size)
-        val (skipped, running) = cases.partition { it.text("op") == skippedUntilAndRem }
-        assertEquals(SKIPPED_COUNT, skipped.size, "only the all-day reminder cases may be skipped")
-        val failures = running.mapNotNull { case ->
+        val failures = cases.mapNotNull { case ->
             val (want, got) = compare(case)
             if (got == want) null else "${case.text("name")}:\n  want $want\n  got  $got"
         }
@@ -107,6 +99,5 @@ class DueTimeCorpusTest {
 
     private companion object {
         const val CASE_COUNT = 117
-        const val SKIPPED_COUNT = 39
     }
 }

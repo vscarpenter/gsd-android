@@ -31,6 +31,31 @@ class ReminderPlannerTest {
         snoozedUntil = snoozedUntil,
     )
 
+    private val allDayDue = Instant.parse("2026-07-21T00:00:00.000Z") // local midnight in UTC: all day
+    private val hour = ReminderPlanner.ALL_DAY_REMINDER_HOUR
+
+    @Test
+    fun `an all-day task fires at the all-day hour on the due day, whatever the offset under a day`() {
+        val expected = Instant.parse("2026-07-21T00:00:00.000Z").plusSeconds(hour * 3600L)
+        listOf(0, 15, 120, 1439).forEach { minutes ->
+            assertEquals(expected, ReminderPlanner.fireTime(task(allDayDue, notifyBefore = minutes), settings, now, zone), "$minutes minutes")
+        }
+        assertEquals(expected, ReminderPlanner.fireTime(task(allDayDue), settings, now, zone), "the default offset")
+    }
+
+    @Test
+    fun `each whole day of offset moves an all-day reminder back one day`() {
+        val oneDay = Instant.parse("2026-07-20T00:00:00.000Z").plusSeconds(hour * 3600L)
+        assertEquals(oneDay, ReminderPlanner.fireTime(task(allDayDue, notifyBefore = 1440), settings, now, zone))
+        assertEquals(oneDay.minusSeconds(86_400),
+            ReminderPlanner.fireTime(task(allDayDue, notifyBefore = 2880), settings, now.minusSeconds(86_400 * 2), zone))
+    }
+
+    @Test
+    fun `a timed task still fires its offset before the due time`() {
+        assertEquals(due.minusSeconds(30 * 60), ReminderPlanner.fireTime(task(notifyBefore = 30), settings, now, zone))
+    }
+
     @Test
     fun `fire time is due minus per-task offset, falling back to the default`() {
         assertEquals(due.minusSeconds(15 * 60),
