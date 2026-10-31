@@ -178,31 +178,30 @@ fun MatrixScreen(
                     onRun = viewModel::runBulk,
                 )
             }
-            if (expanded) {
-                val currentSections = sections
-                if (currentSections == null) {
-                    MatrixSkeleton(expanded = true, modifier = Modifier.weight(1f))
+            val signedIn by container.syncCoordinator.signedIn.collectAsStateWithLifecycle()
+            val finishedRuns by container.syncCoordinator.finishedRuns.collectAsStateWithLifecycle()
+            MatrixPullToRefresh(
+                signedIn = signedIn,
+                finishedRuns = finishedRuns,
+                onRefresh = { container.syncCoordinator.requestSync(user = true) },
+                modifier = Modifier.weight(1f),
+            ) {
+                if (expanded) {
+                    val currentSections = sections
+                    if (currentSections == null) {
+                        MatrixSkeleton(expanded = true)
+                    } else {
+                        MatrixGrid(
+                            sections = currentSections,
+                            onToggleComplete = onToggle,
+                            onOpen = editorViewModel::openExisting,
+                            onDropToQuadrant = actions::moveToQuadrant,
+                            onDelete = { actions.delete(it.id) },
+                            rowActions = rowActions,
+                            selection = selection.takeIf { selectionMode },
+                        )
+                    }
                 } else {
-                    MatrixGrid(
-                        sections = currentSections,
-                        onToggleComplete = onToggle,
-                        onOpen = editorViewModel::openExisting,
-                        onDropToQuadrant = actions::moveToQuadrant,
-                        onDelete = { actions.delete(it.id) },
-                        rowActions = rowActions,
-                        selection = selection.takeIf { selectionMode },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            } else {
-                val signedIn by container.syncCoordinator.signedIn.collectAsStateWithLifecycle()
-                val finishedRuns by container.syncCoordinator.finishedRuns.collectAsStateWithLifecycle()
-                MatrixPullToRefresh(
-                    signedIn = signedIn,
-                    finishedRuns = finishedRuns,
-                    onRefresh = { container.syncCoordinator.requestSync(user = true) },
-                    modifier = Modifier.weight(1f),
-                ) {
                     MatrixList(
                         sections = sections,
                         onToggleComplete = onToggle,
