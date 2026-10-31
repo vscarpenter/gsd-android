@@ -47,20 +47,21 @@ class EscalationCardTest {
     @Test
     fun anEscalatingCardShowsTheTagWithItsAccessibleName() {
         show(window = 2, task = task())
-        rule.onNodeWithTag("escalation_tag").assertExists()
-        rule.onNode(hasContentDescription("Escalating: due tomorrow, not marked urgent.")).assertExists()
+        rule.onNodeWithTag("escalation_tag", useUnmergedTree = true).assertExists()
+        // The card merges its children, so TalkBack reads the tag's description as part of the card
+        rule.onNode(hasContentDescription("Escalating: due tomorrow, not marked urgent.", substring = true)).assertExists()
     }
 
     @Test
     fun offRemovesTheTag() {
         show(window = null, task = task())
-        rule.onNodeWithTag("escalation_tag").assertDoesNotExist()
+        rule.onNodeWithTag("escalation_tag", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
     fun anUrgentTaskIsNotMarked() {
         show(window = 2, task = task(urgent = true))
-        rule.onNodeWithTag("escalation_tag").assertDoesNotExist()
+        rule.onNodeWithTag("escalation_tag", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
