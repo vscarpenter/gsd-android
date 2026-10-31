@@ -1,5 +1,16 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-10-31): sprint 1, Saved parity (`feat/saved-parity`, PR #34)
+
+- **Done:** the end-to-end check on PocketBase 0.40.4, with and without hooks. It found that a row edited
+  on 0.10.0 before the upgrade cleared `saved_at`. `432e1d9` fixes it (sprint `S-AND-01`). All gates green.
+- **Next, in this order:** the reconcile read-order fix (`S-AND-03`, a task created between the two reads
+  is deleted), AND-44 (far-future clamp plus the queued-write rule, `S-AND-02`), AND-28, AND-26, AND-REL.
+- **Sprint plan, briefs, and questions** are outside this repo, in `~/Projects/GSD/sprint/`.
+- **Assumption to verify:** that `api.vinny.io` has the `saved_at` field. Nobody has confirmed it from here,
+  and web ADR 0018 still says hosted rollout is pending.
+- **Blockers:** none on this repo. Vinny merges.
+
 ## Resuming from here (2026-10-13): production access, round 3 (`release/0.10.0`)
 
 Google declined production access on 2026-09-21 and again on 2026-10-09: "testers were not engaged" and
