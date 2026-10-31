@@ -71,11 +71,11 @@ internal fun EscalationTag(escalation: EscalationResult, modifier: Modifier = Mo
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .testTag("escalation_tag")
             .clip(CircleShape)
             .background(gsd.wash(target))
             .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clearAndSetSemantics { contentDescription = description },
+            .clearAndSetSemantics { contentDescription = description }
+            .testTag("escalation_tag"),
     ) {
         Icon(Icons.Outlined.ArrowUpward, contentDescription = null, tint = gsd.accentInk(target), modifier = Modifier.size(14.dp))
         Text(stringResource(R.string.escalation_tag), style = GsdType.metadata, color = gsd.accentInk(target))
