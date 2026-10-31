@@ -136,6 +136,11 @@ class SyncEngine(
                 if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
                     return@forEachIndexed // archived/trashed locally, remote not strictly newer (parity spec P§4)
                 }
+                if (backfill && existing != null && lacksNewerPlacement(existing, incoming)) {
+                    fence(owner)
+                    local.upsertFromRemote(existing.copy(savedAt = incoming.savedAt))
+                    return@forEachIndexed
+                }
                 val apply = when {
                     existing == null -> true
                     incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli() -> {
@@ -164,6 +169,14 @@ class SyncEngine(
         if (stored == null || backfill) local.savePullContractVersion(PULL_CONTRACT_VERSION)
         return pulled to conflicts
     }
+
+    /**
+     * An older build dropped `saved_at`, then edited the row, so last-write-wins keeps the local copy and the
+     * push would send an empty placement. Backfill only: outside it, the same shape is a real Return.
+     */
+    private fun lacksNewerPlacement(existing: Task, incoming: Task): Boolean =
+        existing.savedAt == null && incoming.savedAt != null &&
+            incoming.updatedAt.toEpochMilli() < existing.updatedAt.toEpochMilli()
 
     private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> =
         BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks)

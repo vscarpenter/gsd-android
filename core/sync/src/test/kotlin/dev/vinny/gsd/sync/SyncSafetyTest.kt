@@ -76,6 +76,27 @@ class SyncSafetyTest {
     }
 
     @Test
+    fun `a sign-out during the backfill copies no placement`() = runTest {
+        val savedAt = now.minusSeconds(7_200)
+        val edited = task("save-1")
+        val local = FakeLocal().apply {
+            tasks["save-1"] = edited
+            savedCursor = PbDates.cursorAfter(now)
+            contractVersion = 0
+        }
+        val remote = FakeRemote()
+        remote.records["r1"] = WireMapper.push(
+            task("save-1", updatedAt = now.minusSeconds(3_600)).copy(savedAt = savedAt), "other", "user-1",
+        )
+        remote.endSessionOnListing(onCall = 1, nextOwner = null)
+
+        val result = engine(remote, local).runSync(false)
+
+        assertEquals(edited, local.tasks["save-1"])
+        assertEquals("error", result.status)
+    }
+
+    @Test
     fun `a sign-out before the push leaves the queue untouched and spends no retries`() = runTest {
         val local = FakeLocal()
         val edited = task("queued-edit")
