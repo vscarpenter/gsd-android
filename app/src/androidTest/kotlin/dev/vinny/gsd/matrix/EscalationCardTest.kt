@@ -86,7 +86,7 @@ class EscalationCardTest {
     fun talkBackGetsAMarkUrgentAction() {
         val ran = mutableListOf<String>()
         show(window = 2, task = task(), actions = TaskRowActions(onMarkUrgent = { ran += "urgent" }))
-        rule.onNode(hasText("Renew passport") and hasClickAction()).performCustomAccessibilityActionWithLabel("Mark urgent")
+        rule.onNode(hasText("Renew passport") and hasClickAction()).performCustomAccessibilityActionWithLabel("Mark urgent, moves to Do First")
         assertEquals(listOf("urgent"), ran)
     }
 }

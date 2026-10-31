@@ -101,12 +101,12 @@ fun TaskRowWithMenu(
     var snoozeOpen by remember { mutableStateOf(false) }
     var moveOpen by remember { mutableStateOf(false) }
     val escalation = rememberEscalation(task)
+    val markUrgentLabel = escalation?.let { stringResource(R.string.action_mark_urgent_moves_to, it.target?.quadrant?.title.orEmpty()) }
     // TalkBack's actions for the card (spec §13.3), so the swipes and the menu are not the only way
     val completeLabel = stringResource(if (task.completed) R.string.menu_uncomplete else R.string.menu_complete)
     val editLabel = stringResource(R.string.menu_edit)
     val snoozeLabel = stringResource(R.string.action_snooze_hour)
     val deleteLabel = stringResource(R.string.menu_delete)
-    val markUrgentLabel = stringResource(R.string.action_mark_urgent)
     val cardActions = if (selected == null) {
         Modifier.semantics {
             customActions = listOf(
@@ -114,7 +114,7 @@ fun TaskRowWithMenu(
                 CustomAccessibilityAction(editLabel) { actions.onEdit(); true },
                 CustomAccessibilityAction(snoozeLabel) { actions.onSnooze(QuickSnooze); true },
             ) + listOfNotNull(
-                if (escalation != null) CustomAccessibilityAction(markUrgentLabel) { actions.onMarkUrgent(); true } else null,
+                if (markUrgentLabel != null) CustomAccessibilityAction(markUrgentLabel) { actions.onMarkUrgent(); true } else null,
             ) + listOf(
                 CustomAccessibilityAction(deleteLabel) { actions.onDelete(); true },
             )

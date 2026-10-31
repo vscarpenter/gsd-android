@@ -62,4 +62,14 @@ class ContrastTest {
             assertTrue(failed.isEmpty(), "$name: $failed")
         }
     }
+
+    /** The Mark urgent swipe button writes its label in inkOnAccent on the target quadrant's ink. */
+    @Test
+    fun markUrgentButtonLabelMeetsAaOnItsBackground() {
+        for (name in listOf("GsdColorsLight", "GsdColorsDark")) {
+            val colors = palette(name)
+            val failed = failures(colors, listOf("inkOnAccent"), listOf("rust", "ochreInk"))
+            assertTrue(failed.isEmpty(), "$name: $failed")
+        }
+    }
 }

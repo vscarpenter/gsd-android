@@ -144,9 +144,8 @@
     </plurals>
     <string name="escalation_cd">Escalating: %1$s, not marked urgent.</string>
     <string name="menu_mark_urgent">Mark urgent</string>
-    <string name="action_mark_urgent">Mark urgent</string>
+    <string name="action_mark_urgent_moves_to">Mark urgent, moves to %1$s</string>
     <string name="escalation_moves_to">Moves to %1$s</string>
-    <string name="escalation_editor_hint">%1$s, not marked urgent. Marking it urgent moves it to %2$s.</string>
     <string name="snackbar_marked_urgent">Moved \"%1$s\" to %2$s</string>
     <string name="snackbar_saved">Moved \"%1$s\" to Saved</string>
     <string name="saved_search_hint">Search Saved…</string>
