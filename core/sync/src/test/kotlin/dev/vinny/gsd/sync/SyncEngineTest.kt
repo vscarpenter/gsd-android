@@ -15,7 +15,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 // internal (not private): OwnerChangeTest reuses this fake across files in the module.
-internal class FakeLocal : SyncLocalStore {
+internal open class FakeLocal : SyncLocalStore {
     val tasks = mutableMapOf<String, Task>()
     val queue = mutableListOf<SyncQueueEntity>()
     val history = mutableListOf<SyncHistoryEntry>()

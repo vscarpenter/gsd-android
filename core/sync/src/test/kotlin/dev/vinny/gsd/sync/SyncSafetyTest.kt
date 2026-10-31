@@ -76,6 +76,24 @@ class SyncSafetyTest {
     }
 
     @Test
+    fun `a task created during reconciliation's task read survives`() = runTest {
+        val created = task("just-made")
+        val local = object : FakeLocal() {
+            /** A capture landing as reconciliation reads: the queue row and the task commit together. */
+            override suspend fun activeTasks(): List<Task> {
+                val snapshot = super.activeTasks()
+                queue += queueItem(99, created, SyncOp.CREATE)
+                tasks["just-made"] = created
+                return snapshot + created
+            }
+        }
+
+        engine(FakeRemote(), local).runSync(false)
+
+        assertEquals(created, local.tasks["just-made"])
+    }
+
+    @Test
     fun `a sign-out during the backfill copies no placement`() = runTest {
         val savedAt = now.minusSeconds(7_200)
         val edited = task("save-1")

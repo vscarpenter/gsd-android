@@ -294,10 +294,13 @@ class SyncEngine(
      */
     private suspend fun reconcileDeletions(owner: String) {
         val remoteIds = fetchRemoteIndex().keys
+        // Tasks before queues: a task and its queue row commit together, so any task in this snapshot
+        // has its row visible to the reads below. The other order deletes a task captured in between.
+        val active = local.activeTasks()
         val pending = local.pendingQueue().map { it.taskId }.toSet()
         val failed = local.failedQueue().map { it.taskId }.toSet()
         val now = clock.instant().toEpochMilli()
-        val unprotected = local.activeTasks().filter { it.id !in remoteIds && it.id !in pending } // pending → PROTECT
+        val unprotected = active.filter { it.id !in remoteIds && it.id !in pending } // pending → PROTECT
         if (unprotected.isEmpty()) return
         remote.confirmIdentity(owner)
         unprotected.forEach { task ->
