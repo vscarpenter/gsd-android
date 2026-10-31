@@ -64,7 +64,7 @@
     <string name="repeat_daily">Daily</string>
     <string name="repeat_weekly">Weekly</string>
     <string name="repeat_monthly">Monthly</string>
-    <string name="reminder_none">None</string>
+    <string name="reminder_default">Default reminder</string>
     <string name="reminder_at_time">At time of event</string>
     <plurals name="reminder_minutes_before">
         <item quantity="one">%1$d minute before</item>
