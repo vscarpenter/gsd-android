@@ -139,6 +139,22 @@ class TaskEditorDepthTest {
         assertEquals(45, saved?.notifyBefore)                          // choosing it again changes nothing
     }
 
+    /**
+     * B-36: a task with no offset fires the default reminder on this device (ReminderPlanner), so the
+     * row can't say "None". It says what this device does and promises nothing about other devices.
+     */
+    @Test
+    fun aTaskWithNoReminderOffsetIsLabelledAsTheDefaultReminder() {
+        val stored = Task(title = "x", urgent = true, important = true, createdAt = t0, updatedAt = t0, dueDate = t0, notifyBefore = null)
+        var saved: Task? = Task(title = "marker", urgent = true, important = true, createdAt = t0, updatedAt = t0, notifyBefore = 30)
+        rule.setContent { GsdTheme { ReminderSection(draft = stored, onEdit = { edit -> saved = edit(stored) }) } }
+        rule.onNodeWithTag("reminder_row").assertTextEquals("Default reminder")
+        rule.onNodeWithTag("reminder_row").performClick()
+        rule.onAllNodesWithText("None").assertCountEquals(0)
+        rule.onNode(hasText("Default reminder").and(hasAnyAncestor(isPopup()))).performClick()
+        assertEquals(null, saved?.notifyBefore) // the same null as before: the wire doesn't change
+    }
+
     @Test
     fun reminderLabelsFollowTheSharedFormula() {
         val stored = Task(title = "x", urgent = true, important = true, createdAt = t0, updatedAt = t0, dueDate = t0, notifyBefore = 2160)
