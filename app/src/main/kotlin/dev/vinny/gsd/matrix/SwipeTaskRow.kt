@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
@@ -26,6 +27,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -78,6 +81,7 @@ fun SwipeTaskRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onSnooze: (() -> Unit)? = null,
+    onMarkUrgent: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val gsd = LocalGsdColors.current
@@ -89,6 +93,12 @@ fun SwipeTaskRow(
     val delete by rememberUpdatedState(onDelete)
     val snooze by rememberUpdatedState(onSnooze)
     val twoButtons = onSnooze != null
+    // An escalating card gets a third button beside Snooze (spec-escalation.md §5)
+    val markUrgent by rememberUpdatedState(onMarkUrgent)
+    val escalation = rememberEscalation(task)
+    val showMarkUrgent = twoButtons && onMarkUrgent != null && escalation != null
+    val buttonCount = if (showMarkUrgent) 3 else 2
+    var width by remember { mutableFloatStateOf(0f) }
 
     // One action per settle, then back to rest (review finding 3: a drag used to fire it repeatedly)
     LaunchedEffect(state) {
@@ -111,19 +121,23 @@ fun SwipeTaskRow(
         then()
     }
 
+    // Re-anchored when the width or the button count changes, so a card that starts or stops escalating
+    // opens to the right distance
+    val reveal = with(density) { (ActionWidth * buttonCount).toPx() }
+    LaunchedEffect(width, reveal, twoButtons) {
+        if (width == 0f) return@LaunchedEffect
+        state.updateAnchors(
+            DraggableAnchors {
+                SwipeAnchor.Settled at 0f
+                SwipeAnchor.Completed at width
+                if (twoButtons) SwipeAnchor.Revealed at -reveal
+                SwipeAnchor.Through at -width
+            },
+        )
+    }
+
     Box(
-        modifier = modifier.onSizeChanged { size ->
-            val width = size.width.toFloat()
-            val reveal = with(density) { (ActionWidth * 2).toPx() }
-            state.updateAnchors(
-                DraggableAnchors {
-                    SwipeAnchor.Settled at 0f
-                    SwipeAnchor.Completed at width
-                    if (twoButtons) SwipeAnchor.Revealed at -reveal
-                    SwipeAnchor.Through at -width
-                },
-            )
-        },
+        modifier = modifier.onSizeChanged { size -> width = size.width.toFloat() },
     ) {
         val offset = if (state.offset.isNaN()) 0f else state.offset
         // A row at rest paints nothing behind its content (review finding 2)
@@ -147,14 +161,22 @@ fun SwipeTaskRow(
                         label = stringResource(R.string.menu_delete),
                         icon = Icons.Outlined.Delete,
                         color = gsd.alert,
-                        width = exposed / 2,
+                        width = exposed / buttonCount,
                     ) { close(delete) }
                     TrailingAction(
                         label = stringResource(R.string.menu_snooze),
                         icon = Icons.Outlined.Bedtime,
                         color = gsd.slate,
-                        width = exposed / 2,
+                        width = exposed / buttonCount,
                     ) { close { snooze?.invoke() } }
+                    if (showMarkUrgent) {
+                        TrailingAction(
+                            label = stringResource(R.string.menu_mark_urgent),
+                            icon = Icons.Outlined.ArrowUpward,
+                            color = escalation?.target?.quadrant?.let(gsd::accentInk) ?: gsd.rust,
+                            width = exposed / buttonCount,
+                        ) { close { markUrgent?.invoke() } }
+                    }
                 } else {
                     TrailingAction(
                         label = stringResource(R.string.menu_delete),

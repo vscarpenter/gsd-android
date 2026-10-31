@@ -3,6 +3,7 @@ package dev.vinny.gsd.matrix
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.DropdownMenu
@@ -44,6 +45,7 @@ data class TaskRowActions(
     val onShare: () -> Unit = {},
     val onMoveTo: (Quadrant) -> Unit = {},
     val onSave: () -> Unit = {},
+    val onMarkUrgent: () -> Unit = {},
     val onDelete: () -> Unit = {},
 )
 
@@ -72,6 +74,7 @@ fun taskRowActions(
     },
     onMoveTo = { quadrant -> actions.moveToQuadrant(task.id, quadrant) },
     onSave = { actions.moveToSaved(task.id) },
+    onMarkUrgent = { actions.markUrgent(task.id) },
     onDelete = { actions.delete(task.id) },
 )
 
@@ -97,17 +100,22 @@ fun TaskRowWithMenu(
     var menuOpen by remember { mutableStateOf(false) }
     var snoozeOpen by remember { mutableStateOf(false) }
     var moveOpen by remember { mutableStateOf(false) }
+    val escalation = rememberEscalation(task)
     // TalkBack's actions for the card (spec §13.3), so the swipes and the menu are not the only way
     val completeLabel = stringResource(if (task.completed) R.string.menu_uncomplete else R.string.menu_complete)
     val editLabel = stringResource(R.string.menu_edit)
     val snoozeLabel = stringResource(R.string.action_snooze_hour)
     val deleteLabel = stringResource(R.string.menu_delete)
+    val markUrgentLabel = stringResource(R.string.action_mark_urgent)
     val cardActions = if (selected == null) {
         Modifier.semantics {
             customActions = listOf(
                 CustomAccessibilityAction(completeLabel) { actions.onToggleComplete(); true },
                 CustomAccessibilityAction(editLabel) { actions.onEdit(); true },
                 CustomAccessibilityAction(snoozeLabel) { actions.onSnooze(QuickSnooze); true },
+            ) + listOfNotNull(
+                if (escalation != null) CustomAccessibilityAction(markUrgentLabel) { actions.onMarkUrgent(); true } else null,
+            ) + listOf(
                 CustomAccessibilityAction(deleteLabel) { actions.onDelete(); true },
             )
         }
@@ -125,6 +133,7 @@ fun TaskRowWithMenu(
             onOpenMenu = if (selected == null) { { menuOpen = true } } else null,
             longPressOpensMenu = longPressOpensMenu,
             selected = selected,
+            escalation = escalation,
         )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             MenuItem(R.string.menu_edit) { menuOpen = false; actions.onEdit() }
@@ -136,6 +145,18 @@ fun TaskRowWithMenu(
                 else R.string.menu_start_timer,
             ) { menuOpen = false; actions.onToggleTimer() }
             MenuItem(R.string.menu_snooze, submenu = true) { snoozeOpen = true }
+            if (escalation != null) {
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(stringResource(R.string.menu_mark_urgent), style = GsdType.body)
+                            Text(escalationMovesTo(escalation), style = GsdType.metadata, color = LocalGsdColors.current.ink3)
+                        }
+                    },
+                    onClick = { menuOpen = false; actions.onMarkUrgent() },
+                    modifier = Modifier.testTag("menu_mark_urgent"),
+                )
+            }
             MenuItem(R.string.menu_duplicate) { menuOpen = false; actions.onDuplicate() }
             MenuItem(R.string.menu_share) { menuOpen = false; actions.onShare() }
             MenuItem(R.string.menu_move_to, submenu = true) { moveOpen = true }

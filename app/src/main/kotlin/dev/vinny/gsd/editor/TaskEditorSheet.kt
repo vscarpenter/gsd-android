@@ -1,5 +1,7 @@
 package dev.vinny.gsd.editor
 
+import dev.vinny.gsd.matrix.escalationDuePhrase
+import dev.vinny.gsd.matrix.rememberEscalation
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -271,6 +273,15 @@ private fun EditorSections(draft: Task, onEdit: ((Task) -> Task) -> Unit, allTas
 
     SectionLabel(R.string.editor_section_quadrant)
     QuadrantPicker(draft, onEdit)
+    rememberEscalation(draft)?.let { escalation ->
+        // The same phrase the card marker reads, so the editor and the card agree (spec-escalation.md §5)
+        Text(
+            stringResource(R.string.escalation_editor_hint, escalationDuePhrase(escalation).replaceFirstChar { it.uppercase() }, escalation.target?.quadrant?.title.orEmpty()),
+            style = GsdType.metadata,
+            color = gsd.accentInk(escalation.target?.quadrant ?: draft.quadrant),
+            modifier = Modifier.testTag("escalation_editor_hint"),
+        )
+    }
 
     SectionLabel(R.string.editor_section_tags)
     TagsEditor(draft, onEdit)

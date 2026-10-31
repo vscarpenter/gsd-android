@@ -18,6 +18,9 @@ data class DeletedSnapshot(val id: String, val title: String)
 /** Undo-snackbar payload for Move to Saved. */
 data class SavedSnapshot(val id: String, val title: String)
 
+/** Undo-snackbar payload for Mark urgent: the task and the quadrant it moved to. */
+data class UrgentSnapshot(val id: String, val title: String, val moved: Quadrant)
+
 /**
  * The operations behind a task row's menu, swipes, and disc (spec §8.1). One view model owns them,
  * so every screen that draws a row offers the same actions. A screen creates one beside its own
@@ -88,6 +91,36 @@ class TaskActionsViewModel(
     /** Ends one Undo offer. A newer save may have replaced it, and that one stays. */
     fun clearSavedUndo(shown: SavedSnapshot) {
         _lastSaved.compareAndSet(shown, null)
+    }
+
+    private val _lastUrgent = MutableStateFlow<UrgentSnapshot?>(null)
+    val lastUrgent: StateFlow<UrgentSnapshot?> = _lastUrgent.asStateFlow()
+
+    /**
+     * Mark urgent from an escalating card (spec-escalation.md §5): an ordinary edit through
+     * [TaskStore.change], so it syncs like any other. Only un-urgent tasks are offered it, which is
+     * what makes Undo's `urgent = false` the exact inverse.
+     */
+    fun markUrgent(id: String) {
+        viewModelScope.launch {
+            val current = store.get(id) ?: return@launch
+            if (current.urgent) return@launch
+            val changed = store.change(id) { it.copy(urgent = true) } ?: return@launch
+            _lastUrgent.value = UrgentSnapshot(changed.id, changed.title, changed.quadrant)
+        }
+    }
+
+    fun undoMarkUrgent() {
+        val snapshot = _lastUrgent.value ?: return
+        viewModelScope.launch {
+            store.change(snapshot.id) { it.copy(urgent = false) }
+            _lastUrgent.value = null
+        }
+    }
+
+    /** Ends one Undo offer. A newer Mark urgent may have replaced it, and that one stays. */
+    fun clearUrgentUndo(shown: UrgentSnapshot) {
+        _lastUrgent.compareAndSet(shown, null)
     }
 
     /** Drag-and-drop reclassification (spec §6.2): the flags change, quadrant follows. */

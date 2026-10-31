@@ -131,6 +131,23 @@
     <string name="browse_archive">Archive</string>
     <string name="browse_saved">Saved</string>
     <string name="menu_move_to_saved">Move to Saved</string>
+    <string name="escalation_tag">Escalating</string>
+    <string name="escalation_due_today">due today</string>
+    <string name="escalation_due_tomorrow">due tomorrow</string>
+    <plurals name="escalation_due_in_days">
+        <item quantity="one">due in %1$d day</item>
+        <item quantity="other">due in %1$d days</item>
+    </plurals>
+    <plurals name="escalation_overdue_days">
+        <item quantity="one">%1$d day overdue</item>
+        <item quantity="other">%1$d days overdue</item>
+    </plurals>
+    <string name="escalation_cd">Escalating: %1$s, not marked urgent.</string>
+    <string name="menu_mark_urgent">Mark urgent</string>
+    <string name="action_mark_urgent">Mark urgent</string>
+    <string name="escalation_moves_to">Moves to %1$s</string>
+    <string name="escalation_editor_hint">%1$s, not marked urgent. Marking it urgent moves it to %2$s.</string>
+    <string name="snackbar_marked_urgent">Moved \"%1$s\" to %2$s</string>
     <string name="snackbar_saved">Moved \"%1$s\" to Saved</string>
     <string name="saved_search_hint">Search Saved…</string>
     <string name="saved_empty">Nothing saved yet</string>
@@ -268,6 +285,14 @@
     <string name="settings_fetch_titles">Fetch titles for shared links</string>
     <string name="settings_fetch_titles_footer">Fetching a page title performs a network request.</string>
     <string name="settings_show_completed">Show completed tasks</string>
+    <string name="settings_escalation">Escalate tasks due within</string>
+    <string name="settings_escalation_footer">Flags tasks that aren\'t marked urgent when their due date gets this close. Nothing moves until you say so.</string>
+    <string name="escalation_off">Off</string>
+    <plurals name="escalation_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <string name="escalation_week">1 week</string>
     <string name="settings_archive">Archive</string>
     <string name="settings_auto_archive">Auto-archive completed tasks</string>
     <string name="settings_data">Data &amp; storage</string>
