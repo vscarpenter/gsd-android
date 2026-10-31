@@ -266,6 +266,7 @@
     <string name="dashboard_done">Completed</string>
     <string name="dashboard_distribution">Quadrant distribution</string>
     <string name="dashboard_top_tags">Top tags</string>
+    <string name="dashboard_tag_done">%1$d/%2$d done</string>
     <string name="dashboard_time_by_quadrant">Time by quadrant</string>
     <string name="dashboard_upcoming">Upcoming deadlines</string>
     <string name="dashboard_completion_by_quadrant">Completion by quadrant</string>
