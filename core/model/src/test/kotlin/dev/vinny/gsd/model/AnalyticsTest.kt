@@ -66,9 +66,43 @@ class AnalyticsTest {
         )
         assertEquals(1, stats.activeByQuadrant[Quadrant.DO_FIRST])
         assertEquals(1, stats.activeByQuadrant[Quadrant.ELIMINATE])
-        assertEquals("work" to 2, stats.topTags.first())
+        assertEquals(TagStat("work", count = 2, completed = 0), stats.topTags.first())
         assertEquals(10, stats.minutesByQuadrant[Quadrant.DO_FIRST])
         assertEquals(10, stats.trackedTotalMinutes)
+    }
+
+    @Test
+    fun `a tag counts its tasks and how many are completed`() {
+        val stats = Analytics.compute(
+            listOf(
+                task(tags = listOf("work")),
+                task(tags = listOf("work"), completed = true, completedAt = now),
+                task(tags = listOf("work"), completed = true, completedAt = now),
+                task(tags = listOf("home")),
+            ),
+            windowDays = 7, now = now, zone = zone,
+        )
+        val work = stats.topTags.first { it.tag == "work" }
+        assertEquals(TagStat("work", count = 3, completed = 2), work)
+        assertEquals(2f / 3f, work.completionRate)
+        assertEquals("67%", Analytics.percent(work.completionRate))
+        assertEquals(0f, stats.topTags.first { it.tag == "home" }.completionRate)
+    }
+
+    @Test
+    fun `tags sort by count then name, and only the top 8 show`() {
+        // t1..t9 each on one task, plus "zeta" and "alpha" on two: ties fall back to the tag, as on iOS
+        val tasks = (1..9).map { task(tags = listOf("t$it")) } +
+            listOf(task(tags = listOf("zeta", "alpha")), task(tags = listOf("zeta", "alpha")))
+        val tags = Analytics.compute(tasks, windowDays = 7, now = now, zone = zone).topTags.map { it.tag }
+        assertEquals(listOf("alpha", "zeta", "t1", "t2", "t3", "t4", "t5", "t6"), tags)
+    }
+
+    @Test
+    fun `saved tasks do not count toward a tag`() {
+        val saved = task(tags = listOf("later")).copy(savedAt = now)
+        val stats = Analytics.compute(listOf(saved), windowDays = 7, now = now, zone = zone)
+        assertEquals(emptyList(), stats.topTags)
     }
 
     @Test
