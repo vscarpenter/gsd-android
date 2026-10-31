@@ -115,6 +115,15 @@ build that goes to Production.
 - Still unwalked on a signed build: sync, a reminder firing, the widget, a deep link, and one real
   sign-in. 0.9.1 has published, so do them now from the Play-installed build on the Pixel.
 
+## 0.10.1 closed-test release, prepared 2026-10-31, not uploaded
+Built from `5c632c8` on `release/0.10.1`: `main` at `583d96a` plus the bump and notes (versionCode 12, versionName 0.10.1). The later commits on that branch change docs only. The owner uploads.
+- Gates, all green on the `gsd-e2e` AVD (Pixel 7 profile, API 36): `:core:model:test` 209, `:core:sync` 160, `:app` JVM 97, `:core:store` connected 78, `:app` connected 261, none skipped, then `:app:assembleDebug`, `:app:assembleRelease`, and `:app:bundleRelease`. These tests ran on the debug build.
+- Artifacts: `app/build/outputs/bundle/release/gsd-0.10.1-versionCode12.aab` (7,238,365 bytes, SHA-256 `a1cd05930e8242e55762c77cd4b3cedb255907ef751fe8a285e6f24124f8a90f`) and `.../apk/release/gsd-0.10.1-versionCode12.apk` (5,527,778 bytes). aapt2: `versionCode='12' versionName='0.10.1'`, targetSdk 36.
+- Signing: upload certificate SHA-256 starts `7d88b21d7c2b6af2`, the same as 0.9.1. jarsigner exits 0 and says `jar verified`, and prints "signed in JarFile but is not signed in JarInputStream" for every entry. The AGP moved to 9.4.1 since 0.10.0, and nobody compared this output against the 0.10.0 bundle. If the Console rejects the signature, look here first.
+- Production check: both artifacts hold `api.vinny.io`, with no local harness URL, token file, or cleartext setting.
+- Smoke on the minified, signed APK, on the emulator and signed out: capture, Move to Saved, Saved screen, Return to matrix, Dashboard, Settings with the escalation setting, and a pull that does nothing signed out. No crash. **Not done:** sign-in, sync, a reminder firing, or anything on a real device. Section A's release smoke is still open.
+- Upload the same way as 0.10.0: Closed testing, Alpha, Create new release, notes from `production-access-round-3.md`, `0.10.1 release`.
+
 ## 0.10.0 closed-test release, submitted 2026-10-15
 Built from `main` at `d2ffa88` (merge of #33; versionCode 11, versionName 0.10.0). Gates on the Mac:
 `:core:model:test`, `:core:sync:test`, `:app:testDebugUnitTest`, `:app:assembleRelease`,

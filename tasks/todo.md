@@ -16,16 +16,14 @@
   on other devices once it syncs.
 - **Blockers:** none.
 
-## Resuming From Here (2026-10-31): sprint 1, Saved parity (`feat/saved-parity`, PR #34)
+## Resuming From Here (2026-10-31): sprint 1, S-AND lane, 0.10.1 ready to upload
 
-- **Done:** the end-to-end check on PocketBase 0.40.4, with and without hooks. It found that a row edited
-  on 0.10.0 before the upgrade cleared `saved_at`. `432e1d9` fixes it (sprint `S-AND-01`). All gates green.
-- **Next, in this order:** the reconcile read-order fix (`S-AND-03`, a task created between the two reads
-  is deleted), AND-44 (far-future clamp plus the queued-write rule, `S-AND-02`), AND-28, AND-26, AND-REL.
-- **Sprint plan, briefs, and questions** are outside this repo, in `~/Projects/GSD/sprint/`.
-- **Assumption to verify:** that `api.vinny.io` has the `saved_at` field. Nobody has confirmed it from here,
-  and web ADR 0018 still says hosted rollout is pending.
-- **Blockers:** none on this repo. Vinny merges.
+- **Done and merged:** Saved parity (#34), reconcile read order (#37), far-future clamp (#39), sync history totals (#40), the tombstone fence (#42), and pull to refresh (#45, #47).
+- **Next, for the owner:** merge `release/0.10.1`, upload `gsd-0.10.1-versionCode12.aab` to Alpha, then do section A's release smoke on a real device. Details in `docs/play/submission-checklist.md`.
+- **Before applying for production:** the round 3 draft answers were corrected against this build. 0.10.1 carries parity and sync work, not tester reports, and the feedback log is empty. See `docs/play/production-access-round-3.md`, `0.10.1 release`.
+- **Assumption, owner-confirmed 2026-10-31:** `api.vinny.io` has the `saved_at` field.
+- **Backlog, sprint 2:** `RECONCILE-RECHECK`, `AND-RT-FENCE`, and always-send-a-number for `notify_before` (`~/Projects/GSD/sprint/findings/D-10.md`).
+- **Blockers:** none on this repo.
 
 ## Resuming from here (2026-10-13): production access, round 3 (`release/0.10.0`)
 
