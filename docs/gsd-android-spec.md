@@ -394,6 +394,8 @@ Tapping a destination keeps one copy of it on the back stack, and the tab being 
 
 **Which layout.** Width under 600dp gets the bottom bar (§6.1); under 840dp the rail; 840dp and wider the drawer, but only with at least 480dp of height (`navLayoutFor`). A phone in landscape is wide but short, so it takes the rail, as Material's window classes advise. Every layout sits on `paper` in the in-app theme, and the rail and drawer layouts apply the safe-drawing insets (system bars, display cutout, and keyboard) that the phone's `Scaffold` applies, so nothing draws under the status bar. Rail and drawer labels stay on one line.
 
+**Pull-to-refresh** works on every layout, by the §6.1 rule (amended 2026-10-31, matching iOS). On the expanded grid each quadrant's list fills its cell, so a pull from an empty quadrant counts too.
+
 - **Medium:** a **navigation rail** (Matrix, Browse, Dashboard, Settings) with phone-style content, centered and at most 640dp wide.
 - **Expanded:** a **permanent navigation drawer** mirroring the iPad sidebar — Matrix; Dashboard; a **Smart Views** section (pinned first, then built-ins, then custom, then "New Smart View"); a **Library** section (Archive, Settings) — beside a detail pane. **Matrix at expanded width is a true 2×2 grid** (Q1 top-left, Q2 top-right, Q3 bottom-left, Q4 bottom-right), each cell a header + scrollable list, with **drag-and-drop of task cards across quadrant boundaries** to reclassify (updates `urgent`/`important`). Smart-view rows show live counts; row context menu offers Pin/Unpin (+ Edit/Delete for custom).
 

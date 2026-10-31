@@ -7,14 +7,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeDown
+import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.theme.GsdTheme
+import java.time.Instant
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -49,12 +53,55 @@ class MatrixPullToRefreshTest {
         rule.waitForIdle()
     }
 
+    /** One card in Do First (top left). Eliminate (bottom right) is empty. */
+    private fun showGrid() {
+        val stamp = Instant.parse("2026-07-19T12:00:00.000Z")
+        val sections = buildSections(
+            listOf(Task(title = "urgent thing", urgent = true, important = true, createdAt = stamp, updatedAt = stamp)),
+        )
+        rule.setContent {
+            GsdTheme {
+                MatrixPullToRefresh(
+                    signedIn = true,
+                    finishedRuns = finishedRuns,
+                    onRefresh = { refreshes++ },
+                    modifier = Modifier.fillMaxSize().testTag("board"),
+                ) {
+                    MatrixGrid(sections, onToggleComplete = {}, onOpen = {}, onDropToQuadrant = { _, _ -> })
+                }
+            }
+        }
+    }
+
+    /** From a point given as fractions of the board, straight down to its bottom edge. */
+    private fun pullBoardFrom(xFraction: Float, yFraction: Float) {
+        rule.onNodeWithTag("board").performTouchInput {
+            val start = Offset(width * xFraction, height * yFraction)
+            swipe(start, Offset(start.x, height - 1f), durationMillis = 400)
+        }
+        rule.waitForIdle()
+    }
+
     private val spinner = hasProgressBarRangeInfo(ProgressBarRangeInfo.Indeterminate)
 
     @Test
     fun aPullWhenSignedInRequestsOneSync() {
         show(signedIn = true)
         pull()
+        assertEquals(1, refreshes)
+    }
+
+    @Test
+    fun aPullFromAGridCardRequestsOneSync() {
+        showGrid()
+        pullBoardFrom(xFraction = 0.25f, yFraction = 0.12f)
+        assertEquals(1, refreshes)
+    }
+
+    @Test
+    fun aPullFromAnEmptyGridQuadrantRequestsOneSync() {
+        showGrid()
+        pullBoardFrom(xFraction = 0.75f, yFraction = 0.7f)
         assertEquals(1, refreshes)
     }
 

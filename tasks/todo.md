@@ -1,5 +1,21 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-10-31): sprint 1, E-AND lane (escalation, reminders, tag analytics)
+
+- **Done, all merged:** AND-ESC-1 (#35, the rule and its 38-case corpus test), AND-ESC-2 (#38, the setting,
+  card tag, Mark urgent in the menu, swipe, and TalkBack, and the editor hint), AND-36 (#41, the null reminder
+  row reads "Default reminder"), AND-27 (#43, top 8 tags with completion rate), and AND-REM (#44, all-day
+  reminders fire at 09:00 on the due day, with all 117 due-time corpus cases running).
+- **Next:** B-29, a quieter top bar on scroll. It is parked with Vinny (`sprint/questions/E-AND-01-b29-quieter-top-bar.md`)
+  because the only definition is one line. If he says "recede", that file has the option 2 write-up.
+- **Assumptions:** an all-day offset moves back one day per whole 1440 minutes and ignores the remainder
+  (the Lead's reading, pinned by the corpus). The all-day hour is `ReminderPlanner.ALL_DAY_REMINDER_HOUR`, one
+  line to change. Top tags sort by count then name, as iOS does; web sorts by count only and shows 10.
+- **Not verified:** no all-day alarm was watched firing on a device, and the top-tag rows were not checked at 2x
+  font scale. D-10 is still open, so a task with no reminder offset shows "Default reminder" here and "At time"
+  on other devices once it syncs.
+- **Blockers:** none.
+
 ## Resuming From Here (2026-10-31): sprint 1, Saved parity (`feat/saved-parity`, PR #34)
 
 - **Done:** the end-to-end check on PocketBase 0.40.4, with and without hooks. It found that a row edited
