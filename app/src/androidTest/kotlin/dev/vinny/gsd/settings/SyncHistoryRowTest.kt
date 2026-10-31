@@ -1,10 +1,13 @@
 package dev.vinny.gsd.settings
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import dev.vinny.gsd.store.SyncHistoryEntity
+import dev.vinny.gsd.store.SyncHistoryTotals
 import dev.vinny.gsd.theme.GsdTheme
 import org.junit.Rule
 import org.junit.Test
@@ -29,6 +32,24 @@ class SyncHistoryRowTest {
         deviceId = "device-1",
         triggeredBy = "user",
     )
+
+    private val totals = SyncHistoryTotals(totalSyncs = 12, successes = 9, totalPushed = 40, totalPulled = 7)
+
+    @Test
+    fun theTotalsSitAboveTheRowsAndReadLabelFirst() {
+        rule.setContent { GsdTheme { SyncHistoryContent(listOf(entry("success")), totals) } }
+        listOf("Total syncs: 12", "Successful: 9", "Sent: 40", "Received: 7").forEach { spoken ->
+            rule.onNodeWithContentDescription(spoken, useUnmergedTree = true).assertIsDisplayed()
+        }
+        rule.onNodeWithText("Synced", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun anEmptyHistoryShowsNoTotals() {
+        rule.setContent { GsdTheme { SyncHistoryContent(emptyList(), SyncHistoryTotals()) } }
+        rule.onNodeWithText("No syncs yet").assertIsDisplayed()
+        rule.onAllNodesWithContentDescription("Total syncs: 0", useUnmergedTree = true).assertCountEquals(0)
+    }
 
     @Test
     fun aRowNamesItsStatusInWords() {

@@ -455,4 +455,8 @@
         <item quantity="other">%1$d conflicts resolved</item>
     </plurals>
     <string name="history_duration">%1$d ms</string>
+    <string name="history_total_syncs">Total syncs</string>
+    <string name="history_total_successful">Successful</string>
+    <string name="history_total_sent">Sent</string>
+    <string name="history_total_received">Received</string>
 </resources>
