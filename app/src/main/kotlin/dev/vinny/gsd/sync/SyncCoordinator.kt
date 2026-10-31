@@ -50,6 +50,9 @@ class SyncCoordinator(
     private val syncRequests = MutableSharedFlow<Boolean>(extraBufferCapacity = 16)
 
     val syncing = MutableStateFlow(false)
+
+    /** Counts finished runs. Unlike [syncing], a run this quick can't be conflated away. */
+    val finishedRuns = MutableStateFlow(0L)
     private val _signedIn = MutableStateFlow(false)
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
     private val _sessionExpired = MutableStateFlow(false)
@@ -106,6 +109,7 @@ class SyncCoordinator(
                     }
                 } finally {
                     syncing.value = false
+                    finishedRuns.value += 1
                 }
             }
         }

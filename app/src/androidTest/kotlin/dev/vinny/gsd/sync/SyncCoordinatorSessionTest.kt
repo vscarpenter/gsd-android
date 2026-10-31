@@ -140,6 +140,25 @@ class SyncCoordinatorSessionTest {
         awaitSignedIn(fixture.coordinator, false)
     }
 
+    /** A pull's spinner waits on this count, so a run that ends any way at all has to move it (spec §6.1). */
+    @Test
+    fun aRunCountsWhenItFinishesAndWhenItEndsTheSession() = runBlocking {
+        val fixture = signedInFixture()
+        suspend fun awaitRunAfter(run: Long) {
+            withTimeoutOrNull(5_000) { fixture.coordinator.finishedRuns.first { it > run } }
+                ?: fail("finishedRuns never moved past $run")
+        }
+
+        val beforeClean = fixture.coordinator.finishedRuns.value
+        fixture.coordinator.requestSync(true)
+        awaitRunAfter(beforeClean)
+
+        val beforeRejected = fixture.coordinator.finishedRuns.value
+        fixture.remote.tokenRevoked = true
+        fixture.coordinator.requestSync(true)
+        awaitRunAfter(beforeRejected)
+    }
+
     @Test
     fun aSessionThatEndsMidProcessSignsOutAndKeepsEveryTask() = runBlocking {
         val fixture = signedInFixture()
