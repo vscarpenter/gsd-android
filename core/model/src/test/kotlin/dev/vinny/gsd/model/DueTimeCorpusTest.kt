@@ -29,7 +29,7 @@ class DueTimeCorpusTest {
 
     /**
      * SKIPPED UNTIL AND-REM: ReminderPlanner still fires an all-day task at due minus offset, so these
-     * cases can't pass yet. AND-REM adds the 08:00 rule and deletes this constant and the filter below.
+     * cases can't pass yet. AND-REM adds the 09:00 rule and deletes this constant and the filter below.
      */
     private val skippedUntilAndRem = "allDayReminderFire"
 
@@ -106,7 +106,7 @@ class DueTimeCorpusTest {
     private fun JsonObject.instant(key: String) = textOrNull(key)?.let(Instant::parse)
 
     private companion object {
-        const val CASE_COUNT = 111
-        const val SKIPPED_COUNT = 33
+        const val CASE_COUNT = 117
+        const val SKIPPED_COUNT = 39
     }
 }
