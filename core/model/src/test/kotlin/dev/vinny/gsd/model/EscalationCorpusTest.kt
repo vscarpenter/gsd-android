@@ -61,6 +61,8 @@ class EscalationCorpusTest {
             updatedAt = epoch,
             dueDate = o["dueDate"]?.nullableString()?.let(Instant::parse),
             savedAt = o["savedAt"]?.nullableString()?.let(Instant::parse),
+            snoozedUntil = o["snoozedUntil"]?.nullableString()?.let(Instant::parse),
+            recurrence = Recurrence.fromWire(o["recurrence"]?.nullableString()),
         )
     }
 
