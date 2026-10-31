@@ -115,6 +115,22 @@ class SyncSafetyTest {
     }
 
     @Test
+    fun `a sign-out during the pull leaves a tombstone standing`() = runTest {
+        val buriedAt = now.minusSeconds(3_600).toEpochMilli()
+        val local = FakeLocal().apply { tombstones["trashed-task"] = buriedAt }
+        val remote = FakeRemote()
+        remote.records["r1"] = WireMapper.push(task("trashed-task", title = "edited elsewhere"), "other", "user-1")
+        remote.endSessionOnListing(onCall = 1, nextOwner = "user-2")
+
+        val result = engine(remote, local).runSync(false)
+
+        assertEquals(buriedAt, local.tombstones["trashed-task"])
+        assertTrue(local.removeTombstoneCalls.isEmpty())
+        assertTrue(local.tasks.isEmpty())
+        assertEquals("error", result.status)
+    }
+
+    @Test
     fun `a sign-out before the push leaves the queue untouched and spends no retries`() = runTest {
         val local = FakeLocal()
         val edited = task("queued-edit")

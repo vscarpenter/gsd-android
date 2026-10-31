@@ -13,6 +13,11 @@ data class QuadrantStat(val quadrant: Quadrant, val total: Int, val completed: I
     val completionRate: Float get() = if (total == 0) 0f else completed.toFloat() / total
 }
 
+/** One tag's tasks, active and completed, and how many are done. The rate is 0 for a tag with no tasks. */
+data class TagStat(val tag: String, val count: Int, val completed: Int) {
+    val completionRate: Float get() = if (count == 0) 0f else completed.toFloat() / count
+}
+
 data class DashboardStats(
     val active: Int,
     val completed: Int,
@@ -20,7 +25,7 @@ data class DashboardStats(
     val trackedTotalMinutes: Int,
     val trend: List<TrendPoint>,
     val activeByQuadrant: Map<Quadrant, Int>,
-    val topTags: List<Pair<String, Int>>,
+    val topTags: List<TagStat>,
     val minutesByQuadrant: Map<Quadrant, Int>,
     val upcoming: List<Task>,
     val overdueCount: Int,
@@ -29,6 +34,8 @@ data class DashboardStats(
 
 /** The §8.15 metric set, computed from the current task set. No streaks — ever. */
 object Analytics {
+    const val TOP_TAGS_LIMIT = 8
+
     fun compute(stored: List<Task>, windowDays: Int, now: Instant, zone: ZoneId): DashboardStats {
         val tasks = stored.filterNot { it.isSaved } // Saved items are not active work (web ADR 0018)
         val today = now.atZone(zone).toLocalDate()
@@ -57,13 +64,7 @@ object Analytics {
             activeByQuadrant = Quadrant.entries.associateWith { quadrant ->
                 activeTasks.count { it.quadrant == quadrant }
             },
-            topTags = tasks.flatMap { it.tags }
-                .groupingBy { it }
-                .eachCount()
-                .entries
-                .sortedByDescending { it.value }
-                .take(5)
-                .map { it.key to it.value },
+            topTags = topTags(tasks),
             minutesByQuadrant = Quadrant.entries.associateWith { quadrant ->
                 tasks.filter { it.quadrant == quadrant }.sumOf { it.timeSpent }
             },
@@ -77,6 +78,14 @@ object Analytics {
             },
         )
     }
+
+    /** Tags by task count, then by name so ties are stable (as on iOS), capped at [TOP_TAGS_LIMIT]. */
+    private fun topTags(tasks: List<Task>): List<TagStat> =
+        tasks.flatMap { task -> task.tags.map { tag -> tag to task.completed } }
+            .groupBy({ it.first }, { it.second })
+            .map { (tag, done) -> TagStat(tag, count = done.size, completed = done.count { it }) }
+            .sortedWith(compareByDescending<TagStat> { it.count }.thenBy { it.tag })
+            .take(TOP_TAGS_LIMIT)
 
     /** "68%" — round half up; siblings round, they never truncate (S§2.1). */
     fun percent(rate: Float): String = "${(rate * 100f).roundToInt()}%"

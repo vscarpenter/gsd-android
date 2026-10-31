@@ -1,5 +1,7 @@
 package dev.vinny.gsd.settings
 
+import dev.vinny.gsd.model.EscalationWindow
+import androidx.compose.ui.res.pluralStringResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -71,6 +73,7 @@ fun SettingsScreen(
     val snackbar = remember { SnackbarHostState() }
     val theme by container.prefs.theme.collectAsStateWithLifecycle(initialValue = ThemePref.SYSTEM)
     val showCompleted by container.prefs.showCompleted.collectAsStateWithLifecycle(initialValue = true)
+    val escalationWindow by container.prefs.escalationWindow.collectAsStateWithLifecycle(initialValue = EscalationWindow.DEFAULT)
     val fetchTitles by container.prefs.fetchShareTitles.collectAsStateWithLifecycle(initialValue = false)
     val archiveSettings by container.db.archiveSettingsDao().observe()
         .collectAsStateWithLifecycle(initialValue = null)
@@ -127,6 +130,17 @@ fun SettingsScreen(
             ToggleRow(R.string.settings_show_completed, showCompleted) {
                 scope.launch { container.prefs.setShowCompleted(it) }
             }
+            Text(stringResource(R.string.settings_escalation), style = GsdType.cardTitle, color = gsd.ink)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                EscalationWindow.OPTIONS.forEach { days ->
+                    FilterChip(
+                        selected = escalationWindow == days,
+                        onClick = { scope.launch { container.prefs.setEscalationWindow(days) } },
+                        label = { Text(escalationOptionLabel(days)) },
+                    )
+                }
+            }
+            Text(stringResource(R.string.settings_escalation_footer), style = GsdType.metadata, color = gsd.ink3)
 
             GroupLabel(R.string.settings_sharing)
             ToggleRow(R.string.settings_fetch_titles, fetchTitles) {
@@ -271,4 +285,11 @@ internal fun ActionRow(labelRes: Int, tint: androidx.compose.ui.graphics.Color? 
             .clickable(role = Role.Button, onClick = onClick)
             .wrapContentHeight(Alignment.CenterVertically),
     )
+}
+
+@Composable
+private fun escalationOptionLabel(days: Int?): String = when (days) {
+    null -> stringResource(R.string.escalation_off)
+    7 -> stringResource(R.string.escalation_week)
+    else -> pluralStringResource(R.plurals.escalation_days, days, days)
 }

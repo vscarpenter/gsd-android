@@ -12,8 +12,9 @@ enum class EscalationReason(val wire: String) {
     }
 }
 
-enum class EscalationTarget(val wire: String) {
-    URGENT_IMPORTANT("urgent-important"), URGENT_NOT_IMPORTANT("urgent-not-important");
+enum class EscalationTarget(val wire: String, val quadrant: Quadrant) {
+    URGENT_IMPORTANT("urgent-important", Quadrant.DO_FIRST),
+    URGENT_NOT_IMPORTANT("urgent-not-important", Quadrant.DELEGATE);
 
     companion object {
         fun fromWire(wire: String): EscalationTarget = entries.first { it.wire == wire }

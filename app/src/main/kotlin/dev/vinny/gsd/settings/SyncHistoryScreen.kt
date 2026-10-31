@@ -23,7 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
+import dev.vinny.gsd.dashboard.StatCard
 import dev.vinny.gsd.store.SyncHistoryEntity
+import dev.vinny.gsd.store.SyncHistoryTotals
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.EmptyState
@@ -35,8 +37,18 @@ import java.time.ZoneId
 /** Totals + the ~50 most recent attempts (spec §8.17.3 / §9.7). */
 @Composable
 fun SyncHistoryScreen(container: AppContainer, modifier: Modifier = Modifier) {
-    val entries by container.db.syncHistoryDao().observeRecent(50)
-        .collectAsStateWithLifecycle(initialValue = emptyList())
+    val dao = container.db.syncHistoryDao()
+    val entries by dao.observeRecent(50).collectAsStateWithLifecycle(initialValue = emptyList())
+    val totals by dao.observeTotals().collectAsStateWithLifecycle(initialValue = SyncHistoryTotals())
+    SyncHistoryContent(entries, totals, modifier)
+}
+
+@Composable
+internal fun SyncHistoryContent(
+    entries: List<SyncHistoryEntity>,
+    totals: SyncHistoryTotals,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier = modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (entries.isEmpty()) {
             // The §5.10 empty state (finding 32)
@@ -48,10 +60,25 @@ fun SyncHistoryScreen(container: AppContainer, modifier: Modifier = Modifier) {
             )
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                item(key = "totals") { SyncHistoryTotalsGrid(totals, Modifier.padding(bottom = 10.dp)) }
                 items(entries, key = { it.id }) { entry ->
                     SyncHistoryRow(entry, modifier = reorderMotion())
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SyncHistoryTotalsGrid(totals: SyncHistoryTotals, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatCard(stringResource(R.string.history_total_syncs), "${totals.totalSyncs}", Modifier.weight(1f))
+            StatCard(stringResource(R.string.history_total_successful), "${totals.successes}", Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatCard(stringResource(R.string.history_total_sent), "${totals.totalPushed}", Modifier.weight(1f))
+            StatCard(stringResource(R.string.history_total_received), "${totals.totalPulled}", Modifier.weight(1f))
         }
     }
 }

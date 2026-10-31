@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -184,10 +185,24 @@ fun DashboardContent(
         if (stats.topTags.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 SectionHeading(stringResource(R.string.dashboard_top_tags))
-                stats.topTags.forEach { (tag, count) ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("#$tag", style = GsdType.metadata, color = gsd.ink2, modifier = Modifier.weight(1f))
-                        Text("$count", style = GsdType.metadata.copy(fontFeatureSettings = "tnum"), color = gsd.ink2)
+                stats.topTags.forEach { stat ->
+                    val done = stringResource(R.string.dashboard_tag_done, stat.completed, stat.count)
+                    val percent = Analytics.percent(stat.completionRate)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        // One node: the tag, its tally, then its rate, instead of three separate reads
+                        modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+                    ) {
+                        Text("#${stat.tag}", style = GsdType.metadata, color = gsd.ink2, modifier = Modifier.weight(1f))
+                        Text(done, style = GsdType.metadata.copy(fontFeatureSettings = "tnum"), color = gsd.ink3)
+                        Text(
+                            percent,
+                            style = GsdType.metadata.copy(fontFeatureSettings = "tnum"),
+                            color = gsd.ink2,
+                            modifier = Modifier.widthIn(min = 40.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                        )
                     }
                 }
             }
@@ -226,7 +241,7 @@ fun DashboardContent(
 }
 
 @Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
+internal fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
     val gsd = LocalGsdColors.current
     // One node, label first: TalkBack read the number before saying what it counted (review, Accessibility)
     val spoken = stringResource(R.string.dashboard_stat_a11y, label, value)

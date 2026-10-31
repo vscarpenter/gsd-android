@@ -55,6 +55,41 @@ class DashboardTest {
         assertEquals(true, overdueOpened)
     }
 
+    private fun showTags(tasks: List<Task>) {
+        val stats = Analytics.compute(tasks, 7, now, ZoneOffset.UTC)
+        rule.setContent {
+            GsdTheme {
+                DashboardContent(stats = stats, window = 7, onWindowChange = {},
+                    onOpenOverdue = {}, loaded = true, now = now, zone = ZoneOffset.UTC)
+            }
+        }
+    }
+
+    private fun tagged(vararg tags: String, completed: Boolean = false) = Task(
+        title = "t", urgent = false, important = false, completed = completed,
+        completedAt = if (completed) now else null, createdAt = now, updatedAt = now, tags = tags.toList(),
+    )
+
+    /** B-27: each top tag shows how many of its tasks are done, and the rate, as web does. */
+    @Test
+    fun aTagRowShowsItsTallyAndCompletionRate() {
+        showTags(listOf(tagged("work"), tagged("work", completed = true), tagged("work", completed = true), tagged("home")))
+        rule.onNodeWithText("#work", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("2/3 done", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("67%", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("0/1 done", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("0%", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun onlyTheTopEightTagsShow() {
+        showTags((1..10).map { tagged("t$it") })
+        // all ten tie on one task each, so the first eight by name show: t1, t10, t2 to t7
+        rule.onNodeWithText("#t7", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("#t8", useUnmergedTree = true).assertDoesNotExist()
+        rule.onNodeWithText("#t9", useUnmergedTree = true).assertDoesNotExist()
+    }
+
     @Test
     fun emptyStateShows() {
         val stats = Analytics.compute(emptyList(), 7, now, ZoneOffset.UTC)

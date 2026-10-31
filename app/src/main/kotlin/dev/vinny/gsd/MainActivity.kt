@@ -58,6 +58,7 @@ import dev.vinny.gsd.nav.navigateToTab
 import dev.vinny.gsd.nav.owningTab
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.prefs.ThemePref
+import dev.vinny.gsd.matrix.LocalEscalationWindow
 import dev.vinny.gsd.theme.GsdTheme
 
 class MainActivity : ComponentActivity() {
@@ -139,6 +140,7 @@ class MainActivity : ComponentActivity() {
         if (dev.vinny.gsd.nav.runsLaunchLink(savedInstanceState != null, intent.flags)) handleIncomingIntent(intent)
         setContent {
             val themePref by container.prefs.theme.collectAsStateWithLifecycle(initialValue = ThemePref.SYSTEM)
+            val escalationWindow by container.prefs.escalationWindow.collectAsStateWithLifecycle(initialValue = null)
             val darkTheme = when (themePref) {
                 ThemePref.SYSTEM -> isSystemInDarkTheme()
                 ThemePref.LIGHT -> false
@@ -155,6 +157,7 @@ class MainActivity : ComponentActivity() {
                 )
                 onDispose {}
             }
+            androidx.compose.runtime.CompositionLocalProvider(LocalEscalationWindow provides escalationWindow) {
             GsdTheme(darkTheme = darkTheme) {
                 // Paper behind every layout, in the in-app theme; only the phone's Scaffold painted it (finding 37)
                 Surface(color = LocalGsdColors.current.paper, modifier = Modifier.fillMaxSize()) {
@@ -347,6 +350,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
             }
         }
     }
