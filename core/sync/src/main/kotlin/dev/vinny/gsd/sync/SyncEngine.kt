@@ -124,6 +124,7 @@ class SyncEngine(
         var pulled = 0
         var conflicts = 0
         var maxApplied: Instant? = null
+        val now = clock.instant()
         val stored = local.cursor()
         // An older build's cursor sits past rows it stored without a field this build reads: re-pull once
         // and merge same-version rows, before any push could send that field empty (spec 2026-10-29 §2).
@@ -132,15 +133,18 @@ class SyncEngine(
         BoundedListing.collect(cursor, remote::listTasks) { result ->
             result.items.forEachIndexed { index, wire ->
                 val existing = local.taskById(wire.taskId)
-                val incoming = WireMapper.pull(wire, existing) ?: return@forEachIndexed
-                if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
+                val mapped = WireMapper.pull(wire, existing) ?: return@forEachIndexed
+                if (!resolveTombstone(local, mapped.id, mapped.updatedAt, now)) {
                     return@forEachIndexed // archived/trashed locally, remote not strictly newer (parity spec P§4)
                 }
-                if (backfill && existing != null && lacksNewerPlacement(existing, incoming)) {
+                val incoming = mapped.copy(updatedAt = RemoteStamp.capped(mapped.updatedAt, now))
+                val localWriteWins = RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)
+                if (backfill && existing != null && lacksPlacement(existing, incoming, localWriteWins)) {
                     fence(owner)
                     local.upsertFromRemote(existing.copy(savedAt = incoming.savedAt))
                     return@forEachIndexed
                 }
+                if (localWriteWins) return@forEachIndexed // the push below heals the far-future record
                 val apply = when {
                     existing == null -> true
                     incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli() -> {
@@ -171,12 +175,13 @@ class SyncEngine(
     }
 
     /**
-     * An older build dropped `saved_at`, then edited the row, so last-write-wins keeps the local copy and the
-     * push would send an empty placement. Backfill only: outside it, the same shape is a real Return.
+     * An older build dropped `saved_at`, and the local copy is about to win: it's newer, or it has a queued
+     * write against a far-future remote. The push would then send an empty placement. Backfill only:
+     * outside it, the same shape is a real Return.
      */
-    private fun lacksNewerPlacement(existing: Task, incoming: Task): Boolean =
+    private fun lacksPlacement(existing: Task, incoming: Task, localWriteWins: Boolean): Boolean =
         existing.savedAt == null && incoming.savedAt != null &&
-            incoming.updatedAt.toEpochMilli() < existing.updatedAt.toEpochMilli()
+            (localWriteWins || incoming.updatedAt.toEpochMilli() < existing.updatedAt.toEpochMilli())
 
     private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> =
         BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks)
@@ -215,7 +220,7 @@ class SyncEngine(
                             throw MalformedRemoteVersion()
                         }
                         val remoteStamp = remoteEntry?.second
-                        if (remoteStamp != null && remoteStamp.toEpochMilli() > payload.updatedAt.toEpochMilli()) {
+                        if (remoteStamp != null && RemoteStamp.isNewer(remoteStamp, payload.updatedAt.toEpochMilli(), now)) {
                             local.markQueueItemDone(item.id) // LWW payload guard: pull delivers remote (spec §9.3)
                             continue
                         }
@@ -237,7 +242,7 @@ class SyncEngine(
                     }
                     SyncOp.DELETE -> {
                         val remoteStamp = index[item.taskId]?.second
-                        if (remoteEditedAfterArchive(item, remoteStamp) || remoteEditedAfterQueued(item, remoteStamp)) {
+                        if (remoteEditedAfterArchive(item, remoteStamp, now) || remoteEditedAfterQueued(item, remoteStamp, now)) {
                             local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-42, B-47)
                             continue
                         }
@@ -266,8 +271,8 @@ class SyncEngine(
     }
 
     /** Any delete, Trash or manual, is stale once the server copy changed after it was queued (B-42). */
-    private fun remoteEditedAfterQueued(item: SyncQueueEntity, remoteStamp: Instant?): Boolean =
-        remoteStamp != null && remoteStamp.toEpochMilli() > item.timestamp
+    private fun remoteEditedAfterQueued(item: SyncQueueEntity, remoteStamp: Instant?, now: Instant): Boolean =
+        remoteStamp != null && RemoteStamp.isNewer(remoteStamp, item.timestamp, now)
 
     /**
      * An archive's delete carries the task as it was archived (spec §9.5). A remote newer than that
@@ -276,11 +281,11 @@ class SyncEngine(
      * (parity backlog B-47). A delete with no payload (trash) and a remote with no usable version keep
      * the plain delete.
      */
-    private fun remoteEditedAfterArchive(item: SyncQueueEntity, remoteStamp: Instant?): Boolean {
+    private fun remoteEditedAfterArchive(item: SyncQueueEntity, remoteStamp: Instant?, now: Instant): Boolean {
         if (remoteStamp == null) return false
         val archived = item.payloadJson?.let { raw -> TaskJson.decodeOrNull(TaskJson.json.parseToJsonElement(raw)) }
             ?: return false
-        return remoteStamp.toEpochMilli() > archived.updatedAt.toEpochMilli()
+        return RemoteStamp.isNewer(remoteStamp, archived.updatedAt.toEpochMilli(), now)
     }
 
     /**

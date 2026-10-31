@@ -129,7 +129,7 @@ class SseTest {
         val local = FakeSseLocal()
         local.tombstones["t1"] = 1_000L // archived/trashed at 1000ms
 
-        assertFalse(resolveTombstone(local, "t1", 1_000L)) // equal → drop, fail closed
+        assertFalse(resolveTombstone(local, "t1", Instant.ofEpochMilli(1_000L), Instant.ofEpochMilli(1_000L))) // equal → drop, fail closed
 
         assertEquals(1_000L, local.tombstones["t1"]) // tombstone still present
         assertTrue(local.removeTombstoneCalls.isEmpty())
@@ -140,7 +140,7 @@ class SseTest {
         val local = FakeSseLocal()
         local.tombstones["t1"] = 1_000L
 
-        assertTrue(resolveTombstone(local, "t1", 1_001L))
+        assertTrue(resolveTombstone(local, "t1", Instant.ofEpochMilli(1_001L), Instant.ofEpochMilli(1_001L)))
 
         assertEquals(listOf("t1"), local.removeTombstoneCalls) // removed exactly once
         assertNull(local.tombstones["t1"])
@@ -151,7 +151,7 @@ class SseTest {
         val local = FakeSseLocal()
         local.tombstones["t1"] = 1_000L
 
-        assertFalse(resolveTombstone(local, "t1", null))
+        assertFalse(resolveTombstone(local, "t1", null, Instant.ofEpochMilli(1_000L)))
 
         assertEquals(1_000L, local.tombstones["t1"]) // untouched, fail closed
         assertTrue(local.removeTombstoneCalls.isEmpty())
@@ -173,14 +173,14 @@ class SseTest {
     @Test
     fun `a realtime upsert never brings back a trashed task it is not newer than`() = runTest {
         val local = FakeLocal().apply { tombstones["task-0001"] = 1_000L }
-        applyRealtimeUpsert(local, wire("task-0001", 1_000L))
+        applyRealtimeUpsert(local, wire("task-0001", 1_000L), Instant.ofEpochMilli(1_000L))
         assertNull(local.tasks["task-0001"])
     }
 
     @Test
     fun `a strictly newer realtime upsert brings a trashed task back once`() = runTest {
         val local = FakeLocal().apply { tombstones["task-0001"] = 1_000L }
-        applyRealtimeUpsert(local, wire("task-0001", 1_001L))
+        applyRealtimeUpsert(local, wire("task-0001", 1_001L), Instant.ofEpochMilli(1_001L))
         assertEquals("remote", local.tasks["task-0001"]?.title)
         assertEquals(listOf("task-0001"), local.removeTombstoneCalls)
     }
@@ -188,14 +188,14 @@ class SseTest {
     @Test
     fun `a realtime upsert older than the local copy changes nothing`() = runTest {
         val local = FakeLocal().apply { tasks["task-0001"] = localTask("task-0001", 2_000L) }
-        applyRealtimeUpsert(local, wire("task-0001", 1_000L))
+        applyRealtimeUpsert(local, wire("task-0001", 1_000L), Instant.ofEpochMilli(1_000L))
         assertEquals("local", local.tasks["task-0001"]?.title)
     }
 
     @Test
     fun `a newer realtime upsert replaces the local copy`() = runTest {
         val local = FakeLocal().apply { tasks["task-0001"] = localTask("task-0001", 1_000L) }
-        applyRealtimeUpsert(local, wire("task-0001", 2_000L))
+        applyRealtimeUpsert(local, wire("task-0001", 2_000L), Instant.ofEpochMilli(2_000L))
         assertEquals("remote", local.tasks["task-0001"]?.title)
     }
 }
