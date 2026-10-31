@@ -165,6 +165,34 @@ Recruiting blurb, for a post or a direct message:
 > discarding edits. Shared links open over the app you shared from. Better TalkBack support and text
 > contrast, tablet and landscape fixes, and safer sync.
 
+## 0.10.1 release
+
+Prepared 2026-10-31 in sprint 1. Versions: versionCode 12, versionName 0.10.1. The owner uploads.
+
+- **It isn't the build this doc planned.** The plan above says 0.10.1 ships Oct 20 with tester-reported fixes only. It's shipping later, and it carries parity and sync-safety work instead. Nothing in it came from a tester report that this repo records, because the feedback log below is empty. Don't present these changes as tester feedback.
+- **First sync.** Pull contract 3: the first sync after the update pulls everything once, to bring `saved_at` to rows 0.10.0 already holds.
+- **Release notes for the `<en-US>` box (439 of 500 characters):**
+
+> Saved keeps reading and reference outside the matrix, with short notes, and syncs with the web and Apple
+> apps. Tasks due soon can show as escalating, with a Mark urgent action and a setting for the window. All-day
+> tasks remind at 9 AM. Pull down on the Matrix to sync. Sync history shows totals, and the Dashboard shows
+> completion by tag. Safer sync: fixes protect Saved items, new tasks, and edits, including when a device
+> clock is wrong.
+
+### Round 3 answers, checked 2026-10-31
+
+The draft answers below are only as true as these items. S-AND checked what the repo and sibling repos can show. It can't read the Console, the tester list, or the feedback collection.
+
+| Claim in the draft | Finding |
+|---|---|
+| "We shipped [five] builds" | Five, once 0.10.1 publishes: 0.8.0, 0.9.0, 0.9.1, 0.10.0, 0.10.1 |
+| "0.10.0 (Oct 14)" | Submitted Oct 15 at 8:00 AM CDT (`submission-checklist.md`). Corrected below |
+| "0.10.1 (Oct 20): [tester-reported fixes]" | False as written. Corrected below, date for the owner to fill |
+| "[N] JVM unit tests and [N] instrumented tests pass" | See `submission-checklist.md`, 0.10.1. Those ran on the debug build, while the draft says "on the release build". Reword or rerun |
+| "We ran a release smoke test on a Pixel" | **Not done.** Open since Aug 29 (`tasks/todo.md`, section A). Do it before this sentence is sent |
+| "Each 0.10.1 fix points to a report", and "every fix in 0.10.1 gets a row" | **Can't be true for this build.** Log the tester reports you have, and describe the rest as internal work |
+| Testers, engagement, vitals, pre-launch report, day-14 status | **Owner only.** Not visible from here |
+
 ## Feedback log
 
 Feedback arrives in four places. Check each daily.
@@ -200,7 +228,7 @@ the feedback].
 **Summarize feedback and how you collected it.** Testers reported through an anonymous Feedback form inside
 the app, replies to our tester mailing list, and email to gsdapp@vinny.dev. We logged each report with its
 date and the build that fixed it. We received [N] reports: [N] bugs, [N] usability notes, and [N] feature
-requests. The main themes were [theme] and [theme]. We fixed [list] in 0.10.1 and kept [list] for after
+requests. The main themes were [theme] and [theme]. We fixed [list, only what testers reported] in 0.10.1 and kept [list] for after
 launch.
 
 **Target audience.** Adults who juggle work and personal to-dos and want a quick answer to "what should I
@@ -220,11 +248,13 @@ app's numbers.]
 - 0.9.1 (Sep 21): fixes from our own review of every screen. Swipe actions and the task menu work on every
   list, a snoozed reminder fires again, tapping a reminder opens its task, and the editor no longer undoes a
   change that synced in while it was open.
-- 0.10.0 (Oct 14): our review found every due date landed at midnight because the editor had no time
+- 0.10.0 (Oct 15): our review found every due date landed at midnight because the editor had no time
   picker, so we added date and time pickers. Also a notification-permission request at the moment it's
   needed, an exact-alarm setting, a rebuilt welcome tour, TalkBack labels and AA contrast, and tablet and
   landscape layouts. [Name any item a tester reported.]
-- 0.10.1 (Oct 20): [the tester-reported fixes from the log].
+- 0.10.1 ([publish date]): from our own parity and sync review, not tester reports: Saved items in sync with
+  the web and Apple apps, escalation of tasks due soon, all-day reminders at 9 AM, pull to refresh, and sync
+  fixes that protect Saved items, new tasks, and edits. [Add any tester-reported fix from the log, named as one.]
 
 **How you decided the app is ready.** [N] JVM unit tests and [N] instrumented tests pass on the release
 build. We ran a release smoke test on a Pixel from the Play-installed build: sign-in, sync with the web
