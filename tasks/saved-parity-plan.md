@@ -56,3 +56,15 @@ Green on the JVM: model 197, sync 121, app 93, and `assembleDebug`. Still owed, 
 migration, `TaskStoreSavedTest`, `SavedScreenTest`). **Done 20:54 on the `gsd-shot` AVD (API 36):
 store 76/76, app 237/237.** Left: the end-to-end check against a local PocketBase (spec §5), the PR,
 and a 0.10.x tester build for Play.
+
+## End-to-end check (2026-10-31, PR #34)
+
+Run against PocketBase 0.40.4 twice: the Docker image with the repo's hooks, and the same binary with
+none, since the hosted service has none (web ADR 0016). The hooked run drove the real web 14.3.0 app.
+The upgrade trap cleared `saved_at` on `ee75822` on both servers, and `432e1d9` fixes it on both.
+Evidence and limits are in PR #34. Left: the 0.10.1 tester build (AND-REL).
+
+The harness stayed out of the repo. It patches a scratch checkout: `BACKEND_URL` to
+`http://10.0.2.2:8090`, `usesCleartextTraffic`, and a token file read in `GsdApp.onCreate`. Upgrade
+with `adb install -r` from a 0.10.0 build with the same patch, and keep `client_updated_at` in the past
+when seeding rows, or every local edit loses last-write-wins.

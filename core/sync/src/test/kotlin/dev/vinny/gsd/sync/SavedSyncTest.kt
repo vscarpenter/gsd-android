@@ -1,5 +1,8 @@
 package dev.vinny.gsd.sync
 
+import dev.vinny.gsd.model.FilterCriteria
+import dev.vinny.gsd.model.ReminderPlanner
+import dev.vinny.gsd.model.ReminderSettings
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskJson
 import dev.vinny.gsd.store.SyncOp
@@ -11,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -138,6 +142,129 @@ class SavedSyncTest {
         engine(remote, local).runSync(false)
 
         assertEquals(PbDates.formatWire(savedAt), remote.records["r1"]!!.savedAt)
+    }
+
+    @Test
+    fun `a row edited on the older build keeps saved_at on the server through the upgrade`() = runTest {
+        val edited = task("save-1", updatedAt = now) // newer than the server, so the backfill can't merge it
+        val local = FakeLocal().apply {
+            tasks["save-1"] = edited
+            savedCursor = PbDates.cursorAfter(pulledAt.plusSeconds(3_600))
+            contractVersion = 0
+            queue += queueItem(1, edited)
+        }
+        val remote = FakeRemote()
+        remote.records["r1"] = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
+        remote.honorCursor(pulledAt, mutableListOf())
+
+        engine(remote, local).runSync(false)
+
+        assertEquals(PbDates.formatWire(savedAt), remote.records["r1"]!!.savedAt)
+    }
+
+    /** A row 0.10.0 pulled without `saved_at` and then edited: local is newer, and the server has it Saved. */
+    private fun upgradedLocal(row: Task) = FakeLocal().apply {
+        tasks[row.id] = row
+        savedCursor = PbDates.cursorAfter(pulledAt.plusSeconds(3_600))
+        contractVersion = 0
+    }
+
+    private fun serverWith(savedAt: Instant?) = FakeRemote().apply {
+        records["r1"] = WireMapper.push(task("save-1", savedAt = savedAt), "mac", "user-1")
+        honorCursor(pulledAt, mutableListOf())
+    }
+
+    @Test
+    fun `the backfill copies only placement onto a locally newer row`() = runTest {
+        val edited = task("save-1", updatedAt = now).copy(title = "edited on 0.10.0", tags = listOf("mine"))
+        val local = upgradedLocal(edited)
+
+        val result = engine(serverWith(savedAt), local).runSync(false)
+
+        assertEquals(edited.copy(savedAt = savedAt), local.tasks["save-1"])
+        assertTrue(local.queue.isEmpty())
+        assertEquals(0, result.conflicts)
+        assertEquals(0, result.pulled)
+    }
+
+    @Test
+    fun `a backfilled placement takes the row off the matrix and drops its reminder`() = runTest {
+        val due = now.plusSeconds(86_400)
+        val edited = task("save-1", updatedAt = now).copy(dueDate = due)
+        val settings = ReminderSettings()
+        val zone = ZoneOffset.UTC
+        assertNotNull(ReminderPlanner.fireTime(edited, settings, now, zone))
+        assertTrue(FilterCriteria().matches(edited, emptyList(), now, zone))
+        val local = upgradedLocal(edited)
+
+        engine(serverWith(savedAt), local).runSync(false)
+
+        val row = local.tasks.getValue("save-1")
+        assertNull(ReminderPlanner.fireTime(row, settings, now, zone))
+        assertFalse(FilterCriteria().matches(row, emptyList(), now, zone))
+    }
+
+    @Test
+    fun `the backfill leaves a locally newer row alone when the server has no placement`() = runTest {
+        val edited = task("save-1", updatedAt = now)
+        val local = upgradedLocal(edited)
+
+        engine(serverWith(savedAt = null), local).runSync(false)
+
+        assertEquals(edited, local.tasks["save-1"])
+    }
+
+    @Test
+    fun `the backfill keeps a placement this device already has`() = runTest {
+        val savedHere = now.minusSeconds(60)
+        val edited = task("save-1", updatedAt = now, savedAt = savedHere)
+        val local = upgradedLocal(edited)
+
+        engine(serverWith(savedAt), local).runSync(false)
+
+        assertEquals(edited, local.tasks["save-1"])
+    }
+
+    @Test
+    fun `the backfill doesn't copy placement past a tombstone`() = runTest {
+        val edited = task("save-1", updatedAt = now)
+        val local = upgradedLocal(edited).apply { tombstones["save-1"] = now.toEpochMilli() }
+
+        engine(serverWith(savedAt), local).runSync(false)
+
+        assertEquals(edited, local.tasks["save-1"])
+        assertEquals(now.toEpochMilli(), local.tombstones["save-1"])
+    }
+
+    @Test
+    fun `a strictly newer remote still wins the whole row during the backfill`() = runTest {
+        val local = upgradedLocal(task("save-1", updatedAt = pulledAt))
+        val remote = FakeRemote().apply {
+            records["r1"] = WireMapper.push(task("save-1", updatedAt = now, savedAt = savedAt).copy(title = "remote"), "mac", "user-1")
+            honorCursor(pulledAt, mutableListOf())
+        }
+
+        val result = engine(remote, local).runSync(false)
+
+        assertEquals("remote", local.tasks["save-1"]!!.title)
+        assertEquals(1, result.conflicts)
+    }
+
+    @Test
+    fun `an ordinary pull after the backfill leaves a local return active`() = runTest {
+        val returned = task("save-1", updatedAt = now)
+        val local = FakeLocal().apply {
+            tasks["save-1"] = returned
+            savedCursor = "1970-01-01 00:00:00.000Z"
+            contractVersion = SyncEngine.PULL_CONTRACT_VERSION
+            queue += queueItem(1, returned)
+        }
+        val remote = serverWith(savedAt)
+
+        engine(remote, local).runSync(false)
+
+        assertNull(local.tasks["save-1"]!!.savedAt)
+        assertEquals("", remote.records["r1"]!!.savedAt)
     }
 
     @Test
