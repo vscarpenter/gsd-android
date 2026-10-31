@@ -34,6 +34,12 @@ class MalformedRemoteVersion : Exception("Remote task version is missing or malf
 class NotSignedIn : Exception("Not signed in")
 
 /**
+ * The account this run started for signed out, or another signed in, before a write (parity backlog B-14,
+ * web #538). The run stops where it is: nothing pulled lands, nothing is deleted, and no retry is spent.
+ */
+class StaleSyncSession : Exception("Sync session ended before this write")
+
+/**
  * The last-write-wins sync engine (spec §9.3–§9.5): pull → push → deletion
  * reconciliation, one run at a time. Every rule here is exercised by JVM
  * tests over fakes — this class must stay free of Android imports.
@@ -45,6 +51,15 @@ class SyncEngine(
     private val throttleMs: Long = 100,
     private val ownerId: suspend () -> String? = { null },
 ) {
+    companion object {
+        /**
+         * Bump when a build first reads a new synced field, in step with the web's
+         * `SYNC_CONFIG.PULL_CURSOR_VERSION` and iOS `SyncCursor.contractVersion`. 3 is `saved_at`.
+         */
+        const val PULL_CONTRACT_VERSION = 3
+        private const val EPOCH_CURSOR = "1970-01-01 00:00:00.000Z"
+    }
+
     private val mutex = Mutex()
 
     private val backoffMs = longArrayOf(5_000, 10_000, 30_000, 60_000, 300_000)
@@ -59,7 +74,7 @@ class SyncEngine(
         var notSignedIn = false
         try {
             val owner = ownerId() ?: throw NotSignedIn()
-            val pullOutcome = pull()
+            val pullOutcome = pull(owner)
             pulled = pullOutcome.first
             conflicts = pullOutcome.second
 
@@ -97,11 +112,23 @@ class SyncEngine(
         result
     }
 
-    private suspend fun pull(): Pair<Int, Int> {
+    /**
+     * Checked just before each write rather than inside its Room transaction: the session lives in the
+     * token store, not the database, so a sign-out can still land between the check and one write.
+     */
+    private suspend fun fence(owner: String) {
+        if (ownerId() != owner) throw StaleSyncSession()
+    }
+
+    private suspend fun pull(owner: String): Pair<Int, Int> {
         var pulled = 0
         var conflicts = 0
         var maxApplied: Instant? = null
-        val cursor = local.cursor() ?: "1970-01-01 00:00:00.000Z"
+        val stored = local.cursor()
+        // An older build's cursor sits past rows it stored without a field this build reads: re-pull once
+        // and merge same-version rows, before any push could send that field empty (spec 2026-10-29 §2).
+        val backfill = stored != null && local.pullContractVersion() < PULL_CONTRACT_VERSION
+        val cursor = if (backfill) EPOCH_CURSOR else stored ?: EPOCH_CURSOR
         BoundedListing.collect(cursor, remote::listTasks) { result ->
             result.items.forEachIndexed { index, wire ->
                 val existing = local.taskById(wire.taskId)
@@ -109,15 +136,23 @@ class SyncEngine(
                 if (!resolveTombstone(local, incoming.id, incoming.updatedAt.toEpochMilli())) {
                     return@forEachIndexed // archived/trashed locally, remote not strictly newer (parity spec P§4)
                 }
+                if (backfill && existing != null && lacksNewerPlacement(existing, incoming)) {
+                    fence(owner)
+                    local.upsertFromRemote(existing.copy(savedAt = incoming.savedAt))
+                    return@forEachIndexed
+                }
                 val apply = when {
                     existing == null -> true
                     incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli() -> {
                         conflicts++ // remote won over a local copy — informational (spec §9.7)
                         true
                     }
+                    backfill && incoming.updatedAt.toEpochMilli() == existing.updatedAt.toEpochMilli() ->
+                        true // the same version: merge what an older build dropped, not a conflict
                     else -> false // equal or local newer → no-op (spec §9.3)
                 }
                 if (apply) {
+                    fence(owner)
                     local.upsertFromRemote(incoming)
                     pulled++
                     PbDates.parse(result.updatedStamps.getOrNull(index))?.let { stamp ->
@@ -126,9 +161,22 @@ class SyncEngine(
                 }
             }
         }
-        maxApplied?.let { local.saveCursor(PbDates.cursorAfter(it)) }
+        fence(owner)
+        maxApplied?.let { applied ->
+            val next = PbDates.cursorAfter(applied)
+            if (!backfill || next > stored!!) local.saveCursor(next) // a backfill never moves the cursor back
+        }
+        if (stored == null || backfill) local.savePullContractVersion(PULL_CONTRACT_VERSION)
         return pulled to conflicts
     }
+
+    /**
+     * An older build dropped `saved_at`, then edited the row, so last-write-wins keeps the local copy and the
+     * push would send an empty placement. Backfill only: outside it, the same shape is a real Return.
+     */
+    private fun lacksNewerPlacement(existing: Task, incoming: Task): Boolean =
+        existing.savedAt == null && incoming.savedAt != null &&
+            incoming.updatedAt.toEpochMilli() < existing.updatedAt.toEpochMilli()
 
     private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> =
         BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks)
@@ -145,6 +193,7 @@ class SyncEngine(
         var failures = 0
         val now = clock.instant()
         for (item in pending) {
+            fence(owner) // outside the item's try: a session that ended must not spend this item's retries
             if (item.retryCount > 0) {
                 val waitMs = backoffMs[(item.retryCount - 1).coerceAtMost(backoffMs.lastIndex)]
                 val lastAttempt = item.lastAttemptAt ?: 0L
@@ -170,7 +219,13 @@ class SyncEngine(
                             local.markQueueItemDone(item.id) // LWW payload guard: pull delivers remote (spec §9.3)
                             continue
                         }
-                        val wire = WireMapper.push(payload, deviceId, owner)
+                        // Placement comes from the current row: a payload queued by an older build has none
+                        val current = local.taskById(item.taskId)
+                        val wire = if (current != null) {
+                            WireMapper.push(payload.copy(savedAt = current.savedAt), deviceId, owner)
+                        } else {
+                            WireMapper.push(payload, deviceId, owner, sendSavedAt = false)
+                        }
                         if (remoteEntry != null) {
                             remote.updateTask(remoteEntry.first, wire)
                         } else {
@@ -181,8 +236,9 @@ class SyncEngine(
                         pushed++
                     }
                     SyncOp.DELETE -> {
-                        if (remoteEditedAfterArchive(item, index[item.taskId]?.second)) {
-                            local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-47)
+                        val remoteStamp = index[item.taskId]?.second
+                        if (remoteEditedAfterArchive(item, remoteStamp) || remoteEditedAfterQueued(item, remoteStamp)) {
+                            local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-42, B-47)
                             continue
                         }
                         index[item.taskId]?.let { remote.deleteTask(it.first) }
@@ -208,6 +264,10 @@ class SyncEngine(
         }
         return pushed to failures
     }
+
+    /** Any delete, Trash or manual, is stale once the server copy changed after it was queued (B-42). */
+    private fun remoteEditedAfterQueued(item: SyncQueueEntity, remoteStamp: Instant?): Boolean =
+        remoteStamp != null && remoteStamp.toEpochMilli() > item.timestamp
 
     /**
      * An archive's delete carries the task as it was archived (spec §9.5). A remote newer than that
@@ -241,6 +301,7 @@ class SyncEngine(
         if (unprotected.isEmpty()) return
         remote.confirmIdentity(owner)
         unprotected.forEach { task ->
+            fence(owner)
             if (task.id in failed) local.abandonToTrash(task.id, now) // ABANDON
             else local.deleteFromRemote(task.id)                      // APPLY
         }

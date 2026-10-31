@@ -44,4 +44,12 @@ class WidgetSnapshotTest {
         val restored = WidgetSnapshot.decode(WidgetSnapshot.encode(empty))
         assertEquals(empty, restored)
     }
+
+    @Test
+    fun `a Saved task stays off the widget`() {
+        val saved = task("saved q1").copy(savedAt = now.minusSeconds(60))
+        val snapshot = WidgetSnapshot.build(listOf(saved, task("active q1")), now, ZoneOffset.UTC)
+        assertEquals(1, snapshot.totalActive)
+        assertEquals(listOf("active q1"), snapshot.items.map { it.title })
+    }
 }

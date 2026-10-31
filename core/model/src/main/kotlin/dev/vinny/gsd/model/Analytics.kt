@@ -29,7 +29,8 @@ data class DashboardStats(
 
 /** The §8.15 metric set, computed from the current task set. No streaks — ever. */
 object Analytics {
-    fun compute(tasks: List<Task>, windowDays: Int, now: Instant, zone: ZoneId): DashboardStats {
+    fun compute(stored: List<Task>, windowDays: Int, now: Instant, zone: ZoneId): DashboardStats {
+        val tasks = stored.filterNot { it.isSaved } // Saved items are not active work (web ADR 0018)
         val today = now.atZone(zone).toLocalDate()
         val active = tasks.count { !it.completed }
         val completed = tasks.count { it.completed }

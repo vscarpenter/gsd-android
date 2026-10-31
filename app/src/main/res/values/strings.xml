@@ -129,6 +129,20 @@
         <item quantity="other">in %1$d days</item>
     </plurals>
     <string name="browse_archive">Archive</string>
+    <string name="browse_saved">Saved</string>
+    <string name="menu_move_to_saved">Move to Saved</string>
+    <string name="snackbar_saved">Moved \"%1$s\" to Saved</string>
+    <string name="saved_search_hint">Search Saved…</string>
+    <string name="saved_empty">Nothing saved yet</string>
+    <string name="saved_empty_body">Move a task here from its menu to keep it out of the matrix without losing it.</string>
+    <string name="saved_return">Return to matrix</string>
+    <string name="saved_edit_notes">Edit notes</string>
+    <string name="saved_notes_hint">Notes and links</string>
+    <string name="saved_notes_count">%1$d of %2$d</string>
+    <string name="saved_return_title">Return \"%1$s\" to the matrix</string>
+    <string name="saved_return_due">Due date</string>
+    <string name="saved_due_keep">Keep %1$s</string>
+    <string name="saved_return_confirm">Return</string>
     <string name="browse_pinned">Pinned</string>
     <string name="browse_built_in">Built-in</string>
     <string name="browse_custom">Custom</string>

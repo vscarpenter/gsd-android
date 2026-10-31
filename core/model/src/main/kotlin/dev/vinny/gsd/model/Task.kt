@@ -60,8 +60,12 @@ data class Task(
     @Serializable(with = InstantIso8601Serializer::class) val snoozedUntil: Instant? = null,
     val estimatedMinutes: Int? = null,
     val timeEntries: List<TimeEntry> = emptyList(),
+    /** Non-null keeps the task outside the matrix (web ADR 0018). Synced as `saved_at`. */
+    @Serializable(with = InstantIso8601Serializer::class) val savedAt: Instant? = null,
 ) {
     val quadrant: Quadrant get() = Quadrant.from(urgent, important)
+
+    val isSaved: Boolean get() = savedAt != null
 
     /** Total tracked whole minutes over completed entries (spec §8.9). */
     val timeSpent: Int

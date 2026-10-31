@@ -20,6 +20,7 @@ internal class FakeLocal : SyncLocalStore {
     val queue = mutableListOf<SyncQueueEntity>()
     val history = mutableListOf<SyncHistoryEntry>()
     var savedCursor: String? = null
+    var contractVersion: Int = SyncEngine.PULL_CONTRACT_VERSION
     val remoteDeletes = mutableListOf<String>()
     val tombstones = mutableMapOf<String, Long>()
     val removeTombstoneCalls = mutableListOf<String>()
@@ -52,6 +53,8 @@ internal class FakeLocal : SyncLocalStore {
     override suspend fun cursor(): String? = savedCursor
     override suspend fun saveCursor(cursor: String) { savedCursor = cursor }
     override suspend fun clearCursor() { savedCursor = null }
+    override suspend fun pullContractVersion(): Int = contractVersion
+    override suspend fun savePullContractVersion(version: Int) { contractVersion = version }
     override suspend fun enqueueUpdate(task: Task, nowMs: Long) {
         queue += SyncQueueEntity(
             id = (queue.maxOfOrNull { it.id } ?: 0L) + 1, taskId = task.id, operation = SyncOp.UPDATE,

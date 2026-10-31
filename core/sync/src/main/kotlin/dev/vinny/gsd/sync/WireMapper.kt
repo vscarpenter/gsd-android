@@ -2,6 +2,7 @@ package dev.vinny.gsd.sync
 
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.Recurrence
+import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.Subtask
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TimeEntry
@@ -10,7 +11,11 @@ import java.time.Instant
 /** Local ⇄ wire translation (spec §9.2). The wire time-entry form is lossy on purpose. */
 object WireMapper {
 
-    fun push(task: Task, deviceId: String, owner: String): WireTask = WireTask(
+    /**
+     * [sendSavedAt] false leaves `saved_at` off the record, so the server keeps its value. Push uses that when
+     * it can't read the task's current row, since a payload queued by an older build has no placement.
+     */
+    fun push(task: Task, deviceId: String, owner: String, sendSavedAt: Boolean = true): WireTask = WireTask(
         id = "",
         taskId = task.id,
         owner = owner, // required by the collection rule — blank is a 400
@@ -23,6 +28,7 @@ object WireMapper {
         completedAt = PbDates.formatWire(task.completedAt),
         lastNotificationAt = PbDates.formatWire(task.lastNotificationAt),
         snoozedUntil = PbDates.formatWire(task.snoozedUntil),
+        savedAt = if (sendSavedAt) PbDates.formatWire(task.savedAt) else null,
         completed = task.completed,
         recurrence = task.recurrence.wire,
         tags = task.tags,
@@ -66,7 +72,7 @@ object WireMapper {
                 notes = null,
             )
         }
-        return Task(
+        val pulled = Task(
             id = wire.taskId,
             title = wire.title,
             description = wire.description,
@@ -89,6 +95,8 @@ object WireMapper {
             snoozedUntil = local?.snoozedUntil,
             estimatedMinutes = wire.estimatedMinutes?.takeIf { it != 0 },
             timeEntries = local?.timeEntries ?: reconstructed,
+            savedAt = PbDates.parse(wire.savedAt),
         )
+        return SavedPlacement.afterRemoteChange(local, pulled)
     }
 }

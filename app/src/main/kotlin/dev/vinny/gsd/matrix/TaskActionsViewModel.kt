@@ -3,6 +3,7 @@ package dev.vinny.gsd.matrix
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vinny.gsd.model.Quadrant
+import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.store.TaskStore
 import dev.vinny.gsd.store.TrashStore
@@ -13,6 +14,9 @@ import kotlinx.coroutines.launch
 
 /** Undo-snackbar payload (parity spec P§3.1): just enough to relabel and restore, not re-create. */
 data class DeletedSnapshot(val id: String, val title: String)
+
+/** Undo-snackbar payload for Move to Saved. */
+data class SavedSnapshot(val id: String, val title: String)
 
 /**
  * The operations behind a task row's menu, swipes, and disc (spec §8.1). One view model owns them,
@@ -52,6 +56,38 @@ class TaskActionsViewModel(
     /** Ends one Undo offer. A newer delete may have replaced it, and that one stays. */
     fun clearUndo(shown: DeletedSnapshot) {
         _lastDeleted.compareAndSet(shown, null)
+    }
+
+    private val _lastSaved = MutableStateFlow<SavedSnapshot?>(null)
+    val lastSaved: StateFlow<SavedSnapshot?> = _lastSaved.asStateFlow()
+
+    /**
+     * Move to Saved (web ADR 0018). The menu offers it only when [SavedPlacement.canSave] holds, so a
+     * refusal here means the task changed under the menu: nothing moves and no Undo is offered.
+     */
+    fun moveToSaved(id: String) {
+        viewModelScope.launch {
+            val saved = try {
+                store.moveToSaved(id)
+            } catch (_: SavedPlacement.CannotSave) {
+                null
+            }
+            _lastSaved.value = saved?.let { SavedSnapshot(it.id, it.title) }
+        }
+    }
+
+    /** Undo puts the task back where it was: Save changed nothing but the placement. */
+    fun undoSave() {
+        val snapshot = _lastSaved.value ?: return
+        viewModelScope.launch {
+            store.change(snapshot.id) { it.copy(savedAt = null) }
+            _lastSaved.value = null
+        }
+    }
+
+    /** Ends one Undo offer. A newer save may have replaced it, and that one stays. */
+    fun clearSavedUndo(shown: SavedSnapshot) {
+        _lastSaved.compareAndSet(shown, null)
     }
 
     /** Drag-and-drop reclassification (spec §6.2): the flags change, quadrant follows. */

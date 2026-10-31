@@ -32,6 +32,7 @@ fun GsdNavHost(
                 dev.vinny.gsd.browse.BrowseScreen(
                     container = container,
                     onOpenArchive = { navController.navigate("archive") },
+                    onOpenSaved = { navController.navigate("saved") },
                     onOpenTrash = { navController.navigate("trash") },
                     onOpenView = { id -> navController.navigate("browse/view/$id") },
                     onNewView = { navController.navigate("browse/edit") },
@@ -40,13 +41,16 @@ fun GsdNavHost(
                 )
             }
         }
-        // These three draw their own bar: it carries the view's name or the screen's actions
+        // These draw their own bar: it carries the view's name or the screen's actions
         composable("browse/view/{viewId}") { entry ->
             dev.vinny.gsd.browse.SmartViewListScreen(
                 container = container,
                 viewId = entry.arguments?.getString("viewId").orEmpty(),
                 onUp = up,
             )
+        }
+        composable("saved") {
+            dev.vinny.gsd.browse.SavedScreen(container = container, onUp = up)
         }
         composable("archive") {
             dev.vinny.gsd.browse.ArchiveScreen(container = container, onUp = up)

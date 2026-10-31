@@ -1,5 +1,6 @@
 package dev.vinny.gsd.store
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -40,6 +41,7 @@ data class ArchivedTaskEntity(
     val estimatedMinutes: Int?,
     val timeEntriesJson: String,
     val archivedAt: Long,
+    val savedAt: Long? = null,
 )
 
 @Entity(
@@ -71,6 +73,7 @@ data class DeletedTaskEntity(
     val estimatedMinutes: Int?,
     val timeEntriesJson: String,
     val deletedAt: Long,
+    val savedAt: Long? = null,
 )
 
 @Entity(tableName = "smart_views")
@@ -115,6 +118,8 @@ data class SyncMetadataEntity(
     val cursor: String? = null,
     val deviceId: String,
     val deviceName: String,
+    /** The pull contract [cursor] was written under; 0 means a build from before contracts. */
+    @ColumnInfo(defaultValue = "0") val contractVersion: Int = 0,
 )
 
 @Entity(tableName = "sync_history", indices = [Index("timestamp")])

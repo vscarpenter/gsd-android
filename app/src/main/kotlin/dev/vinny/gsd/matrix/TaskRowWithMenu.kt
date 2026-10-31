@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Quadrant
+import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.ShareText
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TimeTracking
@@ -42,6 +43,7 @@ data class TaskRowActions(
     val onDuplicate: () -> Unit = {},
     val onShare: () -> Unit = {},
     val onMoveTo: (Quadrant) -> Unit = {},
+    val onSave: () -> Unit = {},
     val onDelete: () -> Unit = {},
 )
 
@@ -69,6 +71,7 @@ fun taskRowActions(
         context.startActivity(Intent.createChooser(send, null))
     },
     onMoveTo = { quadrant -> actions.moveToQuadrant(task.id, quadrant) },
+    onSave = { actions.moveToSaved(task.id) },
     onDelete = { actions.delete(task.id) },
 )
 
@@ -136,6 +139,10 @@ fun TaskRowWithMenu(
             MenuItem(R.string.menu_duplicate) { menuOpen = false; actions.onDuplicate() }
             MenuItem(R.string.menu_share) { menuOpen = false; actions.onShare() }
             MenuItem(R.string.menu_move_to, submenu = true) { moveOpen = true }
+            // Not for a completed task or a running timer (web ADR 0018): the row offers nothing it would refuse
+            if (SavedPlacement.canSave(task)) {
+                MenuItem(R.string.menu_move_to_saved) { menuOpen = false; actions.onSave() }
+            }
             MenuItem(R.string.menu_delete, color = LocalGsdColors.current.alert) {
                 menuOpen = false; actions.onDelete()
             }

@@ -22,11 +22,12 @@ data class QuadrantSectionState(
 
 /**
  * Pure grouping: Q1→Q4 order, incomplete above completed (spec §8.1),
- * header counts are active-only regardless of the show-completed toggle.
+ * header counts are active-only regardless of the show-completed toggle. Saved tasks live
+ * outside the matrix (web ADR 0018).
  */
 fun buildSections(tasks: List<Task>, showCompleted: Boolean = true): List<QuadrantSectionState> =
     Quadrant.entries.map { quadrant ->
-        val inQuadrant = tasks.filter { it.quadrant == quadrant }
+        val inQuadrant = tasks.filter { it.quadrant == quadrant && !it.isSaved }
         val visible = if (showCompleted) inQuadrant else inQuadrant.filter { !it.completed }
         QuadrantSectionState(
             quadrant = quadrant,

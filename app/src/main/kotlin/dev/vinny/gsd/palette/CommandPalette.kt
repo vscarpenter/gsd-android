@@ -49,6 +49,7 @@ fun CommandPalette(
     onAction: (PaletteAction) -> Unit,
     onNavigate: (PaletteNav) -> Unit,
     onDismiss: () -> Unit,
+    onOpenSaved: () -> Unit = {},
 ) {
     val gsd = LocalGsdColors.current
     var query by remember { mutableStateOf("") }
@@ -83,11 +84,16 @@ fun CommandPalette(
             )
             val actionLabels = PaletteAction.entries.associateWith { stringResource(it.labelRes) }
             val navLabels = PaletteNav.entries.associateWith { stringResource(it.labelRes) }
+            val savedTag = stringResource(R.string.browse_saved)
             val actionLabel = { action: PaletteAction -> actionLabels.getValue(action) }
             val navLabel = { nav: PaletteNav -> navLabels.getValue(nav) }
             val results = PaletteIndex.query(query, tasks, views, actionLabel, navLabel)
             LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                section(R.string.palette_tasks, results.tasks, { it.title }) { onOpenTask(it.id); onDismiss() }
+                // A Saved result says so and opens Saved, not the editor (iOS ADR 0001)
+                section(R.string.palette_tasks, results.tasks, { if (it.isSaved) "${it.title} · $savedTag" else it.title }) {
+                    if (it.isSaved) onOpenSaved() else onOpenTask(it.id)
+                    onDismiss()
+                }
                 section(R.string.palette_views, results.views, { it.name }) { onOpenView(it.id); onDismiss() }
                 section(R.string.palette_actions, results.actions, actionLabel) { onAction(it); onDismiss() }
                 section(R.string.palette_navigation, results.navigation, navLabel) { onNavigate(it); onDismiss() }
@@ -109,6 +115,7 @@ private val PaletteNav.labelRes: Int
     get() = when (this) {
         PaletteNav.MATRIX -> R.string.nav_matrix
         PaletteNav.DASHBOARD -> R.string.nav_dashboard
+        PaletteNav.SAVED -> R.string.browse_saved
         PaletteNav.ARCHIVE -> R.string.browse_archive
         PaletteNav.SETTINGS -> R.string.nav_settings
     }

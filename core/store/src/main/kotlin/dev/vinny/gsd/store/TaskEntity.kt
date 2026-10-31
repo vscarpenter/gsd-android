@@ -44,6 +44,7 @@ data class TaskEntity(
     val snoozedUntil: Long?,
     val estimatedMinutes: Int?,
     val timeEntriesJson: String,
+    val savedAt: Long? = null,
 )
 
 private val subtaskListSerializer = ListSerializer(Subtask.serializer())
@@ -73,6 +74,7 @@ fun Task.toEntity(): TaskEntity = TaskEntity(
     snoozedUntil = snoozedUntil?.toEpochMilli(),
     estimatedMinutes = estimatedMinutes,
     timeEntriesJson = TaskJson.json.encodeToString(timeEntryListSerializer, timeEntries),
+    savedAt = savedAt?.toEpochMilli(),
 )
 
 fun TaskEntity.toTask(): Task = Task(
@@ -98,6 +100,7 @@ fun TaskEntity.toTask(): Task = Task(
     snoozedUntil = snoozedUntil?.let(Instant::ofEpochMilli),
     estimatedMinutes = estimatedMinutes,
     timeEntries = decodeOrEmpty(timeEntriesJson, timeEntryListSerializer),
+    savedAt = savedAt?.let(Instant::ofEpochMilli),
 )
 
 private fun <T> decodeOrEmpty(

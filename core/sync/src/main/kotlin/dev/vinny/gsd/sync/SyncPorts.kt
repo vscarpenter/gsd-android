@@ -76,6 +76,10 @@ interface SyncLocalStore {
     /** Forget the pull cursor so the next run lists the whole account (spec §8.21). */
     suspend fun clearCursor()
 
+    /** The pull contract the cursor was written under; 0 for a cursor from a build before contracts. */
+    suspend fun pullContractVersion(): Int
+    suspend fun savePullContractVersion(version: Int)
+
     /** Queue a push of [task] exactly as stored: no restamp, so LWW still decides (spec §8.21). */
     suspend fun enqueueUpdate(task: Task, nowMs: Long)
 
