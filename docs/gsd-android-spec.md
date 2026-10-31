@@ -725,7 +725,7 @@ Up to 50 per task; title 1–100 chars; add/toggle/delete/reorder in the editor.
 
 **Behavior (authoritative).** Presets resolve in the device's local time zone: **None** → unset; **Today** → today; **This week** → the **Friday of the current week** (Saturday/Sunday → *next* Friday); **Next week** → the **Monday of next week** (strictly after today).
 
-**Time of day (an Android addition).** A due date at local midnight is *all day*. That is what the presets write, and it is all iOS and the web can write: both pick a date only, iOS at start of day. Android's editor can also set a time, so a reminder can fire before a meeting at 3 PM rather than at 11:45 PM the night before. The time rides the same `dueDate` instant, so nothing changes on the wire. iOS shows the date and keeps the time on its own date edits. The web shows the date.
+**Time of day (an Android addition).** A due date at local midnight is *all day*. That is what the presets write, and it is all iOS and the web can write: both pick a date only, iOS at start of day. Android's editor can also set a time, so a reminder can fire before a meeting at 3 PM. An all-day task has no time to count back from, so its reminder fires at 09:00 on the due day (see §11.1). The time rides the same `dueDate` instant, so nothing changes on the wire. iOS shows the date and keeps the time on its own date edits. The web shows the date.
 
 **Android reimagining.** Preset chips + a Material date picker and time picker; cards show relative formatting ("in 3 days", "Due today" emphasized in Tide, overdue in alert).
 
@@ -1164,7 +1164,7 @@ iOS pre-schedules every reminder with the system notification center; Android's 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 5
 > Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (alarm cap)
 
-- A task with a `dueDate`, `notificationEnabled == true`, and a reminder offset (`notifyBefore`, else the global default) gets a reminder at `dueDate − offset` — unless `snoozedUntil` is in the future, in which case the fire time **is** `snoozedUntil`. That holds after the first reminder posted too: a snooze asks for another reminder, so `notificationSent` does not block it. A posted reminder with no future snooze does not fire again.
+- A task with a `dueDate`, `notificationEnabled == true`, and a reminder offset (`notifyBefore`, else the global default) gets a reminder at `dueDate − offset` — except that an **all-day** task (due at local midnight, `DueTime.timeOf == null`) fires at `ReminderPlanner.ALL_DAY_REMINDER_HOUR` (09:00) local on the due day, one day earlier for each whole day of offset (`offset / 1440`), in the device's current zone; the shared due-time corpus pins this — unless `snoozedUntil` is in the future, in which case the fire time **is** `snoozedUntil`. That holds after the first reminder posted too: a snooze asks for another reminder, so `notificationSent` does not block it. A posted reminder with no future snooze does not fire again.
 - **Reschedule** whenever `dueDate`, `notifyBefore`, `notificationEnabled`, snooze, or completion changes; **cancel** on complete, delete, or disable. Editing `dueDate`/`notifyBefore` resets reminder state (§8.3). Recurring spawns schedule their own reminder at spawn time.
 - **Quiet hours:** a fire time inside the quiet window defers to the window's end.
 - One stable identity per task (`task-<id>`) so reschedules replace, never stack.
