@@ -134,6 +134,7 @@ class SyncEngine(
             result.items.forEachIndexed { index, wire ->
                 val existing = local.taskById(wire.taskId)
                 val mapped = WireMapper.pull(wire, existing) ?: return@forEachIndexed
+                fence(owner) // resolving a tombstone can remove it, and that's a write to this account's data
                 if (!resolveTombstone(local, mapped.id, mapped.updatedAt, now)) {
                     return@forEachIndexed // archived/trashed locally, remote not strictly newer (parity spec P§4)
                 }
