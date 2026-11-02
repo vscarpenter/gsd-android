@@ -57,4 +57,8 @@ Requires JDK 17 or newer. Gradle provisions its own toolchain.
 
 Feature-complete through the spec's eight-phase roadmap, tagged `v0.1.0-phase1` through `v0.7.0-phase7`. Play Store submission is in progress. The August 2026 cross-platform parity catch-up — backup envelope 2.1.0, a 30-day trash, the shared 40-case capture-parser corpus, and anonymous opt-in feedback — landed 2026-08-29, with fixtures kept byte-identical to the sibling web and iOS repos. A second parity round landed 2026-09-06 on `feat/parity-2026-09`: per-quadrant completion rings and day-based deadline badges on the Dashboard, a Browse-wide task search with a shared list ordering, first-frame skeletons on the Matrix, Dashboard, and smart-view lists, off-list reminder offsets rendered instead of snapped, bounded smart-view import/export, and the sibling security hardening — fail-closed remote listings, a malformed-version push guard, three-verdict remote-absence reconciliation, and route-first account deletion with surfaced outcomes.
 
+## License
+
+[MIT](LICENSE) © 2026 Vinny Carpenter
+
 Built by [Vinny Carpenter](https://vinny.dev), with Claude doing the typing.
