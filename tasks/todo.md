@@ -1,12 +1,18 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-02): 0.10.2 submitted to Alpha
+
+- **Done:** 13 (0.10.2) went to Closed testing, Alpha, and is in Google's review. It carries the 0.10.1 work, which never reached the Console. Gates and artifacts are in the local `docs/play/submission-checklist.md`.
+- **Next:** confirm it publishes in Publishing overview, then do section A's release smoke on the Pixel. Sign-in, sync, and a firing reminder are still unwalked on a signed build.
+- **Before applying for production:** the Console shows all three requirements met, and nobody has applied. Read the 0.10.2 note in `docs/play/production-access-round-3.md` first, because the draft answers still say 0.10.1.
+
 ## Resuming From Here (2026-11-02): public repo hardening
 
 - **Done:** private vulnerability reporting, Dependabot security updates, and two `main` rulesets are live, and the wiki is off.
   PR #49 added the MIT license and the `author_association` check in `claude.yml`, and stopped tracking the Play checklist.
   The checklist is local-only now, so a fresh clone can recover it with
   `git show d6a77c1~1:docs/play/submission-checklist.md > docs/play/submission-checklist.md`.
-- **Next:** merge `docs/security-policy`, which adds `SECURITY.md`, so the policy shows on the Security tab.
+- **Also done:** PR #50 added `SECURITY.md`, and PR #51 pinned the workflow actions to SHAs.
 - **Assumptions:** PRs need 0 approvals because a solo owner can't approve their own. Admins can bypass the PR rule, but no one
   can force-push or delete `main`.
 

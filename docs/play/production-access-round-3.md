@@ -165,9 +165,13 @@ Recruiting blurb, for a post or a direct message:
 > discarding edits. Shared links open over the app you shared from. Better TalkBack support and text
 > contrast, tablet and landscape fixes, and safer sync.
 
+## 0.10.2 release
+
+Submitted to Alpha on 2026-11-02 as versionCode 13, versionName 0.10.2. The 0.10.1 build never reached the Console, so testers moved from 0.10.0 to this build. App code matches 0.10.1, and the notes below describe it. **Wherever the answers below say 0.10.1, they mean 0.10.2**, and the shipped builds are 0.8.0, 0.9.0, 0.9.1, 0.10.0, and 0.10.2.
+
 ## 0.10.1 release
 
-Prepared 2026-10-31 in sprint 1. Versions: versionCode 12, versionName 0.10.1. The owner uploads.
+Prepared 2026-10-31 in sprint 1. Versions: versionCode 12, versionName 0.10.1. Never uploaded.
 
 - **It isn't the build this doc planned.** The plan above says 0.10.1 ships Oct 20 with tester-reported fixes only. It's shipping later, and it carries parity and sync-safety work instead. Nothing in it came from a tester report that this repo records, because the feedback log below is empty. Don't present these changes as tester feedback.
 - **First sync.** Pull contract 3: the first sync after the update pulls everything once, to bring `saved_at` to rows 0.10.0 already holds.
