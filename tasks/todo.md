@@ -3,9 +3,10 @@
 ## Resuming From Here (2026-11-02): public repo hardening
 
 - **Done:** private vulnerability reporting, Dependabot security updates, and two `main` rulesets are live, and the wiki is off.
-  This branch adds the MIT license, the `author_association` check in `claude.yml`, and stops tracking the Play checklist.
-- **Next:** merge `chore/public-repo-hardening`. Pulling that merge deletes your local checklist, so restore it afterward:
-  `git show HEAD~1:docs/play/submission-checklist.md > docs/play/submission-checklist.md` (a merge commit's first parent).
+  PR #49 added the MIT license and the `author_association` check in `claude.yml`, and stopped tracking the Play checklist.
+  The checklist is local-only now, so a fresh clone can recover it with
+  `git show d6a77c1~1:docs/play/submission-checklist.md > docs/play/submission-checklist.md`.
+- **Next:** merge `docs/security-policy`, which adds `SECURITY.md`, so the policy shows on the Security tab.
 - **Assumptions:** PRs need 0 approvals because a solo owner can't approve their own. Admins can bypass the PR rule, but no one
   can force-push or delete `main`.
 
