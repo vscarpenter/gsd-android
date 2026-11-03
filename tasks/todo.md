@@ -1,9 +1,9 @@
 # GSD Android — progress
 
-## Resuming From Here (2026-11-02): 0.10.2 submitted to Alpha
+## Resuming From Here (2026-11-02): 0.10.2 live on Alpha
 
-- **Done:** 13 (0.10.2) went to Closed testing, Alpha, and is in Google's review. It carries the 0.10.1 work, which never reached the Console. Gates and artifacts are in the local `docs/play/submission-checklist.md`.
-- **Next:** confirm it publishes in Publishing overview, then do section A's release smoke on the Pixel. Sign-in, sync, and a firing reminder are still unwalked on a signed build.
+- **Done:** 13 (0.10.2) published to Closed testing, Alpha, on Nov 2 at 11:52 AM CST. It carries the 0.10.1 work, which never reached the Console. Gates and artifacts are in the local `docs/play/submission-checklist.md`.
+- **Next:** do section A's release smoke on the Pixel. Sign-in, sync, and a firing reminder are still unwalked on a signed build.
 - **Before applying for production:** the Console shows all three requirements met, and nobody has applied. Read the 0.10.2 note in `docs/play/production-access-round-3.md` first, because the draft answers still say 0.10.1.
 
 ## Resuming From Here (2026-11-02): public repo hardening
