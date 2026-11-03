@@ -65,7 +65,7 @@
     <string name="repeat_weekly">Weekly</string>
     <string name="repeat_monthly">Monthly</string>
     <string name="reminder_default">Default reminder</string>
-    <string name="reminder_at_time">At time of event</string>
+    <string name="reminder_at_time">At due time</string>
     <plurals name="reminder_minutes_before">
         <item quantity="one">%1$d minute before</item>
         <item quantity="other">%1$d minutes before</item>
@@ -177,7 +177,7 @@
     <string name="browse_search_hint">Search all tasks</string>
     <string name="cd_clear_search">Clear search</string>
     <string name="search_empty_title">No tasks match \"%1$s\"</string>
-    <string name="search_empty_body">Try a different word, tag, or quadrant.</string>
+    <string name="search_empty_body">Try a different word, tag, or subtask.</string>
     <string name="view_editor_title">Smart View</string>
     <string name="view_editor_name_hint">View name</string>
     <string name="view_editor_save">Save view</string>
@@ -286,7 +286,7 @@
     <string name="settings_fetch_titles_footer">Fetching a page title performs a network request.</string>
     <string name="settings_show_completed">Show completed tasks</string>
     <string name="settings_escalation">Escalate tasks due within</string>
-    <string name="settings_escalation_footer">Flags tasks that aren\'t marked urgent when their due date gets this close. Nothing moves until you say so.</string>
+    <string name="settings_escalation_footer">Flags tasks that aren\'t marked urgent when their due date gets this close. Nothing moves until you say so. This setting is for this device only.</string>
     <string name="escalation_off">Off</string>
     <plurals name="escalation_days">
         <item quantity="one">%1$d day</item>
@@ -462,7 +462,7 @@
     <string name="sign_in_apple">Sign in with Apple</string>
     <string name="sign_in_github">Sign in with GitHub</string>
     <string name="account_note_relay">Signed in with a private relay email. This is a separate account from your web tasks.</string>
-    <string name="account_note_apple">Signed in with Apple. If you use Google or GitHub on the web, that\'s a different account and won\'t show the same tasks.</string>
+    <string name="account_note_apple">Signed in with Apple. If your web account uses a different email, it won\'t show the same tasks.</string>
     <string name="account_synced">Synced · %1$d pending</string>
     <string name="account_sync_now">Sync now</string>
     <string name="account_sync_history">Sync history</string>
