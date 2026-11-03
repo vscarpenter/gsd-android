@@ -304,7 +304,7 @@ never cleared the server, and Delete account does. Merge and deploy it before yo
 
 ## After access is granted
 
-- Promote 0.10.1, or ship 1.0.0 (versionCode 13) to Alpha first and promote that. 1.0.0 should be a build
+- Promote 0.10.2, or ship 1.0.0 (versionCode 14 or later) to Alpha first and promote that. 1.0.0 should be a build
   testers have run.
 - Landing page: replace "In the works" and add the Play badge (parity backlog R-4).
 - Record the outcome in `tasks/todo.md` and the parity docs.

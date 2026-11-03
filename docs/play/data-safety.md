@@ -19,7 +19,7 @@ form, and the no-cloud-backup rule.
 | Is collection optional? | **Yes** — the app is fully functional without an account; sync is opt-in, and feedback is sent only when the user taps Send. |
 | Purpose | Email: app functionality + account management. Tasks: app functionality (multi-device sync). Feedback: analytics, meaning product feedback to the developer (confirm the category in the Console). |
 | Encrypted in transit? | **Yes** (HTTPS only). |
-| Can users request deletion? | **Yes** — in-app account deletion (Settings → Account → Delete Account) removes every synced record and the user record. Web deletion URL as filed (both "delete account" and "delete data"): https://gsdtaskmanager.com/privacy/ (its "Keeping and deleting your data" section). A dedicated deletion page can replace it later by editing the Data safety form. |
+| Can users request deletion? | **Yes** — in-app account deletion (Settings → Account → Delete account…) removes every synced record and the user record. Web deletion URL as filed (both "delete account" and "delete data"): https://gsdtaskmanager.com/privacy/ (its "Keeping and deleting your data" section). A dedicated deletion page can replace it later by editing the Data safety form. |
 | Shared with third parties? | **No.** Self-hosted backend (api.vinny.io), no ads, no analytics SDKs, no tracking. |
 | Backups | **None to the cloud.** `allowBackup="false"` plus data extraction rules that exclude every domain from cloud backup (finding 16). A phone-to-phone transfer the user starts moves their tasks and settings to their new phone, without the sign-in token. Nothing reaches the developer or Google, so it is not collection. |
 | Anonymous feedback deletion | Feedback carries no account link, so it cannot be tied to a user for deletion. The server deletes it after 180 days. |
@@ -33,5 +33,5 @@ form, and the no-cloud-backup rule.
 | `INTERNET` / `ACCESS_NETWORK_STATE` | Optional account sync with the user's own data backend. |
 
 ## Account deletion (Play requirement)
-- In-app path: Settings → Account → Delete Account… (erases remote records, then the user record, then local token). ✔ shipped
+- In-app path: Settings → Account → Delete account… (erases remote records, then the user record, then local token). ✔ shipped
 - Web path: filed as https://gsdtaskmanager.com/privacy/ (covers deletion steps and retention). ✔ form completed 2026-07-19. Optional follow-up: publish a dedicated /delete-account/ page and swap the URL in the form.

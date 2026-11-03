@@ -12,9 +12,9 @@ Play flags "first" as a store-ranking keyword and warned that "privacy-first" wo
 promotion eligibility, so the live listing says "privacy-focused". Plain text only; Play
 renders markdown literally.
 
-## Full description (as entered in the Console, 2026-07-19)
+## Full description (≤4000 chars; revised 2026-11-03, paste into the Console to replace the 2026-07-19 text)
 Get the right things done. GSD sorts your tasks along two honest axes, urgent and important,
-into four quadrants: do first, schedule, delegate, eliminate. It answers one question well:
+into four quadrants: Do First, Schedule, Delegate, Eliminate. It answers one question well:
 what do I work on next?
 
 Private by design. Everything lives on your device. No account required, no ads, no
@@ -26,7 +26,9 @@ in one gesture. Share a link from any app straight onto your board.
 
 Depth under a calm surface. Recurring tasks, subtasks, dependencies with cycle detection,
 time tracking, snooze, smart views, and an honest analytics dashboard. No streaks, no badges,
-no guilt. Reminders arrive exactly on time, quiet hours respected.
+no guilt. Saved keeps reading and reference out of the matrix. Tasks that come due soon can
+escalate, and one tap marks them urgent. Reminders arrive on time when you allow exact alarms,
+and quiet hours are respected.
 
 At home on Android. A Today's Focus widget, launcher shortcuts, notification actions,
 predictive back, and true tablet layouts with drag-and-drop between quadrants.
