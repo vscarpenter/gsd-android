@@ -22,9 +22,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.TouchApp
@@ -56,9 +59,10 @@ import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.openInBrowser
 
 /**
- * The Field Guide (spec §8.19): a static reference, scrolling, in the sections the web and iOS
- * guides share. It was one paragraph with no scroll, and it still said sync was coming (review
- * finding 20). Keyboard shortcuts show only where a hardware keyboard is likely.
+ * The Field Guide (spec §8.19): a static reference, scrolling, in the order of the shared Field Guide
+ * outline (GSD Project doc parity/docs-review-2026-11-02.md §3.3). It was one paragraph with no scroll,
+ * and it still said sync was coming (review finding 20). Keyboard shortcuts show only where a hardware
+ * keyboard is likely.
  */
 @Composable
 fun FieldGuideScreen(modifier: Modifier = Modifier) {
@@ -100,6 +104,7 @@ fun FieldGuideScreen(modifier: Modifier = Modifier) {
                     TokenRow("!!", R.string.guide_syntax_both)
                     TokenRow("*", R.string.guide_syntax_important)
                     TokenRow("#tag", R.string.guide_syntax_tag)
+                    TokenRow("https://…", R.string.guide_syntax_link)
                 }
                 // Spec 8.19's example, verbatim
                 Text(
@@ -114,6 +119,30 @@ fun FieldGuideScreen(modifier: Modifier = Modifier) {
                 )
                 Text(stringResource(R.string.guide_syntax_example_result), style = GsdType.metadata, color = gsd.ink3)
             }
+            Section(R.string.guide_due, Icons.Outlined.CalendarMonth) {
+                RuledItem(R.string.guide_due_dates_title, R.string.guide_due_dates_body)
+                RuledItem(R.string.guide_reminders_title, R.string.guide_reminders_body)
+                RuledItem(R.string.guide_escalation_title, R.string.guide_escalation_body)
+            }
+            Section(R.string.guide_gestures, Icons.Outlined.TouchApp) {
+                RuledItem(R.string.guide_complete_title, R.string.guide_complete_body)
+                RuledItem(R.string.guide_edit_title, R.string.guide_edit_body)
+                RuledItem(R.string.guide_more_title, R.string.guide_more_body)
+                RuledItem(R.string.guide_drag_title, R.string.guide_drag_body)
+            }
+            Section(R.string.guide_keep, Icons.Outlined.BookmarkBorder) {
+                RuledItem(R.string.guide_saved_title, R.string.guide_saved_body)
+                RuledItem(R.string.guide_trash_title, R.string.guide_trash_body)
+            }
+            Section(R.string.guide_find, Icons.Outlined.Search) {
+                RuledItem(R.string.guide_search_title, R.string.guide_search_body)
+                RuledItem(R.string.guide_views_title, R.string.guide_views_body)
+                RuledItem(R.string.guide_select_title, R.string.guide_select_body)
+            }
+            Section(R.string.guide_sync, Icons.Outlined.Sync) {
+                Text(stringResource(R.string.guide_sync_body), style = GsdType.subhead, color = gsd.ink2)
+                Text(stringResource(R.string.guide_sync_chip), style = GsdType.subhead, color = gsd.ink2)
+            }
             if (keyboardLikely) {
                 Section(R.string.guide_keys, Icons.Outlined.Keyboard) {
                     KeysRow(listOf("Ctrl", "K"), R.string.guide_keys_palette)
@@ -122,16 +151,6 @@ fun FieldGuideScreen(modifier: Modifier = Modifier) {
                     KeysRow(listOf("Ctrl", "1–4"), R.string.guide_keys_quadrant)
                     KeysRow(listOf("Esc"), R.string.guide_keys_close)
                 }
-            }
-            Section(R.string.guide_gestures, Icons.Outlined.TouchApp) {
-                RuledItem(R.string.guide_complete_title, R.string.guide_complete_body)
-                RuledItem(R.string.guide_edit_title, R.string.guide_edit_body)
-                RuledItem(R.string.guide_more_title, R.string.guide_more_body)
-                RuledItem(R.string.guide_drag_title, R.string.guide_drag_body)
-            }
-            Section(R.string.guide_sync, Icons.Outlined.Sync) {
-                Text(stringResource(R.string.guide_sync_body), style = GsdType.subhead, color = gsd.ink2)
-                Text(stringResource(R.string.guide_sync_chip), style = GsdType.subhead, color = gsd.ink2)
             }
             Section(R.string.guide_privacy, Icons.Outlined.Lock) {
                 Text(stringResource(R.string.guide_privacy_body), style = GsdType.subhead, color = gsd.ink2)

@@ -158,7 +158,7 @@ class BrowseTest {
         content(buildBrowseState(BuiltInSmartViews.all, emptyList(), emptyList(), t0, ZoneOffset.UTC), emptyList())
         rule.onNodeWithTag("browse_search").performTextInput("qq")
         rule.onNodeWithText("No tasks match \"qq\"").assertIsDisplayed()
-        rule.onNodeWithText("Try a different word, tag, or quadrant.").assertIsDisplayed()
+        rule.onNodeWithText("Try a different word, tag, or subtask.").assertIsDisplayed()
     }
 
     @Test

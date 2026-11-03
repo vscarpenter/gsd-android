@@ -202,6 +202,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { pendingImport = null },
             title = { Text(stringResource(R.string.import_mode_title), style = GsdType.cardTitle) },
+            text = { Text(stringResource(R.string.import_mode_body), style = GsdType.body, color = gsd.ink2) },
             confirmButton = {
                 TextButton(onClick = {
                     pendingImport = null
