@@ -332,6 +332,7 @@
     <string name="settings_field_guide">How to use GSD</string>
     <string name="settings_show_onboarding">Show onboarding again</string>
     <string name="import_mode_title">Import mode</string>
+    <string name="import_mode_body">Merge adds the file\'s tasks to the ones you have. Replace swaps your tasks for the file\'s, along with any archive, trash, custom views, and settings it holds. If you\'re signed in, tasks that aren\'t in the file are deleted from your other devices too.</string>
     <string name="import_merge">Merge</string>
     <string name="import_replace">Replace</string>
     <string name="import_result">Imported %1$d, skipped %2$d</string>
@@ -340,7 +341,7 @@
     <string name="export_failed">Couldn\'t save the export. Try another location.</string>
     <string name="erase_remote_failed">Couldn\'t erase your synced tasks, so nothing was erased. Check your connection and try again.</string>
     <string name="erase_title">Erase all data?</string>
-    <string name="erase_body">Type RESET to confirm. This clears every task, the archive, and custom views, so consider exporting first.</string>
+    <string name="erase_body">Type RESET to confirm. This clears every task, Saved item, the archive, the trash, and custom views on this device. If you\'re signed in, it also deletes your synced tasks, so they\'re gone from your other devices too. Consider exporting first.</string>
     <string name="erase_confirm">Erase</string>
     <string name="erase_confirm_hint">Type RESET</string>
     <string name="onboarding_welcome_title">Get the right things done.</string>
