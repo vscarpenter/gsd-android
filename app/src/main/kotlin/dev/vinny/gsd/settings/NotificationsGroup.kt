@@ -98,6 +98,7 @@ internal fun NotificationsGroup(container: AppContainer) {
                     )
                 }
             }
+            Text(stringResource(R.string.settings_reminder_footer), style = GsdType.metadata, color = gsd.ink3)
         }
         SwitchRow(R.string.settings_sound, settings.soundEnabled) { on ->
             update { it.copy(soundEnabled = on) }

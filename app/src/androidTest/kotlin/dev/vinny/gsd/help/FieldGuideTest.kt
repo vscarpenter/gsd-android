@@ -29,4 +29,16 @@ class FieldGuideTest {
         rule.onNodeWithText("Read more at gsdtaskmanager.com").performScrollTo().assertHasClickAction()
         rule.onAllNodesWithText("when it arrives", substring = true).assertCountEquals(0)
     }
+
+    /** The 2026-11-02 docs review: the guide skipped Saved, escalation, Trash, search, and bulk select. */
+    @Test
+    fun theGuideCoversTheFeaturesShippedSince0100() {
+        rule.setContent { GsdTheme { FieldGuideScreen() } }
+
+        rule.onNodeWithText("https://…").performScrollTo().assertIsDisplayed()
+        listOf("Due dates", "Reminders", "Escalating", "Saved", "Undo and Trash", "Search", "Smart Views", "Select several")
+            .forEach { title -> rule.onNodeWithText(title).performScrollTo().assertIsDisplayed() }
+        rule.onNodeWithText("Pull down on the Matrix to sync now.", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onAllNodesWithText("lists every run", substring = true).assertCountEquals(0)
+    }
 }
