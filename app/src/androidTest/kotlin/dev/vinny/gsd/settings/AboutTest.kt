@@ -5,10 +5,12 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import dev.vinny.gsd.GsdApp
 import dev.vinny.gsd.theme.GsdTheme
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -37,5 +39,15 @@ class AboutTest {
         rule.onNodeWithText("Contact support").performScrollTo().assertHasClickAction()
         rule.onNodeWithText("gsdtaskmanager.com").performScrollTo().assertHasClickAction()
         rule.onNodeWithText("Crafted by Vinny Carpenter").performScrollTo().assertIsDisplayed()
+    }
+
+    /** D-15: What's New lives in About, next to the Field Guide. */
+    @Test
+    fun aboutOpensWhatsNew() {
+        var opened = false
+        rule.setContent { GsdTheme { SettingsScreen(container, onOpenHelp = {}, onOpenWhatsNew = { opened = true }) } }
+
+        rule.onNodeWithText("What's new").performScrollTo().performClick()
+        assertTrue(opened)
     }
 }

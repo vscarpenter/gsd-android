@@ -144,6 +144,12 @@ fun MatrixScreen(
                 onDetails = { editorViewModel.openNew(captureViewModel.draftForEditor()) },
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
             )
+            dev.vinny.gsd.whatsnew.WhatsNewCue(
+                container = container,
+                existingUser = sections?.any { it.activeCount > 0 || it.tasks.isNotEmpty() },
+                onOpen = { onNavigate("whats-new") },
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
             val onToggle: (dev.vinny.gsd.model.Task) -> Unit = { task ->
                 celebration.onToggle(task)
                 actions.toggleCompleted(task.id)
@@ -268,6 +274,7 @@ fun MatrixScreen(
                         )
                     }
                     dev.vinny.gsd.palette.PaletteAction.SEND_FEEDBACK -> onNavigate("feedback")
+                    dev.vinny.gsd.palette.PaletteAction.WHATS_NEW -> onNavigate("whats-new")
                 }
             },
             onNavigate = { nav ->

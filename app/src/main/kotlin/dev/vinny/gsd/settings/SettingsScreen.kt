@@ -66,6 +66,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     onOpenSyncHistory: () -> Unit = {},
     onOpenFeedback: () -> Unit = {},
+    onOpenWhatsNew: () -> Unit = {},
 ) {
     val gsd = LocalGsdColors.current
     val scope = rememberCoroutineScope()
@@ -192,7 +193,7 @@ fun SettingsScreen(
             GroupLabel(R.string.settings_feedback)
             ActionRow(R.string.settings_send_feedback, onClick = onOpenFeedback)
 
-            AboutGroup(container, onOpenHelp)
+            AboutGroup(container, onOpenHelp, onOpenWhatsNew)
         }
         // Over the scroll, not at its end, so a message shows wherever the user has scrolled to
         SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))

@@ -26,6 +26,7 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
     private object Keys {
         val showCompleted = booleanPreferencesKey("showCompleted")
         val escalationWindow = intPreferencesKey("escalationWindowDays")
+        val whatsNewLastSeen = stringPreferencesKey("whatsNewLastSeenVersion")
         val theme = stringPreferencesKey("theme")
         val hasOnboarded = booleanPreferencesKey("hasOnboarded")
         val fetchShareTitles = booleanPreferencesKey("fetchShareTitles")
@@ -97,6 +98,13 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setShowCompleted(value: Boolean) {
         dataStore.edit { it[Keys.showCompleted] = value }
+    }
+
+    /** The newest release this device has acknowledged in What's New. Per device, outside the backup (D-15). */
+    val whatsNewLastSeen: Flow<String?> = dataStore.data.map { it[Keys.whatsNewLastSeen] }
+
+    suspend fun setWhatsNewLastSeen(version: String) {
+        dataStore.edit { it[Keys.whatsNewLastSeen] = version }
     }
 
     suspend fun setEscalationWindow(days: Int?) {

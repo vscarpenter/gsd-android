@@ -1,5 +1,11 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-05): What's New (`feat/whats-new`)
+
+- **Done (not compiled here):** `:core:model` `WhatsNew.kt` with the bundled `whats-new.json` (md5 f0e74309) and the 21-case `whats-new-corpus.json` (md5 7a8d4ac6), both byte-identical to gsd-taskmanager. `WhatsNewCorpusTest`, `WhatsNewTest`. App: Settings > About row, palette action, `whats-new` route, and the matrix line under the capture bar. Last seen is DataStore `whatsNewLastSeenVersion`, excluded from cloud backup.
+- **Next:** run `./gradlew :core:model:test :app:testDebugUnitTest :app:assembleDebug`, then `AboutTest` on the emulator. The cloud session couldn't reach Maven or Gradle, so nothing here has compiled yet.
+- **Before release:** add the 0.11.0 (or next) entry to `whats-new.json` in gsd-taskmanager first, then copy it here byte-identical.
+
 ## Resuming From Here (2026-11-02): 0.10.2 live on Alpha
 
 - **Done:** 13 (0.10.2) published to Closed testing, Alpha, on Nov 2 at 11:52 AM CST. It carries the 0.10.1 work, which never reached the Console. Gates and artifacts are in the local `docs/play/submission-checklist.md`.
