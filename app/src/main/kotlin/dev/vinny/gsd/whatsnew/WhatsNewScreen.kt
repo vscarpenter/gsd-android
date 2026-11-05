@@ -24,6 +24,7 @@ import dev.vinny.gsd.model.WhatsNewRelease
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.SectionHeading
+import dev.vinny.gsd.ui.reorderMotion
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -48,14 +49,14 @@ fun WhatsNewScreen(container: AppContainer, modifier: Modifier = Modifier) {
         if (loaded.isEmpty()) {
             item { Text(stringResource(R.string.whats_new_empty), style = GsdType.body, color = gsd.ink2) }
         }
-        items(loaded, key = { it.version }) { release -> ReleaseNotes(release) }
+        items(loaded, key = { it.version }) { release -> ReleaseNotes(release, modifier = reorderMotion()) }
     }
 }
 
 @Composable
-private fun ReleaseNotes(release: WhatsNewRelease) {
+private fun ReleaseNotes(release: WhatsNewRelease, modifier: Modifier = Modifier) {
     val gsd = LocalGsdColors.current
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
