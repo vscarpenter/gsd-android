@@ -42,6 +42,9 @@ interface SyncQueueDao {
     @Query("DELETE FROM sync_queue WHERE taskId = :taskId")
     suspend fun deleteForTask(taskId: String)
 
+    @Query("DELETE FROM sync_queue WHERE operation = :operation")
+    suspend fun deleteByOperation(operation: SyncOp)
+
     @Query("DELETE FROM sync_queue")
     suspend fun clear()
 }
