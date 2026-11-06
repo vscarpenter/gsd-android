@@ -1,5 +1,61 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-06, afternoon): resurrect on sight and the remote delete recheck
+
+- **Done, pushed, PRs open:** #62 and #64, with this record as #63.
+  - #62 `fix/remote-delete-recheck` (`0db6a73`, from `main`): `GsdDatabase.deleteFromRemote` is a transaction that
+    skips when a pending row exists, as `abandonToTrash` does since #59. The realtime delete shares it. Spec 9.4.
+  - #64 `feat/resurrect-on-sight` (`6858270`, cut from #61's head, which merged at 19:21 UTC): sign-in remembers
+    the ids of the dropped Trash and Replace deletes in `sync_metadata.resurrectTaskIdsJson` (schema 4, migration
+    3 to 4). Right after the pull, a run with remembered ids lists the account once, confirms the owner, removes
+    each found id's tombstone, and writes the server copy under last-write-wins; then it forgets every id. No
+    server copy means the Trash row stays. An archive's delete carries a payload and is not remembered, so the
+    archive stands, as on the web. Spec 8.21, 9.4, and the tombstone rule amended.
+- **Gates:** `:core:model:test` 218, `:app:testDebugUnitTest` 98, and `:app:assembleDebug` green on both branches, on
+  `gsd-e2e`. Resurrect: `:core:sync` 165, whole `:core:store` connected 79, whole `:app` connected 267, 0 failures.
+  Delete recheck: `:core:sync` 167, whole `:core:store` connected 82, 0 failures; its full `:app` connected suite
+  was still running when this was written, and its PR carries the result.
+- **Parity backlog, new:** `WEB-RESURRECT` and `IOS-RESURRECT`. Android alone brings back a task deleted while
+  signed out once the account lists it. The web and iOS keep the shared tombstone rule (web
+  `isRemoteNewerThanArchive`, iOS `TombstoneRepository`), so there the task stays in Trash while the server copy
+  survives. The owner's rule on 2026-11-06: a task deleted while signed out should reappear when synced.
+- **Merge order:** none left to respect. #61 merged first (`4b35e3e`), and #62, #63, and #64 each target `main`
+  and merge in any order.
+- **Not verified:** nothing ran on a device against the live server. The SignedOutDeletesTest fake lists only
+  records updated after the cursor, as PocketBase does, which is what made the kept-cursor case testable.
+- **Blockers:** none on this repo.
+
+## Resuming From Here (2026-11-06): merges, round 3 doc, four sync fixes
+
+- **Done, merged:** #55 `fix/cuba-dst-corpus` (the Havana due-time cases moved to past transitions) and #56
+  `feat/whats-new` (release notes, the About screen, and the post-update line), each gated on the Mac with
+  `:core:model:test`, `:app:testDebugUnitTest`, and `:app:assembleDebug`; `AboutTest` passed 3 of 3 on `gsd-e2e`.
+- **Done.** The owner merged #57 to #60 on 2026-11-06, and #61 is open with every gate green. Four branched from
+  `main` at `fe3b3a0`; B-55 branched from `d69879c` (before #56 merged). All five are independent.
+  - #57 `docs/round-3-answers-0.10.2` (`f82b2ee`): `docs/play/production-access-round-3.md` says 0.10.2 everywhere
+    the answers, the checked table, the checklist, and the feedback log said 0.10.1.
+  - #58 `fix/pull-moved-due-resets-reminder` (`c4682aa`, B-55): a pull that moves the due date resets
+    `notificationSent`, `lastNotificationAt`, and `snoozedUntil`, as web #669 does. Spec 4.7 and 9.2.
+  - #59 `fix/reconcile-recheck` (`21f3835`, RECONCILE-RECHECK): reconciliation re-reads the pending queue after
+    `confirmIdentity`, and `abandonToTrash` rechecks inside its transaction. Spec 9.4.
+  - #60 `fix/realtime-session-fence` (`a1a763f`, AND-RT-FENCE): `applyRealtimeEvent` in `:core:sync` checks the
+    session before each realtime write. Spec 9.4 and 9.6.
+  - #61 `fix/signed-out-deletes` (`f1bcc3d` and `68d4685`, B-56): `confirmOwner` drops the queue's `DELETE` rows, so a Replace
+    import made while signed out deletes nothing on the server after the next sign-in. Spec 8.21.
+- **Gates per branch:** `:core:model:test`, `:app:testDebugUnitTest`, and `:app:assembleDebug` green on all five.
+  The full `:app` connected suite on `gsd-e2e` ran for #61 (264 tests) and #60 (263 tests), 0 failures. #59 ran
+  the whole `:core:store` connected suite, 0 failures. #58 and #57 ran the JVM suites only.
+- **Next, for the owner:** merge #61. Qodo Merge was installed on 2026-11-06 and has acted on no PR in any of the
+  three repos yet; check the installation's repository access, then comment `/review` on #61 to test it. Then
+  the release smoke on the Pixel from the signed 0.10.2 build (sign in, sync, a firing reminder), paste the listing from #54 into
+  the Console, and apply for production access. The round 3 doc's "Before you click Apply" list still applies.
+- **Assumptions:** B-56 drops deletes at sign-in rather than clearing the queue at sign-out (the commit says
+  why). `gsd-e2e` is the test AVD now that `gsd-test` is gone.
+- **Not verified:** no device run of a realtime sign-out race, and B-55 was not watched on a device. One
+  observation, not fixed: a sync run in flight across a sign-out and a same-account sign-in can list as a guest
+  and end with `notSignedIn`, which signs the user out again. The window is milliseconds against an OAuth flow.
+- **Blockers:** none on this repo.
+
 ## Resuming From Here (2026-11-05): What's New (`feat/whats-new`)
 
 - **Done (not compiled here):** `:core:model` `WhatsNew.kt` with the bundled `whats-new.json` (md5 f0e74309) and the 21-case `whats-new-corpus.json` (md5 7a8d4ac6), both byte-identical to gsd-taskmanager. `WhatsNewCorpusTest`, `WhatsNewTest`. App: Settings > About row, palette action, `whats-new` route, and the matrix line under the capture bar. Last seen is DataStore `whatsNewLastSeenVersion`, excluded from cloud backup.
