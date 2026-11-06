@@ -255,11 +255,16 @@ class SyncCoordinator(
      * "Keep my tasks" or "Start fresh" (§8.21). A different owner clears the pull cursor, and
      * kept tasks are seeded into the queue once so reconciliation protects them until they upload.
      * The new owner is recorded last, so [start] can tell when the app died partway. With tasks
-     * left it raises the prompt again. With none left it finishes the change itself.
+     * left it raises the prompt again. With none left it finishes the change itself. Queued deletes
+     * are dropped first: a delete made while signed out stays local (parity backlog B-56).
      */
     suspend fun confirmOwner(result: AuthResult, eraseLocalFirst: Boolean) {
         val previous = lastOwnerId()
         if (eraseLocalFirst) dev.vinny.gsd.store.LocalErase.eraseAll(db)
+        // The store queues every mutation whatever the sign-in state, since the queue is also how a first
+        // sign-in uploads local tasks. These rows would otherwise delete on the server after this sign-in,
+        // a Replace import's included. Creates and edits still upload.
+        db.syncQueueDao().deleteByOperation(dev.vinny.gsd.store.SyncOp.DELETE)
         OwnerChange.adopt(
             local, previous, result.record.id,
             keepLocalTasks = !eraseLocalFirst, nowMs = System.currentTimeMillis(),
