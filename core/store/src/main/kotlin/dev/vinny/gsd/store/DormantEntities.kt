@@ -120,6 +120,8 @@ data class SyncMetadataEntity(
     val deviceName: String,
     /** The pull contract [cursor] was written under; 0 means a build from before contracts. */
     @ColumnInfo(defaultValue = "0") val contractVersion: Int = 0,
+    /** JSON list of task ids to bring back when the account lists them (spec §8.21, §9.4). */
+    @ColumnInfo(defaultValue = "[]") val resurrectTaskIdsJson: String = "[]",
 )
 
 @Entity(tableName = "sync_history", indices = [Index("timestamp")])
