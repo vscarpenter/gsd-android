@@ -82,6 +82,9 @@ class TrashStore(private val db: GsdDatabase, private val clock: Clock) {
  */
 suspend fun GsdDatabase.abandonToTrash(id: String, deletedAtMs: Long) = withTransaction {
     val row = taskDao().byId(id) ?: return@withTransaction
+    // The verdict came from an earlier queue read. A pending row now means the user edited the task
+    // since, and the push will land it (sprint backlog RECONCILE-RECHECK).
+    if (syncQueueDao().countPendingForTask(id) > 0) return@withTransaction
     deletedTaskDao().upsert(row.toDeleted(deletedAtMs))
     taskDao().deleteById(id)
     syncQueueDao().deleteForTask(id)
