@@ -57,7 +57,8 @@ object WireMapper {
      * Wire → local. Null when the record is unusable (missing task_id was
      * already rejected at decode; unparseable client_updated_at skips here).
      * With a local copy, remote wins synced fields but device-local state and
-     * the rich time entries are preserved (spec §4.7, §9.2).
+     * the rich time entries are preserved (spec §4.7, §9.2). Reminder state is the
+     * exception when the pull moves the due date (parity backlog B-55, web #669).
      */
     fun pull(wire: WireTask, local: Task?): Task? {
         if (wire.taskId.length < 4) return null
@@ -72,6 +73,10 @@ object WireMapper {
                 notes = null,
             )
         }
+        val dueDate = PbDates.parse(wire.dueDate)
+        // A new due date is a new reminder, as a local edit makes it (EditorRules): a reminder this
+        // device already showed for the old date would otherwise hide the new one. Compared as instants.
+        val reminderSource = local?.takeIf { it.dueDate?.toEpochMilli() == dueDate?.toEpochMilli() }
         val pulled = Task(
             id = wire.taskId,
             title = wire.title,
@@ -82,7 +87,7 @@ object WireMapper {
             completedAt = PbDates.parse(wire.completedAt),
             createdAt = createdAt,
             updatedAt = updatedAt,
-            dueDate = PbDates.parse(wire.dueDate),
+            dueDate = dueDate,
             recurrence = Recurrence.fromWire(wire.recurrence),
             tags = wire.tags,
             subtasks = wire.subtasks.map { Subtask(it.id, it.title, it.completed) },
@@ -90,9 +95,9 @@ object WireMapper {
             parentTaskId = local?.parentTaskId,
             notifyBefore = wire.notifyBefore,
             notificationEnabled = wire.notificationEnabled,
-            notificationSent = local?.notificationSent ?: false,
-            lastNotificationAt = local?.lastNotificationAt,
-            snoozedUntil = local?.snoozedUntil,
+            notificationSent = reminderSource?.notificationSent ?: false,
+            lastNotificationAt = reminderSource?.lastNotificationAt,
+            snoozedUntil = reminderSource?.snoozedUntil,
             estimatedMinutes = wire.estimatedMinutes?.takeIf { it != 0 },
             timeEntries = local?.timeEntries ?: reconstructed,
             savedAt = PbDates.parse(wire.savedAt),

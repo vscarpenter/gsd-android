@@ -85,9 +85,12 @@ internal class FakeRemote : SyncRemote {
     /** True models a dead session: the server answers the identity check as it would a guest. */
     var rejectIdentity = false
     var listCalls = 0
+    /** Runs while the identity check waits on the network: what the user does in that window. */
+    var duringIdentityCheck: suspend () -> Unit = {}
 
     override suspend fun confirmIdentity(ownerId: String) {
         if (rejectIdentity) throw PocketBaseApi.Unauthorized(401)
+        duringIdentityCheck()
     }
 
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
@@ -669,5 +672,42 @@ class SyncEngineTest {
         engine.runSync(triggeredByUser = false)
 
         assertEquals(2, remote.listCalls) // the pull and the reconciliation index
+    }
+
+    /**
+     * Sprint backlog RECONCILE-RECHECK: the verdicts are computed, then the identity check waits on the
+     * network. An edit queued during that wait protects its task, so the queue is read again before any
+     * verdict runs. Here the task had no queue row, so the stale verdict was APPLY: delete it locally.
+     */
+    @Test
+    fun `an edit queued during the identity check protects its task from the delete verdict`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val edited = task("edited-during-check")
+        local.tasks[edited.id] = edited // absent remotely, no queue row
+        remote.duringIdentityCheck = { local.enqueueUpdate(edited, now.toEpochMilli()) }
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertEquals(edited, local.tasks[edited.id])
+        assertTrue(local.remoteDeletes.isEmpty())
+    }
+
+    /** The same window, for a task whose only row had failed: the stale verdict was ABANDON to trash. */
+    @Test
+    fun `an edit queued during the identity check protects its task from the trash verdict`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val edited = task("edited-during-check")
+        local.tasks[edited.id] = edited
+        local.queue += queueItem(1, edited, retryCount = 5, status = "failed")
+        remote.duringIdentityCheck = { local.enqueueUpdate(edited, now.toEpochMilli()) }
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertEquals(edited, local.tasks[edited.id])
+        assertTrue(local.trashed.isEmpty())
     }
 }

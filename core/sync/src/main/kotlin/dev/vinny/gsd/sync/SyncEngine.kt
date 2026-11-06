@@ -328,6 +328,8 @@ class SyncEngine(
      * queue row at all means the remote delete already landed, so it is APPLYed locally.
      * A guest listing is empty too, so ABANDON and APPLY wait for the server to confirm the
      * owner in this same run. A steady-state run with nothing to reconcile makes no extra request.
+     * That check waits on the network, so the pending queue is read once more after it: an edit
+     * queued meanwhile protects its task (sprint backlog RECONCILE-RECHECK).
      */
     private suspend fun reconcileDeletions(owner: String) {
         val remoteIds = fetchRemoteIndex().keys
@@ -340,7 +342,8 @@ class SyncEngine(
         val unprotected = active.filter { it.id !in remoteIds && it.id !in pending } // pending → PROTECT
         if (unprotected.isEmpty()) return
         remote.confirmIdentity(owner)
-        unprotected.forEach { task ->
+        val queuedSince = local.pendingQueue().map { it.taskId }.toSet()
+        unprotected.filter { it.id !in queuedSince }.forEach { task ->
             fence(owner)
             if (task.id in failed) local.abandonToTrash(task.id, now) // ABANDON
             else local.deleteFromRemote(task.id)                      // APPLY

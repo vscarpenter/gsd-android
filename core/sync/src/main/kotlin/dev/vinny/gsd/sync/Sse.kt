@@ -1,5 +1,6 @@
 package dev.vinny.gsd.sync
 
+import dev.vinny.gsd.store.SyncOp
 import java.time.Instant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -109,17 +110,53 @@ suspend fun resolveTombstone(local: SyncLocalStore, taskId: String, remoteUpdate
 /**
  * A realtime upsert (spec §9.6, [SseDecision.ApplyUpsert]): the tombstone guard first (parity spec
  * P§4), then last-write-wins against the local copy (spec §9.3). It lives here, not in the app's
- * coordinator, so the guard's wiring has a JVM test.
+ * coordinator, so the guard's wiring has a JVM test. [sessionHolds] is asked before each write,
+ * because the reads before it suspend (sprint backlog AND-RT-FENCE).
  */
-suspend fun applyRealtimeUpsert(local: SyncLocalStore, record: WireTask, now: Instant) {
+suspend fun applyRealtimeUpsert(local: SyncLocalStore, record: WireTask, now: Instant, sessionHolds: suspend () -> Boolean) {
     val existing = local.taskById(record.taskId)
     val mapped = WireMapper.pull(record, existing) ?: return
+    if (!sessionHolds()) return // resolving a tombstone can remove it, and that's a write
     if (!resolveTombstone(local, mapped.id, mapped.updatedAt, now)) {
         return // archived/trashed locally, remote not strictly newer (parity spec P§4)
     }
     if (RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)) return
     val incoming = mapped.copy(updatedAt = RemoteStamp.capped(mapped.updatedAt, now))
     if (existing == null || incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli()) {
+        if (!sessionHolds()) return
         local.upsertFromRemote(incoming)
+    }
+}
+
+/**
+ * One realtime event, decided by [SseApplyRules] and applied (spec §9.6). [sessionHolds] says whether
+ * the account the event arrived for is still signed in. It is asked again before each write, because
+ * the reads before a write suspend and a sign-out can land in between (sprint backlog AND-RT-FENCE).
+ * A session that ended drops the event; the next sign-in's pull delivers the record. It lives here,
+ * not in the app's coordinator, so the wiring has JVM tests.
+ */
+suspend fun applyRealtimeEvent(
+    local: SyncLocalStore,
+    action: String,
+    record: WireTask,
+    ownUserId: String,
+    now: Instant,
+    sessionHolds: suspend () -> Boolean,
+) {
+    val ownDevice = local.deviceId()
+    val pending = local.pendingQueue()
+    val failed = local.failedQueue()
+    val decision = SseApplyRules.decide(
+        action = action,
+        record = record,
+        ownUserId = ownUserId,
+        ownDeviceId = ownDevice,
+        pendingDeleteTaskIds = pending.filter { it.operation == SyncOp.DELETE }.map { it.taskId }.toSet(),
+        pendingAnyTaskIds = (pending + failed).map { it.taskId }.toSet(),
+    )
+    when (decision) {
+        is SseDecision.ApplyUpsert -> applyRealtimeUpsert(local, record, now, sessionHolds)
+        is SseDecision.ApplyDelete -> if (sessionHolds()) local.deleteFromRemote(record.taskId)
+        is SseDecision.Drop -> Unit
     }
 }

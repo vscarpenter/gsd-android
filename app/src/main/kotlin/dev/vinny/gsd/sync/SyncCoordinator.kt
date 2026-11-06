@@ -8,7 +8,6 @@ import dev.vinny.gsd.auth.CachedTokenStore
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.prefs.PendingSignIn
 import dev.vinny.gsd.store.GsdDatabase
-import dev.vinny.gsd.store.SyncOp
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -179,23 +178,15 @@ class SyncCoordinator(
         syncRequests.tryEmit(user)
     }
 
+    /**
+     * The session is checked on arrival and again before each write, since the reads in between
+     * suspend and a sign-out can land there (sprint backlog AND-RT-FENCE). The rules live in
+     * `:core:sync` so the wiring has JVM tests.
+     */
     private suspend fun applyRealtime(event: SseClient.TaskEvent) {
         val ownUser = auth.currentUserId() ?: return
-        val ownDevice = local.deviceId()
-        val pending = local.pendingQueue()
-        val failed = local.failedQueue()
-        val decision = SseApplyRules.decide(
-            action = event.action,
-            record = event.record,
-            ownUserId = ownUser,
-            ownDeviceId = ownDevice,
-            pendingDeleteTaskIds = pending.filter { it.operation == SyncOp.DELETE }.map { it.taskId }.toSet(),
-            pendingAnyTaskIds = (pending + failed).map { it.taskId }.toSet(),
-        )
-        when (decision) {
-            is SseDecision.ApplyUpsert -> applyRealtimeUpsert(local, event.record, java.time.Instant.now())
-            is SseDecision.ApplyDelete -> local.deleteFromRemote(event.record.taskId)
-            is SseDecision.Drop -> Unit
+        applyRealtimeEvent(local, event.action, event.record, ownUser, java.time.Instant.now()) {
+            auth.currentUserId() == ownUser
         }
     }
 
