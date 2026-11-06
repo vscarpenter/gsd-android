@@ -1,5 +1,24 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-06, evening): everything merged, Dependabot config fixed
+
+- **Done, merged to `main`:** #62 (`da26d48`), #63 (`d2990c1`), and #64 (`03f81c0`). #64 needed a merge from
+  `main` first (`f9d6107`): it was cut from #61's head, so `main` brought #59's reconcile tests into the same
+  spots in `SyncEngineTest` where the branch added the resurrect tests. Both sides were additions and both were
+  kept. Gates on the merged tree, on `gsd-e2e`: `:core:model:test` 218, `:core:sync` 172,
+  `:app:testDebugUnitTest` 98, `:core:store` connected 83, `:app` connected 267, 0 failures.
+- **This branch:** `.github/dependabot.yml` was the GitHub template with an empty `package-ecosystem`, so
+  Dependabot never ran and its check failed on every push that carried the file (first on `01b7250`, then on
+  #64's merge commit). It now names `gradle` at `/`, weekly. Workflow actions stay pinned by SHA by hand; a
+  `github-actions` entry would let Dependabot bump those too, and was left out.
+- **Next, owner-side:** Pixel release smoke on the signed 0.10.2, paste the Play listing from #54 into the
+  Console, and apply for production access (`docs/play/production-access-round-3.md`). The `/review` comment on
+  #64 drew no reply from Qodo, so its installation most likely does not cover this repo yet.
+- **Parity backlog:** `WEB-RESURRECT` and `IOS-RESURRECT` stand (see the afternoon section below).
+- **Not verified:** nothing ran on a device against the live server. Dependabot's own check on this branch's
+  push is the proof for the config.
+- **Blockers:** none on this repo.
+
 ## Resuming From Here (2026-11-06, afternoon): resurrect on sight and the remote delete recheck
 
 - **Done, pushed, PRs open:** #62 and #64, with this record as #63.
