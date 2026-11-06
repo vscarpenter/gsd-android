@@ -1,5 +1,30 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-06, afternoon): resurrect on sight and the remote delete recheck
+
+- **Done, committed, not pushed** (the owner asked for the build; pushing waits for a word):
+  - `fix/remote-delete-recheck` (`0db6a73`, from `main`): `GsdDatabase.deleteFromRemote` is a transaction that
+    skips when a pending row exists, as `abandonToTrash` does since #59. The realtime delete shares it. Spec 9.4.
+  - `feat/resurrect-on-sight` (`6858270`, stacked on `fix/signed-out-deletes`, PR #61): sign-in remembers
+    the ids of the dropped Trash and Replace deletes in `sync_metadata.resurrectTaskIdsJson` (schema 4, migration
+    3 to 4). Right after the pull, a run with remembered ids lists the account once, confirms the owner, removes
+    each found id's tombstone, and writes the server copy under last-write-wins; then it forgets every id. No
+    server copy means the Trash row stays. An archive's delete carries a payload and is not remembered, so the
+    archive stands, as on the web. Spec 8.21, 9.4, and the tombstone rule amended.
+- **Gates:** `:core:model:test` 218, `:app:testDebugUnitTest` 98, and `:app:assembleDebug` green on both branches, on
+  `gsd-e2e`. Resurrect: `:core:sync` 165, whole `:core:store` connected 79, whole `:app` connected 267, 0 failures.
+  Delete recheck: `:core:sync` 167, whole `:core:store` connected 82, 0 failures; its full `:app` connected suite
+  was still running when this was written, and its PR carries the result.
+- **Parity backlog, new:** `WEB-RESURRECT` and `IOS-RESURRECT`. Android alone brings back a task deleted while
+  signed out once the account lists it. The web and iOS keep the shared tombstone rule (web
+  `isRemoteNewerThanArchive`, iOS `TombstoneRepository`), so there the task stays in Trash while the server copy
+  survives. The owner's rule on 2026-11-06: a task deleted while signed out should reappear when synced.
+- **Merge order:** #61 first, then `feat/resurrect-on-sight` (retarget it to `main` once #61 lands), and
+  `fix/remote-delete-recheck` any time.
+- **Not verified:** nothing ran on a device against the live server. The SignedOutDeletesTest fake lists only
+  records updated after the cursor, as PocketBase does, which is what made the kept-cursor case testable.
+- **Blockers:** none on this repo.
+
 ## Resuming From Here (2026-11-06): merges, round 3 doc, four sync fixes
 
 - **Done, merged:** #55 `fix/cuba-dst-corpus` (the Havana due-time cases moved to past transitions) and #56
