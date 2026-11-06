@@ -109,6 +109,7 @@ private val PaletteAction.labelRes: Int
         PaletteAction.TOGGLE_SHOW_COMPLETED -> R.string.palette_toggle_completed
         PaletteAction.TOGGLE_THEME -> R.string.palette_toggle_theme
         PaletteAction.SEND_FEEDBACK -> R.string.palette_send_feedback
+        PaletteAction.WHATS_NEW -> R.string.palette_whats_new
     }
 
 private val PaletteNav.labelRes: Int

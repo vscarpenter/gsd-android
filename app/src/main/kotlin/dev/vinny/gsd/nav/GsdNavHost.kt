@@ -85,6 +85,7 @@ fun GsdNavHost(
                     modifier = content,
                     onOpenSyncHistory = { navController.navigate("sync-history") },
                     onOpenFeedback = { navController.navigate("feedback") },
+                    onOpenWhatsNew = { navController.navigate("whats-new") },
                 )
             }
         }
@@ -96,6 +97,11 @@ fun GsdNavHost(
         composable("feedback") {
             WithTopBar(stringResource(R.string.feedback_title), onUp = up) { content ->
                 dev.vinny.gsd.feedback.FeedbackScreen(container = container, modifier = content)
+            }
+        }
+        composable("whats-new") {
+            WithTopBar(stringResource(R.string.whats_new_title), onUp = up) { content ->
+                dev.vinny.gsd.whatsnew.WhatsNewScreen(container = container, modifier = content)
             }
         }
         composable("help") {

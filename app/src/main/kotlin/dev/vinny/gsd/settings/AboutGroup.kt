@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
  * the maker's credit. It had only the version and three rows (review finding 20).
  */
 @Composable
-internal fun AboutGroup(container: AppContainer, onOpenHelp: () -> Unit) {
+internal fun AboutGroup(container: AppContainer, onOpenHelp: () -> Unit, onOpenWhatsNew: () -> Unit) {
     val gsd = LocalGsdColors.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -68,6 +68,7 @@ internal fun AboutGroup(container: AppContainer, onOpenHelp: () -> Unit) {
     // Play's User Data policy wants the policy inside the app, since sync sends email and tasks (finding 15)
     ActionRow(R.string.settings_privacy_policy) { openInBrowser(context, AppContainer.PRIVACY_POLICY_URL) }
     ActionRow(R.string.settings_contact_support) { openSupportEmail(context, AppContainer.SUPPORT_EMAIL) }
+    ActionRow(R.string.settings_whats_new, onClick = onOpenWhatsNew)
     ActionRow(R.string.settings_field_guide, onClick = onOpenHelp)
     ActionRow(R.string.settings_show_onboarding) {
         scope.launch { container.prefs.setHasOnboarded(false) }

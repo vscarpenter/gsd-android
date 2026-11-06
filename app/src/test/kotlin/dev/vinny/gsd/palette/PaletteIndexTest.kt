@@ -21,6 +21,7 @@ class PaletteIndexTest {
             PaletteAction.TOGGLE_SHOW_COMPLETED -> "Toggle show completed"
             PaletteAction.TOGGLE_THEME -> "Toggle theme"
             PaletteAction.SEND_FEEDBACK -> "Send feedback"
+            PaletteAction.WHATS_NEW -> "What's new"
         }
     }
     private val navLabel: (PaletteNav) -> String = { it.name.lowercase().replaceFirstChar(Char::uppercase) }
@@ -64,6 +65,12 @@ class PaletteIndexTest {
     fun `send feedback is an action and matches by substring`() {
         assertTrue(PaletteAction.SEND_FEEDBACK in query("").actions)
         assertEquals(listOf(PaletteAction.SEND_FEEDBACK), query("feedb").actions)
+    }
+
+    @Test
+    fun `what's new is an action and matches by substring`() {
+        assertTrue(PaletteAction.WHATS_NEW in query("").actions)
+        assertEquals(listOf(PaletteAction.WHATS_NEW), query("what's").actions)
     }
 
     /** Review, Copy: the labels were English literals in Kotlin. A query matches the words the palette shows. */
