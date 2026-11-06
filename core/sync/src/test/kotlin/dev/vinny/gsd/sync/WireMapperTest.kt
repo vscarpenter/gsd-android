@@ -120,4 +120,32 @@ class WireMapperTest {
         assertNull(pulled.estimatedMinutes)
         assertEquals("not-urgent-important", pulled.quadrant.id) // flags win over wire quadrant
     }
+
+    /**
+     * Parity backlog B-55 (web #669): another device moved the due date, so the reminder this device
+     * already showed was for the old time. A new due date is a new reminder, as a local edit makes it.
+     */
+    @Test
+    fun `pull that moves the due date resets this device's reminder state`() {
+        val local = task(snoozedUntil = t0.plusSeconds(600))
+        val moved = WireMapper.push(local.copy(dueDate = t0.plusSeconds(7200)), deviceId = "other", owner = "user-1")
+
+        val pulled = WireMapper.pull(moved, local = local)!!
+
+        assertEquals(false, pulled.notificationSent)
+        assertNull(pulled.lastNotificationAt)
+        assertNull(pulled.snoozedUntil)
+    }
+
+    @Test
+    fun `pull that clears the due date resets this device's reminder state too`() {
+        val local = task(snoozedUntil = t0.plusSeconds(600))
+        val cleared = WireMapper.push(local.copy(dueDate = null), deviceId = "other", owner = "user-1")
+
+        val pulled = WireMapper.pull(cleared, local = local)!!
+
+        assertEquals(false, pulled.notificationSent)
+        assertNull(pulled.lastNotificationAt)
+        assertNull(pulled.snoozedUntil)
+    }
 }
