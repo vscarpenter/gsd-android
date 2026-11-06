@@ -247,14 +247,23 @@ class SyncCoordinator(
      * kept tasks are seeded into the queue once so reconciliation protects them until they upload.
      * The new owner is recorded last, so [start] can tell when the app died partway. With tasks
      * left it raises the prompt again. With none left it finishes the change itself. Queued deletes
-     * are dropped first: a delete made while signed out stays local (parity backlog B-56).
+     * are dropped first: a delete made while signed out stays local (parity backlog B-56), and the ids
+     * of the Trash and Replace deletes among them are remembered so the next listing brings the server
+     * copies back (§9.4, resurrect on sight).
      */
     suspend fun confirmOwner(result: AuthResult, eraseLocalFirst: Boolean) {
         val previous = lastOwnerId()
         if (eraseLocalFirst) dev.vinny.gsd.store.LocalErase.eraseAll(db)
         // The store queues every mutation whatever the sign-in state, since the queue is also how a first
         // sign-in uploads local tasks. These rows would otherwise delete on the server after this sign-in,
-        // a Replace import's included. Creates and edits still upload.
+        // a Replace import's included. Creates and edits still upload. A Trash or Replace delete's task
+        // comes back when the account lists it (spec §9.4); an archive's delete carries the archived task
+        // and the archive stands.
+        val queue = db.syncQueueDao().pending() + db.syncQueueDao().failed()
+        local.rememberResurrectOnSight(
+            queue.filter { it.operation == dev.vinny.gsd.store.SyncOp.DELETE && it.payloadJson == null }
+                .map { it.taskId }.toSet(),
+        )
         db.syncQueueDao().deleteByOperation(dev.vinny.gsd.store.SyncOp.DELETE)
         OwnerChange.adopt(
             local, previous, result.record.id,

@@ -54,4 +54,19 @@ class MigrationTest {
             assertEquals(0, it.getInt(1))
         }
     }
+
+    @Test
+    fun migrate3To4_addsAnEmptyResurrectList_andKeepsTheCursor() {
+        helper.createDatabase("migration-test-4", 3).apply {
+            execSQL("INSERT INTO sync_metadata (id, cursor, deviceId, deviceName, contractVersion) VALUES (1, '2026-11-06 12:00:00.000Z', 'dev', 'Pixel', 3)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("migration-test-4", 4, true, GsdDatabase.MIGRATION_3_4)
+        db.query("SELECT cursor, contractVersion, resurrectTaskIdsJson FROM sync_metadata").use {
+            it.moveToFirst()
+            assertEquals("2026-11-06 12:00:00.000Z", it.getString(0))
+            assertEquals(3, it.getInt(1))
+            assertEquals("[]", it.getString(2))
+        }
+    }
 }

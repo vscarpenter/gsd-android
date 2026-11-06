@@ -91,6 +91,14 @@ interface SyncLocalStore {
 
     /** Remove the id from whichever tombstone store holds it (archive or trash). */
     suspend fun removeTombstone(id: String)
+
+    /**
+     * Ids of deletes made while signed out and dropped at sign-in (spec §8.21). The next run that lists
+     * the account brings each one it finds back over its tombstone, then forgets them all (§9.4).
+     */
+    suspend fun resurrectOnSight(): Set<String>
+    suspend fun rememberResurrectOnSight(ids: Set<String>)
+    suspend fun forgetResurrectOnSight()
 }
 
 enum class SyncHealth { OFFLINE, SESSION_EXPIRED, FAILED_ITEMS, STALE_QUEUE, OK }

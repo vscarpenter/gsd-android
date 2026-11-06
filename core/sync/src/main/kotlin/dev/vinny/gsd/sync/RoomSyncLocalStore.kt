@@ -1,6 +1,7 @@
 package dev.vinny.gsd.sync
 
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TaskJson
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.SyncHistoryEntity
 import dev.vinny.gsd.store.SyncMetadataEntity
@@ -104,5 +105,19 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
     override suspend fun removeTombstone(id: String) {
         db.archivedTaskDao().deleteById(id)
         db.deletedTaskDao().deleteById(id)
+    }
+
+    override suspend fun resurrectOnSight(): Set<String> =
+        db.syncMetadataDao().get()?.let { TaskJson.decodeIds(it.resurrectTaskIdsJson).toSet() } ?: emptySet()
+
+    override suspend fun rememberResurrectOnSight(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        val current = metadata()
+        val merged = (TaskJson.decodeIds(current.resurrectTaskIdsJson) + ids).distinct()
+        db.syncMetadataDao().upsert(current.copy(resurrectTaskIdsJson = TaskJson.encodeIds(merged)))
+    }
+
+    override suspend fun forgetResurrectOnSight() {
+        db.syncMetadataDao().get()?.let { db.syncMetadataDao().upsert(it.copy(resurrectTaskIdsJson = "[]")) }
     }
 }

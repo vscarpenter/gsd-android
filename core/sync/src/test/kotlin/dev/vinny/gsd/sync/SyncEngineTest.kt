@@ -25,6 +25,7 @@ internal open class FakeLocal : SyncLocalStore {
     val tombstones = mutableMapOf<String, Long>()
     val removeTombstoneCalls = mutableListOf<String>()
     val trashed = mutableMapOf<String, Long>()
+    val resurrect = mutableSetOf<String>()
 
     override suspend fun activeTasks(): List<Task> = tasks.values.toList()
     override suspend fun taskById(id: String): Task? = tasks[id]
@@ -68,6 +69,9 @@ internal open class FakeLocal : SyncLocalStore {
         tombstones.remove(id)
         removeTombstoneCalls += id
     }
+    override suspend fun resurrectOnSight(): Set<String> = resurrect.toSet()
+    override suspend fun rememberResurrectOnSight(ids: Set<String>) { resurrect += ids }
+    override suspend fun forgetResurrectOnSight() { resurrect.clear() }
 }
 
 // internal (not private): AccountDeleterTest reuses this fake across files in the module.
@@ -80,6 +84,7 @@ internal class FakeRemote : SyncRemote {
     var nextRecordId = 1
     /** True models a dead session: the server answers the identity check as it would a guest. */
     var rejectIdentity = false
+    var listCalls = 0
     /** Runs while the identity check waits on the network: what the user does in that window. */
     var duringIdentityCheck: suspend () -> Unit = {}
 
@@ -89,6 +94,7 @@ internal class FakeRemote : SyncRemote {
     }
 
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
+        listCalls++
         listResponder?.let { return it(page, updatedCursor) }
         val items = records.entries.sortedBy { it.key }
         return TaskListPage(
@@ -580,6 +586,92 @@ class SyncEngineTest {
         assertEquals(SyncHealth.FAILED_ITEMS, Health.evaluate(false, 99, 2, 5, null))
         assertEquals(SyncHealth.STALE_QUEUE, Health.evaluate(false, 99, 2, 0, 2L * 60 * 60 * 1000))
         assertEquals(SyncHealth.OK, Health.evaluate(false, 99, 2, 0, 10_000))
+    }
+
+    /**
+     * Resurrect on sight (spec §8.21, §9.4): a Trash delete made while signed out was dropped at sign-in
+     * and its id remembered. The pull alone cannot bring the task back, because the tombstone is newer
+     * than the server copy, and a kept cursor would not even list it. The run lists the account once
+     * and does.
+     */
+    @Test
+    fun `a remembered delete comes back when the account lists the task`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val serverCopy = task("deleted-signed-out", title = "remote", updatedAt = now.minusSeconds(3600))
+        remote.records["rec1"] = WireMapper.push(serverCopy, "other-device", "user-1")
+        local.tombstones[serverCopy.id] = now.toEpochMilli() // trashed after the server copy's last edit
+        local.resurrect += serverCopy.id
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        val result = engine.runSync(triggeredByUser = false)
+
+        assertEquals("remote", local.tasks[serverCopy.id]?.title)
+        assertEquals(listOf(serverCopy.id), local.removeTombstoneCalls)
+        assertTrue(local.resurrect.isEmpty())
+        assertEquals(1, result.pulled)
+    }
+
+    /** No server copy means the Trash row is the only copy, so it stays. The id is still forgotten. */
+    @Test
+    fun `a remembered delete with no server copy keeps its Trash copy and is forgotten`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        local.tombstones["never-synced"] = now.toEpochMilli()
+        local.resurrect += "never-synced"
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertNull(local.tasks["never-synced"])
+        assertEquals(now.toEpochMilli(), local.tombstones["never-synced"])
+        assertTrue(local.resurrect.isEmpty())
+    }
+
+    /** The listing an ended session gets is a guest's empty one, which proves nothing (spec §9.4). */
+    @Test
+    fun `a dead session forgets no remembered delete`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote().apply { rejectIdentity = true }
+        local.tombstones["t1"] = now.toEpochMilli()
+        local.resurrect += "t1"
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        val result = engine.runSync(triggeredByUser = false)
+
+        assertTrue(result.notSignedIn)
+        assertEquals(setOf("t1"), local.resurrect)
+        assertEquals(now.toEpochMilli(), local.tombstones["t1"])
+    }
+
+    /** Restored from Trash and edited before the sign-in: last-write-wins still decides. */
+    @Test
+    fun `a remembered id active again with a newer local edit keeps the local copy`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        remote.records["rec1"] = WireMapper.push(task("t1", title = "remote", updatedAt = now.minusSeconds(3600)), "other-device", "user-1")
+        local.tasks["t1"] = task("t1", title = "local", updatedAt = now)
+        local.resurrect += "t1"
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertEquals("local", local.tasks["t1"]?.title)
+        assertTrue(local.resurrect.isEmpty())
+    }
+
+    /** Guards the step's early return. It passed before the step existed; the mutation note is in the PR. */
+    @Test
+    fun `nothing remembered means no extra listing`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        remote.records["rec1"] = WireMapper.push(task("t1"), "other-device", "user-1")
+        local.tasks["t1"] = task("t1")
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertEquals(2, remote.listCalls) // the pull and the reconciliation index
     }
 
     /**

@@ -38,6 +38,9 @@ private class FakeSseLocal : SyncLocalStore {
         tombstones.remove(id)
         removeTombstoneCalls += id
     }
+    override suspend fun resurrectOnSight(): Set<String> = emptySet()
+    override suspend fun rememberResurrectOnSight(ids: Set<String>) = Unit
+    override suspend fun forgetResurrectOnSight() = Unit
 }
 
 class SseTest {

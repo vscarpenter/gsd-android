@@ -77,6 +77,7 @@ class SyncEngine(
             val pullOutcome = pull(owner)
             pulled = pullOutcome.first
             conflicts = pullOutcome.second
+            pulled += resurrectOnSight(owner)
 
             val pushOutcome = push(owner)
             pushed = pushOutcome.first
@@ -173,6 +174,36 @@ class SyncEngine(
         }
         if (stored == null || backfill) local.savePullContractVersion(PULL_CONTRACT_VERSION)
         return pulled to conflicts
+    }
+
+    /**
+     * Deletes made while signed out were dropped at sign-in and their ids remembered (spec §8.21). The
+     * pull cannot bring those tasks back: the local tombstone is newer than the server copy, and a kept
+     * cursor would not even list it. So one listing of the account, with the owner confirmed as for
+     * reconciliation, brings back every remembered id it finds and then forgets them all (§9.4). A task
+     * with no server copy keeps its Trash row, the only copy there is. Returns how many came back.
+     */
+    private suspend fun resurrectOnSight(owner: String): Int {
+        val remembered = local.resurrectOnSight()
+        if (remembered.isEmpty()) return 0
+        val listing = BoundedListing.collect(EPOCH_CURSOR, remote::listTasks)
+        remote.confirmIdentity(owner) // a guest listing is empty, and would forget every id (§9.4)
+        val now = clock.instant()
+        var pulled = 0
+        listing.filter { it.taskId in remembered }.forEach { wire ->
+            val existing = local.taskById(wire.taskId)
+            val mapped = WireMapper.pull(wire, existing) ?: return@forEach
+            if (RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)) return@forEach
+            val incoming = mapped.copy(updatedAt = RemoteStamp.capped(mapped.updatedAt, now))
+            if (existing != null && incoming.updatedAt.toEpochMilli() <= existing.updatedAt.toEpochMilli()) return@forEach
+            fence(owner)
+            local.removeTombstone(incoming.id)
+            local.upsertFromRemote(incoming)
+            pulled++
+        }
+        fence(owner)
+        local.forgetResurrectOnSight()
+        return pulled
     }
 
     /**

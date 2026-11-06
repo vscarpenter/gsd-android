@@ -30,7 +30,7 @@ class SyncOpConverter {
         SyncMetadataEntity::class,
         SyncHistoryEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(SyncOpConverter::class)
@@ -81,9 +81,16 @@ abstract class GsdDatabase : RoomDatabase() {
         }
 
         /** Keeps Room a private concern of this module — callers never see the builder. */
+        /** Sign-in remembers the deletes it dropped, so the next listing can bring them back (spec §8.21). */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `sync_metadata` ADD COLUMN `resurrectTaskIdsJson` TEXT NOT NULL DEFAULT '[]'")
+            }
+        }
+
         fun build(context: Context): GsdDatabase =
             Room.databaseBuilder(context, GsdDatabase::class.java, "gsd.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
 
         /** Hermetic store for tests. */
