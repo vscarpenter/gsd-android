@@ -173,14 +173,14 @@ class SseTest {
     @Test
     fun `a realtime upsert never brings back a trashed task it is not newer than`() = runTest {
         val local = FakeLocal().apply { tombstones["task-0001"] = 1_000L }
-        applyRealtimeUpsert(local, wire("task-0001", 1_000L), Instant.ofEpochMilli(1_000L))
+        applyRealtimeUpsert(local, wire("task-0001", 1_000L), Instant.ofEpochMilli(1_000L)) { true }
         assertNull(local.tasks["task-0001"])
     }
 
     @Test
     fun `a strictly newer realtime upsert brings a trashed task back once`() = runTest {
         val local = FakeLocal().apply { tombstones["task-0001"] = 1_000L }
-        applyRealtimeUpsert(local, wire("task-0001", 1_001L), Instant.ofEpochMilli(1_001L))
+        applyRealtimeUpsert(local, wire("task-0001", 1_001L), Instant.ofEpochMilli(1_001L)) { true }
         assertEquals("remote", local.tasks["task-0001"]?.title)
         assertEquals(listOf("task-0001"), local.removeTombstoneCalls)
     }
@@ -188,14 +188,52 @@ class SseTest {
     @Test
     fun `a realtime upsert older than the local copy changes nothing`() = runTest {
         val local = FakeLocal().apply { tasks["task-0001"] = localTask("task-0001", 2_000L) }
-        applyRealtimeUpsert(local, wire("task-0001", 1_000L), Instant.ofEpochMilli(1_000L))
+        applyRealtimeUpsert(local, wire("task-0001", 1_000L), Instant.ofEpochMilli(1_000L)) { true }
         assertEquals("local", local.tasks["task-0001"]?.title)
     }
 
     @Test
     fun `a newer realtime upsert replaces the local copy`() = runTest {
         val local = FakeLocal().apply { tasks["task-0001"] = localTask("task-0001", 1_000L) }
-        applyRealtimeUpsert(local, wire("task-0001", 2_000L), Instant.ofEpochMilli(2_000L))
+        applyRealtimeUpsert(local, wire("task-0001", 2_000L), Instant.ofEpochMilli(2_000L)) { true }
         assertEquals("remote", local.tasks["task-0001"]?.title)
+    }
+
+    /** Sprint backlog AND-RT-FENCE: the session is checked on arrival, and the reads before a write suspend. */
+    @Test
+    fun `a realtime upsert whose session ended during its reads writes nothing`() = runTest {
+        var signedIn = true
+        val local = object : FakeLocal() {
+            override suspend fun taskById(id: String): Task? { signedIn = false; return super.taskById(id) }
+        }
+
+        applyRealtimeEvent(local, "update", wire("task-0001", 2_000L), "user-1", Instant.ofEpochMilli(2_000L)) { signedIn }
+
+        assertNull(local.tasks["task-0001"])
+    }
+
+    @Test
+    fun `a realtime delete whose session ended during its reads removes nothing`() = runTest {
+        var signedIn = true
+        val local = object : FakeLocal() {
+            override suspend fun pendingQueue(): List<SyncQueueEntity> { signedIn = false; return super.pendingQueue() }
+        }
+        local.tasks["task-0001"] = localTask("task-0001", 1_000L)
+
+        applyRealtimeEvent(local, "delete", wire("task-0001", 2_000L), "user-1", Instant.ofEpochMilli(2_000L)) { signedIn }
+
+        assertEquals("local", local.tasks["task-0001"]?.title)
+    }
+
+    /** The wiring the coordinator used to hold: a live session still applies both kinds of event. */
+    @Test
+    fun `a realtime event with the session intact still applies`() = runTest {
+        val local = FakeLocal()
+
+        applyRealtimeEvent(local, "create", wire("task-0001", 2_000L), "user-1", Instant.ofEpochMilli(2_000L)) { true }
+        assertEquals("remote", local.tasks["task-0001"]?.title)
+
+        applyRealtimeEvent(local, "delete", wire("task-0001", 2_000L), "user-1", Instant.ofEpochMilli(2_000L)) { true }
+        assertNull(local.tasks["task-0001"])
     }
 }
