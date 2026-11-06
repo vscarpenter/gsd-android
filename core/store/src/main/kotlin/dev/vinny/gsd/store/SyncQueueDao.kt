@@ -33,6 +33,9 @@ interface SyncQueueDao {
     @Query("SELECT COUNT(*) FROM sync_queue WHERE taskId = :taskId AND status IN ('pending', 'failed')")
     suspend fun countForTask(taskId: String): Int
 
+    @Query("SELECT COUNT(*) FROM sync_queue WHERE taskId = :taskId AND status = 'pending'")
+    suspend fun countPendingForTask(taskId: String): Int
+
     @Query("DELETE FROM sync_queue WHERE id = :id")
     suspend fun deleteById(id: Long)
 

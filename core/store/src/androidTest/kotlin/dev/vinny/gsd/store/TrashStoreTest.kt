@@ -129,6 +129,11 @@ class TrashStoreTest {
         db.syncQueueDao().insert(SyncQueueEntity.tombstone(task.id, clock.instant()))
         assertEquals(2, db.syncQueueDao().countForTask(task.id))
 
+        // The verdict's precondition (spec 9.4): every row for the task has failed. A pending row protects it.
+        db.syncQueueDao().pending().filter { it.taskId == task.id }.forEach { row ->
+            db.syncQueueDao().bumpRetry(row.id, 5, "boom", 4_000L, SyncQueueEntity.STATUS_FAILED, 4_000L)
+        }
+
         db.abandonToTrash(task.id, 5_000L)
 
         assertEquals(5_000L, db.deletedTaskDao().byId(task.id)?.deletedAt)
