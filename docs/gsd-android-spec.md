@@ -138,7 +138,7 @@ The MCP server (Claude Desktop) reads/writes the same backend with ~20 tools (li
 
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S2
 
-`notificationSent`, `lastNotificationAt`, and `snoozedUntil` are **device-local**: they are pushed on the wire but **never taken from the remote on pull/merge** — each device manages its own reminder state (§9.4). Preserving this rule is what keeps a snooze on the phone from silencing a reminder on the tablet, and vice versa.
+`notificationSent`, `lastNotificationAt`, and `snoozedUntil` are **device-local**: they are pushed on the wire but **never taken from the remote on pull/merge** — each device manages its own reminder state (§9.4). Preserving this rule is what keeps a snooze on the phone from silencing a reminder on the tablet, and vice versa. One exception: a pull that moves the due date (compared as instants, either side may be empty) resets all three, as a local edit of the due date does (§8.5). A new due date is a new reminder, and a reminder this device already showed would otherwise hide it (parity backlog B-55, web #669, amended 2026-11-06).
 
 **Reminder bookkeeping never touches the LWW key.** When a reminder posts, the app records `notificationSent` and `lastNotificationAt` through `TaskStore.markReminderSent`, a single column update. It does not restamp `updatedAt` and it enqueues no push, which matches the web client. It is the one local write outside the enqueue-before-write rule, and it is safe because a device that already holds the task never takes these fields from the wire. iOS reads them only when it first creates its local copy, by which time the fire time has usually passed. A restamp here let a fired reminder overwrite a newer edit from another device. A user-initiated snooze is different: it restamps and syncs on all three clients.
 
@@ -1020,7 +1020,7 @@ Decode defensively: only `task_id` is required; every other field tolerates abse
 
 **Pull (wire → local):**
 - No local copy → reconstruct everything from the wire; time entries get `endedAt = startedAt + minutes×60`, `notes = nil`; `parentTaskId = nil`.
-- Local copy exists (remote won LWW) → remote wins for synced fields, but **preserve from local:** `parentTaskId`, `notificationSent`, `lastNotificationAt`, `snoozedUntil`, **and `timeSpent` + `timeEntries`** (prefer the rich local copy over the lossy wire form).
+- Local copy exists (remote won LWW) → remote wins for synced fields, but **preserve from local:** `parentTaskId`, `notificationSent`, `lastNotificationAt`, `snoozedUntil`, **and `timeSpent` + `timeEntries`** (prefer the rich local copy over the lossy wire form). When the incoming `due_date` differs from the local `dueDate` as an instant, the three reminder fields reset to `false`/`null` instead of being preserved (§4.7, B-55).
 - `quadrant` is always recomputed from `urgent`/`important`.
 - `saved_at` maps to `savedAt` (`""` or absent means the matrix). When the local copy was Saved and the incoming one isn't, the device-local reminder fields reset instead of being preserved (§8.22).
 
