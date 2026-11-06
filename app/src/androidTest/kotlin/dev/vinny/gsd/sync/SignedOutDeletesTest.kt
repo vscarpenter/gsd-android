@@ -114,6 +114,16 @@ class SignedOutDeletesTest {
             ?: fail("finishedRuns never moved past $run")
     }
 
+    /**
+     * The run this test is about is the one that uploads the import. Waiting for "a run finished" is not
+     * enough: the network callback or the pending-count debounce can request a run of their own, and one
+     * of those finishing first let the assertions run before the sign-in's run had pushed anything.
+     */
+    private suspend fun awaitRunThatPushed(coordinator: SyncCoordinator, count: Int) {
+        withTimeoutOrNull(5_000) { coordinator.lastResult.first { it != null && it.pushed == count } }
+            ?: fail("no run pushed $count items; last result ${coordinator.lastResult.value}")
+    }
+
     @Test
     fun aReplaceImportMadeSignedOutDeletesNothingOnTheServerAfterTheNextSignIn() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -133,12 +143,12 @@ class SignedOutDeletesTest {
         awaitRunAfter(coordinator, 0)
 
         coordinator.signOut()
+        withTimeoutOrNull(5_000) { coordinator.syncing.first { !it } } ?: fail("a run outlived the sign-out")
         TaskStore(db, clock).replaceAll(listOf(imported)) // signed out: queues a DELETE for synced-task
 
         tokens.save(healthyToken)
-        val before = coordinator.finishedRuns.value
         coordinator.confirmOwner(AuthResult(healthyToken, AuthRecord("user-1")), eraseLocalFirst = false)
-        awaitRunAfter(coordinator, before)
+        awaitRunThatPushed(coordinator, count = 1) // the import's UPDATE; the dropped DELETE would be a second push
 
         assertEquals(emptyList(), remote.deletedTaskIds)
         assertEquals(setOf("synced-task", "imported-task"), remote.records.keys)
