@@ -78,7 +78,7 @@ Rules for the window:
   Aim for 18 or more opted in.
 - Don't change the tester lists in a way that could opt anyone out.
 - Keep the closed test running after you apply, until Production publishes.
-- Every fix in 0.10.1 gets a row in the feedback log with the report that caused it.
+- Every fix in 0.10.2 gets a row in the feedback log with the report that caused it.
 
 ## Who to recruit
 
@@ -167,7 +167,7 @@ Recruiting blurb, for a post or a direct message:
 
 ## 0.10.2 release
 
-Submitted to Alpha on 2026-11-02 as versionCode 13, versionName 0.10.2. The 0.10.1 build never reached the Console, so testers moved from 0.10.0 to this build. App code matches 0.10.1, and the notes below describe it. **Wherever the answers below say 0.10.1, they mean 0.10.2**, and the shipped builds are 0.8.0, 0.9.0, 0.9.1, 0.10.0, and 0.10.2.
+Submitted to Alpha on 2026-11-02 as versionCode 13, versionName 0.10.2, and published the same day at 11:52 AM CST. The 0.10.1 build never reached the Console, so testers moved from 0.10.0 to this build. App code matches 0.10.1, and the notes in the 0.10.1 section describe it. The answers below say 0.10.2 (updated 2026-11-06), and the shipped builds are 0.8.0, 0.9.0, 0.9.1, 0.10.0, and 0.10.2.
 
 ## 0.10.1 release
 
@@ -189,12 +189,12 @@ The draft answers below are only as true as these items. S-AND checked what the 
 
 | Claim in the draft | Finding |
 |---|---|
-| "We shipped [five] builds" | Five, once 0.10.1 publishes: 0.8.0, 0.9.0, 0.9.1, 0.10.0, 0.10.1 |
+| "We shipped [five] builds" | Five: 0.8.0, 0.9.0, 0.9.1, 0.10.0, and 0.10.2, published Nov 2 |
 | "0.10.0 (Oct 14)" | Submitted Oct 15 at 8:00 AM CDT (`submission-checklist.md`). Corrected below |
-| "0.10.1 (Oct 20): [tester-reported fixes]" | False as written. Corrected below, date for the owner to fill |
-| "[N] JVM unit tests and [N] instrumented tests pass" | See `submission-checklist.md`, 0.10.1. Those ran on the debug build, while the draft says "on the release build". Reword or rerun |
+| "0.10.2 (Nov 2): [tester-reported fixes]" | False as written. Corrected below: parity and sync work, published Nov 2 |
+| "[N] JVM unit tests and [N] instrumented tests pass" | See `submission-checklist.md`, 0.10.2. Those ran on the debug build, while the draft says "on the release build". Reword or rerun |
 | "We ran a release smoke test on a Pixel" | **Not done.** Open since Aug 29 (`tasks/todo.md`, section A). Do it before this sentence is sent |
-| "Each 0.10.1 fix points to a report", and "every fix in 0.10.1 gets a row" | **Can't be true for this build.** Log the tester reports you have, and describe the rest as internal work |
+| "Each 0.10.2 fix points to a report", and "every fix in 0.10.2 gets a row" | **Can't be true for this build.** Log the tester reports you have, and describe the rest as internal work |
 | Testers, engagement, vitals, pre-launch report, day-14 status | **Owner only.** Not visible from here |
 
 ## Feedback log
@@ -205,7 +205,7 @@ Feedback arrives in four places. Check each daily.
   `app_version` like `android-0.10.0.11`, so filter on `app_version ~ "android-"`. Rows are anonymous.
 - **Replies** to the tester email.
 - **gsdapp@vinny.dev.**
-- **Android vitals** for crashes and ANRs on 0.10.0 and 0.10.1.
+- **Android vitals** for crashes and ANRs on 0.10.0 and 0.10.2.
 
 | Date | Source | Build | Report | Fixed in |
 |---|---|---|---|---|
@@ -232,7 +232,7 @@ the feedback].
 **Summarize feedback and how you collected it.** Testers reported through an anonymous Feedback form inside
 the app, replies to our tester mailing list, and email to gsdapp@vinny.dev. We logged each report with its
 date and the build that fixed it. We received [N] reports: [N] bugs, [N] usability notes, and [N] feature
-requests. The main themes were [theme] and [theme]. We fixed [list, only what testers reported] in 0.10.1 and kept [list] for after
+requests. The main themes were [theme] and [theme]. We fixed [list, only what testers reported] in 0.10.2 and kept [list] for after
 launch.
 
 **Target audience.** Adults who juggle work and personal to-dos and want a quick answer to "what should I
@@ -256,7 +256,7 @@ app's numbers.]
   picker, so we added date and time pickers. Also a notification-permission request at the moment it's
   needed, an exact-alarm setting, a rebuilt welcome tour, TalkBack labels and AA contrast, and tablet and
   landscape layouts. [Name any item a tester reported.]
-- 0.10.1 ([publish date]): from our own parity and sync review, not tester reports: Saved items in sync with
+- 0.10.2 (Nov 2): from our own parity and sync review, not tester reports: Saved items in sync with
   the web and Apple apps, escalation of tasks due soon, all-day reminders at 9 AM, pull to refresh, and sync
   fixes that protect Saved items, new tasks, and edits. [Add any tester-reported fix from the log, named as one.]
 
@@ -272,10 +272,10 @@ last [N] days of testing brought no new crash or data-loss report.
 
 - [ ] The Console shows 14 continuous days and the button is enabled.
 - [ ] At least 12 testers opted in, ideally 15 or more.
-- [ ] 0.10.0 and 0.10.1 both published inside the window.
-- [ ] The feedback log has dated entries, and each 0.10.1 fix points to a report.
+- [ ] 0.10.0 and 0.10.2 both published inside the window.
+- [ ] The feedback log has dated entries, and each 0.10.2 fix points to a report.
 - [ ] Android vitals: no open crash cluster on 0.10.x.
-- [ ] Pre-launch report for 0.10.1 reviewed.
+- [ ] Pre-launch report for 0.10.2 reviewed.
 - [ ] Release smoke on the Pixel done (open since Aug 29): sync, a reminder, the widget, a deep link, one
       real sign-in.
 - [ ] The privacy policy update is merged and deployed (`gsdtaskmanager.com` `fix/privacy-android-feedback`).
