@@ -1,5 +1,22 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-06, night): 0.11.0 sent to Alpha for review
+
+- **Done:** 14 (0.11.0) submitted to Closed testing, Alpha, at 16:43 CST, status Changes in review. Built from
+  `03019e4` on `release/0.11.0`: the web's `whats-new.json` copied byte-identical (`c186ba7`, adds the Android
+  0.11.0 entry, authored in gsd-taskmanager on its own `release/0.11.0` at `c3d5f2e`) and the bump. Gates (all
+  green, `:app` connected 267 after a rerun), artifacts, smoke, and the Console walk are in the local
+  `docs/play/submission-checklist.md`. The first connected run aborted because Android Studio closed and killed
+  the ADB server; `tasks/lessons.md` has the signature.
+- **Next, owner-side:** push both `release/0.11.0` branches and open their PRs (neither is pushed; the web one
+  is the notes authority and must merge before the next Android copy). Watch the Console for the publish. The
+  Pixel release smoke (sign in, sync, a firing reminder) is still open, and the production application
+  (`docs/play/production-access-round-3.md`) now has a sixth shipped build to cite.
+- **Assumptions:** 0.11.0 rather than 0.10.3, because What's New and resurrect on sight are features. The web
+  branch name matches this repo's, per the workspace rule for paired changes.
+- **Not verified:** nothing ran on a device against the live server.
+- **Blockers:** none on this repo. The push and PR wait for the owner.
+
 ## Resuming From Here (2026-11-06, evening): everything merged, Dependabot config fixed
 
 - **Done, merged to `main`:** #62 (`da26d48`), #63 (`d2990c1`), and #64 (`03f81c0`). #64 needed a merge from
