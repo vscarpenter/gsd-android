@@ -2,10 +2,10 @@
 
 ## Resuming From Here (2026-11-06, afternoon): resurrect on sight and the remote delete recheck
 
-- **Done, committed, not pushed** (the owner asked for the build; pushing waits for a word):
-  - `fix/remote-delete-recheck` (`0db6a73`, from `main`): `GsdDatabase.deleteFromRemote` is a transaction that
+- **Done, pushed, PRs open:** #62 and #64, with this record as #63.
+  - #62 `fix/remote-delete-recheck` (`0db6a73`, from `main`): `GsdDatabase.deleteFromRemote` is a transaction that
     skips when a pending row exists, as `abandonToTrash` does since #59. The realtime delete shares it. Spec 9.4.
-  - `feat/resurrect-on-sight` (`6858270`, stacked on `fix/signed-out-deletes`, PR #61): sign-in remembers
+  - #64 `feat/resurrect-on-sight` (`6858270`, cut from #61's head, which merged at 19:21 UTC): sign-in remembers
     the ids of the dropped Trash and Replace deletes in `sync_metadata.resurrectTaskIdsJson` (schema 4, migration
     3 to 4). Right after the pull, a run with remembered ids lists the account once, confirms the owner, removes
     each found id's tombstone, and writes the server copy under last-write-wins; then it forgets every id. No
@@ -19,8 +19,8 @@
   signed out once the account lists it. The web and iOS keep the shared tombstone rule (web
   `isRemoteNewerThanArchive`, iOS `TombstoneRepository`), so there the task stays in Trash while the server copy
   survives. The owner's rule on 2026-11-06: a task deleted while signed out should reappear when synced.
-- **Merge order:** #61 first, then `feat/resurrect-on-sight` (retarget it to `main` once #61 lands), and
-  `fix/remote-delete-recheck` any time.
+- **Merge order:** none left to respect. #61 merged first (`4b35e3e`), and #62, #63, and #64 each target `main`
+  and merge in any order.
 - **Not verified:** nothing ran on a device against the live server. The SignedOutDeletesTest fake lists only
   records updated after the cursor, as PocketBase does, which is what made the kept-cursor case testable.
 - **Blockers:** none on this repo.
