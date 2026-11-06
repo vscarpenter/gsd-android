@@ -245,7 +245,7 @@ class FarFutureStampTest {
     fun `a far-future stamp leaves a tombstone standing on realtime`() = runTest {
         val local = FakeLocal().apply { tombstones["task-1"] = edited.toEpochMilli() }
 
-        applyRealtimeUpsert(local, WireMapper.push(task("remote", farFuture), "other-device", "user-1"), now)
+        applyRealtimeUpsert(local, WireMapper.push(task("remote", farFuture), "other-device", "user-1"), now) { true }
 
         assertNull(local.tasks["task-1"])
         assertEquals(edited.toEpochMilli(), local.tombstones["task-1"])
@@ -269,7 +269,7 @@ class FarFutureStampTest {
     fun `realtime stores a new far-future record at the ceiling`() = runTest {
         val local = FakeLocal()
 
-        applyRealtimeUpsert(local, realtime(farFuture), now)
+        applyRealtimeUpsert(local, realtime(farFuture), now) { true }
 
         assertEquals(ceiling, local.tasks["task-1"]!!.updatedAt)
     }
@@ -278,7 +278,7 @@ class FarFutureStampTest {
     fun `realtime applies a far-future record over a live row at the ceiling`() = runTest {
         val local = FakeLocal().apply { tasks["task-1"] = task() }
 
-        applyRealtimeUpsert(local, realtime(farFuture), now)
+        applyRealtimeUpsert(local, realtime(farFuture), now) { true }
 
         assertEquals("remote", local.tasks["task-1"]!!.title)
         assertEquals(ceiling, local.tasks["task-1"]!!.updatedAt)
@@ -289,8 +289,8 @@ class FarFutureStampTest {
         val (pending, pendingEdit) = localWithQueuedEdit()
         val (failed, failedEdit) = localWithQueuedEdit(status = "failed")
 
-        applyRealtimeUpsert(pending, realtime(farFuture), now)
-        applyRealtimeUpsert(failed, realtime(farFuture), now)
+        applyRealtimeUpsert(pending, realtime(farFuture), now) { true }
+        applyRealtimeUpsert(failed, realtime(farFuture), now) { true }
 
         assertEquals(pendingEdit, pending.tasks["task-1"])
         assertEquals(failedEdit, failed.tasks["task-1"])
@@ -300,7 +300,7 @@ class FarFutureStampTest {
     fun `a queued delete isn't a write the rule protects`() = runTest {
         val local = FakeLocal().apply { tasks["task-1"] = task(); queue += trashDelete() }
 
-        applyRealtimeUpsert(local, realtime(farFuture), now)
+        applyRealtimeUpsert(local, realtime(farFuture), now) { true }
 
         assertEquals("remote", local.tasks["task-1"]!!.title)
     }
@@ -309,7 +309,7 @@ class FarFutureStampTest {
     fun `realtime keeps today's rule for a queued edit inside the window`() = runTest {
         val (local, _) = localWithQueuedEdit()
 
-        applyRealtimeUpsert(local, realtime(insideWindow), now)
+        applyRealtimeUpsert(local, realtime(insideWindow), now) { true }
 
         assertEquals("remote", local.tasks["task-1"]!!.title)
     }
@@ -319,7 +319,7 @@ class FarFutureStampTest {
         val atCeiling = task(updatedAt = ceiling)
         val local = FakeLocal().apply { tasks["task-1"] = atCeiling }
 
-        applyRealtimeUpsert(local, realtime(farFuture), now)
+        applyRealtimeUpsert(local, realtime(farFuture), now) { true }
 
         assertEquals(atCeiling, local.tasks["task-1"])
     }
