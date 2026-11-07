@@ -78,6 +78,17 @@ class ReminderPlannerTest {
         assertEquals(due.minusSeconds(15 * 60), ReminderPlanner.fireTime(task(snoozedUntil = snooze), settings, now, zone))
     }
 
+    /**
+     * A posted reminder whose time is still ahead, as after a zone change moves an all-day reminder later. The
+     * snooze reopens it, and v2 then keeps the later reminder time. The web clears the sent flag on a snooze and
+     * gets the same answer. Found by `NotificationsTest.aReminderSnoozedFromItsNotificationIsPlannedAgain`.
+     */
+    @Test
+    fun `a snooze on a posted reminder that ends before the reminder time leaves the reminder on time`() {
+        val posted = task(notificationSent = true, snoozedUntil = now.plusSeconds(3600))
+        assertEquals(due.minusSeconds(15 * 60), ReminderPlanner.fireTime(posted, settings, now, zone))
+    }
+
     /** Review finding 5: "Snooze 1 hour" on a reminder that had already posted never fired again. */
     @Test
     fun `a snooze asks for another reminder after the first one posted`() {
