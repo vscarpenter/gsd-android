@@ -47,7 +47,11 @@ import dev.vinny.gsd.notifications.notificationPermissionGranted
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
 import dev.vinny.gsd.ui.formatTimeOfDay
+import dev.vinny.gsd.model.SweepReminder
+import java.time.DayOfWeek
 import java.time.LocalTime
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 /** Settings §8.17.5: reminders, default offset, sound, quiet hours, permission status. */
@@ -121,6 +125,7 @@ internal fun NotificationsGroup(container: AppContainer) {
             QuietHourRow(R.string.settings_quiet_start, quietStart) { picked -> update { it.copy(quietHoursStart = picked) } }
             QuietHourRow(R.string.settings_quiet_end, quietEnd) { picked -> update { it.copy(quietHoursEnd = picked) } }
         }
+        SweepReminderRows(container, settings.permissionAsked, notificationsAllowed, permissionLauncher::launch)
         if (!notificationsAllowed) {
             LinkRow(
                 stringResource(
@@ -187,6 +192,42 @@ private fun QuietHourRow(labelRes: Int, time: LocalTime, onPick: (LocalTime) -> 
                 TextButton(onClick = { picking = false }) { Text(stringResource(R.string.dialog_cancel)) }
             },
         )
+    }
+}
+
+/**
+ * "Weekly sweep reminder", with a day and a time (spec-weekly-sweep.md §6). Off by default, and turning it on
+ * starts at Sunday 09:00. The alarm follows the stored reminder, so this only writes it.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SweepReminderRows(
+    container: AppContainer,
+    permissionAsked: Boolean,
+    notificationsAllowed: Boolean,
+    askPermission: (String) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    val reminder by container.prefs.sweepReminder.collectAsStateWithLifecycle(initialValue = SweepReminder.OFF)
+    fun save(next: SweepReminder) {
+        scope.launch { container.prefs.setSweepReminder(next) }
+    }
+    SwitchRow(R.string.sweep_reminder_label, reminder.enabled) { on ->
+        save(reminder.copy(enabled = on))
+        // Contextual permission ask when it's first turned on, as for task reminders
+        if (on && !permissionAsked && !notificationsAllowed) askPermission(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    if (reminder.enabled) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            DayOfWeek.entries.forEach { day ->
+                FilterChip(
+                    selected = reminder.weekday == day.value,
+                    onClick = { save(reminder.copy(weekday = day.value)) },
+                    label = { Text(day.getDisplayName(TextStyle.SHORT, Locale.getDefault()), style = GsdType.metadata) },
+                )
+            }
+        }
+        QuietHourRow(R.string.sweep_reminder_time, reminder.time) { picked -> save(reminder.copy(time = picked)) }
     }
 }
 

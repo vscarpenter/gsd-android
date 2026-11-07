@@ -16,6 +16,7 @@ class GsdApp : Application() {
         Channels.ensure(this)
         ReminderResync(container.store, container.notificationSettingsStore, container.reminderScheduler)
             .start(appScope)
+        dev.vinny.gsd.notifications.SweepReminderSync(container.prefs, container.reminderScheduler).start(appScope)
         container.startSync(appScope, this)
         // Retention purge at launch (parity spec P§3) — don't wait on the periodic worker.
         appScope.launch { container.trashStore.purgeExpired() }

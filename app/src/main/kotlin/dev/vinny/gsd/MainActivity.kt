@@ -260,6 +260,7 @@ class MainActivity : ComponentActivity() {
                                         navController.navigateToTab(Destination.SETTINGS)
                                     is dev.vinny.gsd.nav.GsdRoute.Archive -> navController.navigate("archive")
                                     is dev.vinny.gsd.nav.GsdRoute.Trash -> navController.navigate("trash")
+                                    is dev.vinny.gsd.nav.GsdRoute.Sweep -> navController.navigate("sweep")
                                 }
                                 container.palette.pendingRoute.value = null
                             }

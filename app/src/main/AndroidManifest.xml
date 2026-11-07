@@ -57,6 +57,7 @@
                 android:resource="@xml/gsd_widget_info" />
         </receiver>
         <receiver android:name=".widget.WidgetMidnightReceiver" android:exported="false" />
+        <receiver android:name=".notifications.SweepReminderReceiver" android:exported="false" />
         <receiver android:name=".notifications.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

@@ -49,6 +49,9 @@ fun GsdNavHost(
                 onUp = up,
             )
         }
+        composable("sweep") {
+            dev.vinny.gsd.sweep.SweepScreen(container = container, onUp = up)
+        }
         composable("saved") {
             dev.vinny.gsd.browse.SavedScreen(container = container, onUp = up)
         }
@@ -86,6 +89,7 @@ fun GsdNavHost(
                     onOpenSyncHistory = { navController.navigate("sync-history") },
                     onOpenFeedback = { navController.navigate("feedback") },
                     onOpenWhatsNew = { navController.navigate("whats-new") },
+                    onOpenSweep = { navController.navigate("sweep") },
                 )
             }
         }

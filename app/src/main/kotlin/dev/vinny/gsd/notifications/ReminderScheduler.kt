@@ -7,7 +7,9 @@ import android.content.Intent
 import android.util.Log
 import dev.vinny.gsd.model.ReminderPlanner
 import dev.vinny.gsd.model.ReminderSettings
+import dev.vinny.gsd.model.SweepReminder
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.WeeklySweep
 import dev.vinny.gsd.store.NotificationSettingsStore
 import dev.vinny.gsd.store.TaskStore
 import java.time.Instant
@@ -56,6 +58,41 @@ class ReminderScheduler(private val context: Context) {
         alarmManager.cancel(pendingIntent(taskId))
     }
 
+    /**
+     * The weekly sweep alarm (spec-weekly-sweep.md §6): one inexact alarm with its own action and data, so a
+     * task reminder's PendingIntent never matches it and [resyncAll] never touches it.
+     */
+    private fun sweepIntent() = Intent(context, SweepReminderReceiver::class.java).apply {
+        action = ACTION_SWEEP
+        data = android.net.Uri.parse("gsd://reminder/sweep")
+    }
+
+    private fun sweepPending(create: Boolean): PendingIntent? = PendingIntent.getBroadcast(
+        context,
+        SWEEP_REQUEST_CODE,
+        sweepIntent(),
+        (if (create) PendingIntent.FLAG_UPDATE_CURRENT else PendingIntent.FLAG_NO_CREATE) or PendingIntent.FLAG_IMMUTABLE,
+    )
+
+    fun scheduleSweep(fireAt: Instant) {
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt.toEpochMilli(), checkNotNull(sweepPending(create = true)))
+    }
+
+    fun cancelSweep() {
+        sweepPending(create = false)?.let {
+            alarmManager.cancel(it)
+            it.cancel()
+        }
+    }
+
+    fun hasSweepAlarm(): Boolean = sweepPending(create = false) != null
+
+    /** Sets the next occurrence from the stored reminder, or cancels the alarm when it's off. */
+    fun syncSweep(reminder: SweepReminder, now: Instant, zone: ZoneId) {
+        val next = WeeklySweep.nextReminder(reminder, now, zone)
+        if (next != null) scheduleSweep(next) else cancelSweep()
+    }
+
     fun resyncAll(tasks: List<Task>, settings: ReminderSettings, now: Instant) {
         val planned = ReminderPlanner.soonest(tasks, settings, now, ZoneId.systemDefault(), MAX_SCHEDULED_REMINDERS)
         tasks.forEach { task ->
@@ -66,10 +103,31 @@ class ReminderScheduler(private val context: Context) {
 
     companion object {
         const val ACTION_REMINDER = "dev.vinny.gsd.REMINDER"
+        const val ACTION_SWEEP = "dev.vinny.gsd.WEEKLY_SWEEP"
+        private const val SWEEP_REQUEST_CODE = 0x5EEB
         const val EXTRA_TASK_ID = "extra_task_id"
 
         /** Below the platform's 500 concurrent alarms per app, which throws when passed. */
         const val MAX_SCHEDULED_REMINDERS = 400
+    }
+}
+
+/**
+ * Keeps the weekly sweep alarm in step with the stored reminder, so turning it on or off, and a local erase
+ * that clears it, all reach the alarm the same way (spec-weekly-sweep.md §6).
+ */
+class SweepReminderSync(
+    private val prefs: dev.vinny.gsd.prefs.GsdPrefs,
+    private val scheduler: ReminderScheduler,
+    private val clock: java.time.Clock = java.time.Clock.systemDefaultZone(),
+) {
+    fun start(scope: CoroutineScope) {
+        prefs.sweepReminder
+            .onEach { reminder ->
+                runCatching { scheduler.syncSweep(reminder, clock.instant(), clock.zone) }
+                    .onFailure { Log.w("GsdReminders", "sweep alarm failed: ${it.javaClass.simpleName}") }
+            }
+            .launchIn(scope)
     }
 }
 

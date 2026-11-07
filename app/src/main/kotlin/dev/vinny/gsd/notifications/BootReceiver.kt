@@ -30,6 +30,8 @@ class BootReceiver : BroadcastReceiver() {
                 dev.vinny.gsd.widget.WidgetMidnight.schedule(context)
                 // A new zone or clock can move "today", and the widget picks its list by the local date when it draws
                 dev.vinny.gsd.widget.GsdWidget().updateAll(context)
+                // Then the sweep alarm, which has its own action and survives the task resync below
+                container.reminderScheduler.syncSweep(container.prefs.sweepReminder.first(), Instant.now(), java.time.ZoneId.systemDefault())
                 container.reminderScheduler.resyncAll(
                     container.store.observeTasks().first(),
                     container.notificationSettingsStore.get(),

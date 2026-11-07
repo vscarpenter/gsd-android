@@ -541,4 +541,34 @@
     <string name="today_first">first</string>
     <string name="today_second">second</string>
     <string name="today_third">third</string>
+    <!-- Weekly sweep (D-14). Copy states facts and asks nothing: never behind, neglected, still, missed, or forgot. -->
+    <string name="sweep_title">Weekly sweep</string>
+    <string name="sweep_entry">Weekly sweep</string>
+    <string name="sweep_start">Start weekly sweep</string>
+    <string name="sweep_position">%1$d of %2$d</string>
+    <string name="sweep_reason_overdue">Due date passed</string>
+    <string name="sweep_reason_escalating">Due soon, not marked urgent</string>
+    <string name="sweep_reason_stale">No changes in 14 days or more</string>
+    <string name="sweep_reason_saved">Saved over a month ago</string>
+    <string name="sweep_reason_undated_schedule">No date yet</string>
+    <string name="sweep_action_complete">Complete</string>
+    <string name="sweep_action_new_date">New date</string>
+    <string name="sweep_action_add_date">Add date</string>
+    <string name="sweep_action_mark_urgent">Mark urgent</string>
+    <string name="sweep_action_move">Move to quadrant</string>
+    <string name="sweep_action_save">Save for later</string>
+    <string name="sweep_action_return">Return to matrix</string>
+    <string name="sweep_action_delete">Delete</string>
+    <string name="sweep_action_skip">Skip</string>
+    <string name="sweep_done">Done</string>
+    <string name="sweep_end_title">That\'s the sweep.</string>
+    <string name="sweep_end_pick">Pick today\'s top three</string>
+    <string name="sweep_end_back">Back to matrix</string>
+    <string name="sweep_date_title">New date</string>
+    <string name="sweep_move_title">Move to quadrant</string>
+    <string name="sweep_reminder_label">Weekly sweep reminder</string>
+    <string name="sweep_reminder_day">Day</string>
+    <string name="sweep_reminder_time">Time</string>
+    <string name="sweep_notification_title">Weekly sweep</string>
+    <string name="sweep_notification_text">A few minutes to clear what\'s gone quiet.</string>
 </resources>
