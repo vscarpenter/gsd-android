@@ -31,6 +31,9 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
 
     suspend fun get(id: String): Task? = db.taskDao().byId(id)?.toTask()
 
+    /** This device's default reminder, for rules that compare effective offsets (D-10). */
+    suspend fun defaultReminder(): Int = db.defaultReminderMinutes()
+
     suspend fun add(task: Task): Task {
         val now = clock.instant()
         val stamped = TaskValidator.validate(task, now).copy(createdAt = now, updatedAt = now)

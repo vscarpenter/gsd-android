@@ -9,8 +9,10 @@ object EditorRules {
      * completion, a timer, or a snooze that landed while the sheet was open survives.
      *
      * Editing dueDate or notifyBefore resets reminder state, so the user is notified again (spec §8.3).
+     * The offset compares effective values against [defaultReminder] (D-10): resolving a legacy null to
+     * the number it already fires at isn't a move, so opening and saving an old task re-fires nothing.
      */
-    fun merge(current: Task, original: Task, edited: Task): Task {
+    fun merge(current: Task, original: Task, edited: Task, defaultReminder: Int): Task {
         fun <T> pick(field: (Task) -> T): T =
             if (field(edited) != field(original)) field(edited) else field(current)
         val merged = current.copy(
@@ -24,14 +26,16 @@ object EditorRules {
             subtasks = pick { it.subtasks },
             dependencies = pick { it.dependencies },
             notifyBefore = pick { it.notifyBefore },
+            notificationEnabled = pick { it.notificationEnabled },
             estimatedMinutes = pick { it.estimatedMinutes },
             snoozedUntil = pick { it.snoozedUntil },
         )
-        return if (movedTheReminder(original, edited)) merged.withReminderReset() else merged
+        return if (movedTheReminder(original, edited, defaultReminder)) merged.withReminderReset() else merged
     }
 
-    private fun movedTheReminder(original: Task, edited: Task): Boolean =
-        edited.dueDate != original.dueDate || edited.notifyBefore != original.notifyBefore
+    private fun movedTheReminder(original: Task, edited: Task, defaultReminder: Int): Boolean =
+        edited.dueDate != original.dueDate ||
+            ReminderOffset.effective(edited, defaultReminder) != ReminderOffset.effective(original, defaultReminder)
 
     private fun Task.withReminderReset(): Task =
         copy(notificationSent = false, lastNotificationAt = null, snoozedUntil = null)

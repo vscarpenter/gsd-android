@@ -61,3 +61,7 @@ private fun ReminderSettings.toEntity(updatedAt: Long): NotificationSettingsEnti
         permissionAsked = permissionAsked,
         updatedAt = updatedAt,
     )
+
+/** This device's default reminder, which a task with no offset resolves to (D-10). Seeded at 15. */
+suspend fun GsdDatabase.defaultReminderMinutes(): Int =
+    notificationSettingsDao().get()?.defaultReminder ?: ReminderSettings().defaultReminderMinutes

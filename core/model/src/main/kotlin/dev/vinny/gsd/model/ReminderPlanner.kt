@@ -52,7 +52,7 @@ object ReminderPlanner {
         val snoozed = task.snoozedUntil?.takeIf { it.isAfter(now) }
         // A future snooze asks for another reminder, even after the first one posted (iOS does the same).
         if (task.notificationSent && snoozed == null) return null
-        val offsetMinutes = task.notifyBefore ?: settings.defaultReminderMinutes
+        val offsetMinutes = ReminderOffset.effective(task, settings.defaultReminderMinutes)
         val base = snoozed ?: baseFireTime(due, offsetMinutes, zone)
         if (!base.isAfter(now)) return null
         return deferPastQuietHours(base, settings, zone)
@@ -118,6 +118,6 @@ object ReminderPermission {
     fun shouldAsk(settings: ReminderSettings, granted: Boolean, before: Task, after: Task): Boolean {
         if (!settings.enabled || settings.permissionAsked || granted) return false
         if (after.dueDate == null || !after.notificationEnabled) return false
-        return after.dueDate != before.dueDate || after.notifyBefore != before.notifyBefore
+        return after.dueDate != before.dueDate || after.notifyBefore != before.notifyBefore || !before.notificationEnabled
     }
 }
