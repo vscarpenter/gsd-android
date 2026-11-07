@@ -15,6 +15,9 @@ import java.time.Instant
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -28,8 +31,7 @@ sealed interface SweepState {
     /** [position] counts from 1 over the cards computed when the sweep opened. */
     data class Card(val task: Task, val reason: SweepReason, val position: Int, val total: Int) : SweepState
 
-    /** [offerTopThree] is true while today has a free slot (spec-weekly-sweep.md §7, the end offer). */
-    data class End(val offerTopThree: Boolean) : SweepState
+    data object End : SweepState
 }
 
 /**
@@ -45,6 +47,14 @@ class SweepViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow<SweepState>(SweepState.Loading)
     val state: StateFlow<SweepState> = _state.asStateFlow()
+
+    /**
+     * Whether today still has a free slot (spec-weekly-sweep.md §7, the end offer). It follows the tasks, not
+     * the moment the sweep ended, because the end can stay on screen while picks change elsewhere.
+     */
+    val offerTopThree: Flow<Boolean> = store.observeTasks()
+        .map { TopThree.nextRank(it, now(), clock.zone) != null }
+        .distinctUntilChanged()
 
     private var cards = emptyList<dev.vinny.gsd.model.SweepCard>()
     private var index = -1
@@ -83,7 +93,7 @@ class SweepViewModel(
         index = next
         if (next >= cards.size) {
             if (SweepSession.stampsLastSwept(cards.size, reachedEnd = true, tappedDone = false)) stamp()
-            _state.value = SweepState.End(offerTopThree = TopThree.nextRank(tasks, now(), clock.zone) != null)
+            _state.value = SweepState.End
             return
         }
         val card = cards[next]

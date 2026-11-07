@@ -67,8 +67,8 @@ class SweepViewModelTest {
     private suspend fun SweepViewModel.awaitCard(): SweepState.Card =
         withTimeout(5_000) { state.first { it is SweepState.Card } } as SweepState.Card
 
-    private suspend fun SweepViewModel.awaitEnd(): SweepState.End =
-        withTimeout(5_000) { state.first { it is SweepState.End } } as SweepState.End
+    private suspend fun SweepViewModel.awaitEnd(): SweepState =
+        withTimeout(5_000) { state.first { it is SweepState.End } }
 
     @Test
     fun openingSkippingAndLeavingWriteNothingToAnyTask(): Unit = runBlocking {
@@ -169,7 +169,8 @@ class SweepViewModelTest {
         val open = viewModel()
         open.awaitCard()
         open.skip()
-        assertEquals(true, open.awaitEnd().offerTopThree)
+        open.awaitEnd()
+        assertEquals(true, withTimeout(5_000) { open.offerTopThree.first() })
 
         listOf("task-p1", "task-p2", "task-p3").forEachIndexed { i, id ->
             val t = store.add(Task(id = id, title = id, urgent = true, important = true, createdAt = sweepDay, updatedAt = sweepDay))
@@ -179,7 +180,7 @@ class SweepViewModelTest {
         full.awaitCard()
         full.skip()
         assertIs<SweepState.End>(full.awaitEnd())
-        assertEquals(false, full.awaitEnd().offerTopThree)
+        assertEquals(false, withTimeout(5_000) { full.offerTopThree.first() })
     }
 
     @Test
@@ -203,5 +204,23 @@ class SweepViewModelTest {
         vm.advanceAfter { true }
         withTimeout(5_000) { vm.state.first { it is SweepState.Card && it.task.id == "task-b" } }
         collector.cancel()
+    }
+
+    /** The end can stay on screen while picks change elsewhere, so the offer reads today's slot as it is now. */
+    @Test
+    fun theOfferFollowsTodaysSlotWhileTheEndIsShowing(): Unit = runBlocking {
+        seedOld("task-a", due = Instant.parse("2026-11-01T06:00:00Z"))
+        val vm = viewModel()
+        vm.awaitCard()
+        vm.skip()
+        vm.awaitEnd()
+        assertEquals(true, withTimeout(5_000) { vm.offerTopThree.first() })
+
+        listOf("task-p1", "task-p2", "task-p3").forEachIndexed { i, id ->
+            val t = store.add(Task(id = id, title = id, urgent = true, important = true, createdAt = sweepDay, updatedAt = sweepDay))
+            store.change(t.id) { it.copy(focusDate = "2026-11-08", focusRank = i + 1) }
+        }
+
+        withTimeout(5_000) { vm.offerTopThree.first { !it } }
     }
 }

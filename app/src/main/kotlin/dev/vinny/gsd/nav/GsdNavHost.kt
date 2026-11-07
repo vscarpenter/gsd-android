@@ -54,7 +54,7 @@ fun GsdNavHost(
                 container = container,
                 onUp = up,
                 // Always the matrix, even when the sweep was opened from Settings (spec decision S4)
-                onBackToMatrix = { navController.navigateToRoute("matrix") },
+                onBackToMatrix = { navController.leaveToMatrix() },
             )
         }
         composable("saved") {

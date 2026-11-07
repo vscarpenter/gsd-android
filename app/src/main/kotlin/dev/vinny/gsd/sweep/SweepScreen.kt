@@ -76,6 +76,7 @@ fun SweepScreen(
     val viewModel: SweepViewModel = viewModel { SweepViewModel(container.store, container.prefs) }
     val actions: TaskActionsViewModel = viewModel { TaskActionsViewModel(container.store, container.trashStore) }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val offerTopThree by viewModel.offerTopThree.collectAsStateWithLifecycle(initialValue = false)
     val snackbar = remember { SnackbarHostState() }
     val failedMessage = stringResource(R.string.sweep_action_failed)
     LaunchedEffect(viewModel) { viewModel.failures.collect { snackbar.showSnackbar(failedMessage) } }
@@ -93,8 +94,8 @@ fun SweepScreen(
                     onMove = { quadrant -> viewModel.advanceAfter { actions.moveToQuadrantNow(current.task.id, quadrant) } },
                     onDone = { viewModel.done(onBackToMatrix) },
                 )
-                is SweepState.End -> SweepEnd(
-                    offerTopThree = current.offerTopThree,
+                SweepState.End -> SweepEnd(
+                    offerTopThree = offerTopThree,
                     onPick = {
                         // The Matrix opens the Today suggestions once it's showing again
                         container.palette.requestTodaySuggestions()
