@@ -98,6 +98,6 @@ class DueTimeCorpusTest {
     private fun JsonObject.instant(key: String) = textOrNull(key)?.let(Instant::parse)
 
     private companion object {
-        const val CASE_COUNT = 117
+        const val CASE_COUNT = 118
     }
 }
