@@ -33,6 +33,12 @@ class FeedbackTest {
         assertEquals(listOf("wear-os"), payload.getValue("votes").jsonArray.map { it.jsonPrimitive.content })
     }
 
+    @Test fun `a stored vote for weekly-review isn't sent`() {
+        // The slug is retired on Android: a vote saved by an older build is dropped, not sent.
+        val payload = FeedbackPayload.build(draft("weekly-review", "wear-os"), "android-0.8.0.10", at)
+        assertEquals(listOf("wear-os"), payload.getValue("votes").jsonArray.map { it.jsonPrimitive.content })
+    }
+
     @Test fun `app version clamps to 20 chars`() {
         val payload = FeedbackPayload.build(draft(), "android-0.8.0-rc.1.veryverylong", at)
         assertEquals(20, payload.getValue("app_version").jsonPrimitive.content.length)
@@ -40,7 +46,7 @@ class FeedbackTest {
 
     @Test fun `android ships the seven shared slugs plus wear-os`() {
         assertEquals(
-            listOf("natural-language-dates", "calendar-sync", "task-templates", "weekly-review",
+            listOf("natural-language-dates", "calendar-sync", "task-templates",
                    "focus-timer", "task-notes", "shared-lists", "wear-os"),
             Roadmap.items.map { it.slug },
         )   // per-client curation, P§6.1: never reuse a retired slug (ios-widgets, apple-watch are other clients')
