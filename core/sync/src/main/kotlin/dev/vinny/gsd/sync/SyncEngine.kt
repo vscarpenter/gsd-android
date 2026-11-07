@@ -1,8 +1,11 @@
 package dev.vinny.gsd.sync
 
+import dev.vinny.gsd.model.FocusFields
 import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskJson
+import dev.vinny.gsd.model.TopThree
+import dev.vinny.gsd.model.TopThree.PullAction
 import dev.vinny.gsd.store.SyncOp
 import dev.vinny.gsd.store.SyncQueueEntity
 import java.time.Clock
@@ -55,9 +58,10 @@ class SyncEngine(
     companion object {
         /**
          * Bump when a build first reads a new synced field, in step with the web's
-         * `SYNC_CONFIG.PULL_CURSOR_VERSION` and iOS `SyncCursor.contractVersion`. 3 is `saved_at`.
+         * `SYNC_CONFIG.PULL_CURSOR_VERSION` and iOS `SyncCursor.contractVersion`. 3 is `saved_at`, and 4 is the top
+         * three pick, `focus_date` and `focus_rank` (spec-top-three.md §6).
          */
-        const val PULL_CONTRACT_VERSION = 3
+        const val PULL_CONTRACT_VERSION = TopThree.FOCUS_CONTRACT
         private const val EPOCH_CURSOR = "1970-01-01 00:00:00.000Z"
     }
 
@@ -128,9 +132,11 @@ class SyncEngine(
         var maxApplied: Instant? = null
         val now = clock.instant()
         val stored = local.cursor()
-        // An older build's cursor sits past rows it stored without a field this build reads: re-pull once
-        // and merge same-version rows, before any push could send that field empty (spec 2026-10-29 §2).
-        val backfill = stored != null && local.pullContractVersion() < PULL_CONTRACT_VERSION
+        val contract = local.pullContractVersion()
+        // A build older than this one stored rows without a field this build reads, behind its cursor: re-pull once and
+        // merge, before any push could send that field empty (spec 2026-10-29 §2). The stored version alone decides, so
+        // a missing cursor doesn't exempt a device (spec-top-three.md C4-1).
+        val backfill = contract < PULL_CONTRACT_VERSION
         val cursor = if (backfill) EPOCH_CURSOR else stored ?: EPOCH_CURSOR
         BoundedListing.collect(cursor, remote::listTasks) { result ->
             result.items.forEachIndexed { index, wire ->
@@ -141,29 +147,22 @@ class SyncEngine(
                     return@forEachIndexed // archived/trashed locally, remote not strictly newer (parity spec P§4)
                 }
                 val incoming = mapped.copy(updatedAt = RemoteStamp.capped(mapped.updatedAt, now))
-                val localWriteWins = RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)
-                if (backfill && existing != null && lacksPlacement(existing, incoming, localWriteWins)) {
-                    fence(owner)
-                    local.upsertFromRemote(existing.copy(savedAt = incoming.savedAt))
-                    return@forEachIndexed
-                }
-                if (localWriteWins) return@forEachIndexed // the push below heals the far-future record
-                val apply = when {
-                    existing == null -> true
-                    incoming.updatedAt.toEpochMilli() > existing.updatedAt.toEpochMilli() -> {
-                        conflicts++ // remote won over a local copy — informational (spec §9.7)
-                        true
+                val heldOff = RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)
+                val merge = merge(contract, existing, incoming, heldOff) ?: return@forEachIndexed
+                when (merge.action) {
+                    PullAction.NONE -> Unit // equal or local newer, outside a backfill (spec §9.3)
+                    PullAction.COPY_FIELDS -> {
+                        fence(owner)
+                        local.upsertFromRemote(checkNotNull(existing).withUnreadFields(checkNotNull(merge.row)))
                     }
-                    backfill && incoming.updatedAt.toEpochMilli() == existing.updatedAt.toEpochMilli() ->
-                        true // the same version: merge what an older build dropped, not a conflict
-                    else -> false // equal or local newer → no-op (spec §9.3)
-                }
-                if (apply) {
-                    fence(owner)
-                    local.upsertFromRemote(incoming)
-                    pulled++
-                    PbDates.parse(result.updatedStamps.getOrNull(index))?.let { stamp ->
-                        if (maxApplied == null || stamp.isAfter(maxApplied)) maxApplied = stamp
+                    PullAction.INSERT, PullAction.TAKE_REMOTE -> {
+                        if (merge.conflict) conflicts++ // remote won over a local copy, informational (spec §9.7)
+                        fence(owner)
+                        local.upsertFromRemote(incoming)
+                        pulled++
+                        PbDates.parse(result.updatedStamps.getOrNull(index))?.let { stamp ->
+                            if (maxApplied == null || stamp.isAfter(maxApplied)) maxApplied = stamp
+                        }
                     }
                 }
             }
@@ -171,7 +170,8 @@ class SyncEngine(
         fence(owner)
         maxApplied?.let { applied ->
             val next = PbDates.cursorAfter(applied)
-            if (!backfill || next > stored!!) local.saveCursor(next) // a backfill never moves the cursor back
+            // A backfill never moves the cursor back
+            if (!backfill || stored == null || next > stored) local.saveCursor(next)
         }
         if (stored == null || backfill) local.savePullContractVersion(PULL_CONTRACT_VERSION)
         return pulled to conflicts
@@ -208,16 +208,35 @@ class SyncEngine(
     }
 
     /**
-     * An older build dropped `saved_at`, and the local copy is about to win: it's newer, or it has a queued
-     * write against a far-future remote. The push would then send an empty placement. Backfill only:
-     * outside it, the same shape is a real Return.
-     * A row that can't be Saved, completed or timing, gets no placement: that newer local edit wins, and the push
-     * clears `saved_at` on the server (sprint question S-WEB-02).
+     * One pulled record against the local row, decided by the corpus's [TopThree.pullMerge] (spec-top-three.md §6).
+     * A queued write that holds off a far-future remote makes the local copy win, as a newer one would, so the
+     * backfill still copies what this row never read, and the push heals the record (§9.3, sprint question S-SPEC-01).
+     * Null skips the record: a held-off remote with no local copy waits for the push.
      */
-    private fun lacksPlacement(existing: Task, incoming: Task, localWriteWins: Boolean): Boolean =
-        existing.savedAt == null && incoming.savedAt != null &&
-        SavedPlacement.canSave(existing) &&
-            (localWriteWins || incoming.updatedAt.toEpochMilli() < existing.updatedAt.toEpochMilli())
+    private fun merge(contract: Int, existing: Task?, incoming: Task, heldOff: Boolean): TopThree.PullMergeResult? {
+        if (heldOff && existing == null) return null
+        val remote = incoming.mergeRow().let { row ->
+            if (heldOff) row.copy(updatedAt = checkNotNull(existing).updatedAt.minusMillis(1)) else row
+        }
+        return TopThree.pullMerge(contract, tombstoned = false, local = existing?.mergeRow(), remote = remote)
+    }
+
+    private fun Task.withPlacementOf(current: Task): Task =
+        copy(savedAt = current.savedAt, focusDate = current.focusDate, focusRank = current.focusRank)
+
+    private fun Task.mergeRow(): TopThree.MergeRow =
+        TopThree.MergeRow(updatedAt, FocusFields(focusDate, focusRank), savedAt)
+
+    /**
+     * What a backfill copies onto a row this device wins: the pick, and `savedAt` only when the row can be Saved, so
+     * a newer completion or timer wins and the push clears `saved_at` (sprint question S-WEB-02). Every other field,
+     * `updatedAt` included, stays, and nothing is queued.
+     */
+    private fun Task.withUnreadFields(merged: TopThree.MergeRow): Task = copy(
+        focusDate = merged.focus.focusDate,
+        focusRank = merged.focus.focusRank,
+        savedAt = if (SavedPlacement.canSave(this)) merged.savedAt else savedAt,
+    )
 
     private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> =
         BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks)
@@ -261,12 +280,13 @@ class SyncEngine(
                             local.markQueueItemDone(item.id) // LWW payload guard: pull delivers remote (spec §9.3)
                             continue
                         }
-                        // Placement comes from the current row: a payload queued by an older build has none
+                        // Placement and the pick come from the current row: a payload queued by an older build has
+                        // neither (C4-6)
                         val current = local.taskById(item.taskId)
                         // D-10: payload ?? current row ?? this device's default, so an older null sends a number
                         val offsetDefault = current?.notifyBefore ?: defaultReminder
                         val wire = if (current != null) {
-                            WireMapper.push(payload.copy(savedAt = current.savedAt), deviceId, owner, offsetDefault)
+                            WireMapper.push(payload.withPlacementOf(current), deviceId, owner, offsetDefault)
                         } else {
                             WireMapper.push(payload, deviceId, owner, offsetDefault, hasCurrentRow = false)
                         }
