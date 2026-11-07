@@ -88,6 +88,8 @@ internal fun NotificationsGroup(container: AppContainer) {
         }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(stringResource(R.string.settings_default_reminder), style = GsdType.body, color = gsd.ink)
+            // A changed default doesn't move a task that already stores a number (D-10)
+            Text(stringResource(R.string.settings_default_reminder_hint), style = GsdType.metadata, color = gsd.ink3)
             // Chips with a selected state and the editor's words, not "1d" and a " ✓" glyph (finding 29)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(15, 30, 60, 120, 1440).forEach { minutes ->

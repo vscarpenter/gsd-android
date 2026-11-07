@@ -33,7 +33,7 @@ class EscalationEditorHintTest {
     private fun editor(draft: Task, window: Int?) = rule.setContent {
         GsdTheme {
             CompositionLocalProvider(LocalEscalationWindow provides window) {
-                EditorContent(draft = draft, canSave = true, onEdit = {}, onSave = {}, allTasks = emptyList())
+                EditorContent(draft = draft, canSave = true, onEdit = {}, onSave = {}, allTasks = emptyList(), defaultReminder = 15)
             }
         }
     }

@@ -60,6 +60,7 @@ import dev.vinny.gsd.model.DueTime
 import dev.vinny.gsd.model.NanoId
 import dev.vinny.gsd.model.Recurrence
 import dev.vinny.gsd.model.ReminderLabel
+import dev.vinny.gsd.model.ReminderOffset
 import dev.vinny.gsd.model.ReminderOptions
 import dev.vinny.gsd.model.Subtask
 import dev.vinny.gsd.model.Task
@@ -213,8 +214,7 @@ private fun DueTimePickerDialog(initial: LocalTime?, onPick: (LocalTime?) -> Uni
 
 /** The words for a reminder offset, shared by the editor and Settings' default reminder. */
 @Composable
-internal fun reminderLabel(minutes: Int?): String = when (val label = minutes?.let(ReminderLabel::of)) {
-    null -> stringResource(R.string.reminder_default)
+internal fun reminderLabel(minutes: Int): String = when (val label = ReminderLabel.of(minutes)) {
     ReminderLabel.AtTime -> stringResource(R.string.reminder_at_time)
     is ReminderLabel.Minutes -> pluralStringResource(R.plurals.reminder_minutes_before, label.count, label.count)
     is ReminderLabel.Hours -> pluralStringResource(R.plurals.reminder_hours_before, label.count, label.count)
@@ -222,20 +222,27 @@ internal fun reminderLabel(minutes: Int?): String = when (val label = minutes?.l
 }
 
 @Composable
-internal fun ReminderSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
+internal fun ReminderSection(draft: Task, defaultReminder: Int, onEdit: ((Task) -> Task) -> Unit) {
     val gsd = LocalGsdColors.current
     var open by remember { mutableStateOf(false) }
-    val options: List<Int?> = listOf(null) + ReminderOptions.including(draft.notifyBefore)
+    // A legacy null fires this device's default, so it shows that number, as iOS does, and Save writes it (D-10)
+    val offset = ReminderOffset.effective(draft, defaultReminder)
+    val none = stringResource(R.string.reminder_none)
     Box {
         Text(
-            reminderLabel(draft.notifyBefore), style = GsdType.body, color = gsd.tint,
+            if (draft.notificationEnabled) reminderLabel(offset) else none, style = GsdType.body, color = gsd.tint,
             modifier = Modifier.clickable(role = Role.Button) { open = true }.testTag("reminder_row").padding(vertical = 4.dp),
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            options.forEach { minutes ->
+            // None turns this task's reminder off and keeps the number, so picking an offset restores it (B-36)
+            DropdownMenuItem(
+                text = { Text(none, style = GsdType.body) },
+                onClick = { open = false; onEdit { it.copy(notificationEnabled = false) } },
+            )
+            ReminderOptions.including(offset).forEach { minutes ->
                 DropdownMenuItem(
                     text = { Text(reminderLabel(minutes), style = GsdType.body) },
-                    onClick = { open = false; onEdit { it.copy(notifyBefore = minutes) } },
+                    onClick = { open = false; onEdit { it.copy(notifyBefore = minutes, notificationEnabled = true) } },
                 )
             }
         }

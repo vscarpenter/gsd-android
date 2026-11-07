@@ -44,7 +44,7 @@ class TaskEditorDepthTest {
     private fun editor(draft: Task, allTasks: List<Task> = emptyList(), onEdit: ((Task) -> Task) -> Unit) {
         rule.setContent {
             GsdTheme {
-                EditorContent(draft = draft, canSave = true, onEdit = onEdit, onSave = {}, allTasks = allTasks)
+                EditorContent(draft = draft, canSave = true, onEdit = onEdit, onSave = {}, defaultReminder = 15, allTasks = allTasks)
             }
         }
     }
@@ -127,7 +127,7 @@ class TaskEditorDepthTest {
         val stored = Task(title = "synced", urgent = true, important = true, createdAt = t0, updatedAt = t0,
             dueDate = t0.plusSeconds(86_400), notifyBefore = 45)
         var saved: Task? = null
-        rule.setContent { GsdTheme { ReminderSection(draft = stored, onEdit = { edit -> saved = edit(stored) }) } }
+        rule.setContent { GsdTheme { ReminderSection(draft = stored, defaultReminder = 15, onEdit = { edit -> saved = edit(stored) }) } }
         rule.onNodeWithTag("reminder_row").assertTextEquals("45 minutes before")
         rule.onNodeWithTag("reminder_row").performClick()
         rule.onNodeWithText("30 minutes before").assertIsDisplayed()
@@ -140,25 +140,53 @@ class TaskEditorDepthTest {
     }
 
     /**
-     * B-36: a task with no offset fires the default reminder on this device (ReminderPlanner), so the
-     * row can't say "None". It says what this device does and promises nothing about other devices.
+     * D-10, section 5: a legacy null with reminders on shows its default's label, as iOS does. It replaces
+     * #41's "Default reminder" row, which #41 said this change would retire. Picking that number writes it.
      */
     @Test
-    fun aTaskWithNoReminderOffsetIsLabelledAsTheDefaultReminder() {
+    fun aLegacyNullWithRemindersOnShowsItsDefaultsLabel() {
         val stored = Task(title = "x", urgent = true, important = true, createdAt = t0, updatedAt = t0, dueDate = t0, notifyBefore = null)
-        var saved: Task? = Task(title = "marker", urgent = true, important = true, createdAt = t0, updatedAt = t0, notifyBefore = 30)
-        rule.setContent { GsdTheme { ReminderSection(draft = stored, onEdit = { edit -> saved = edit(stored) }) } }
-        rule.onNodeWithTag("reminder_row").assertTextEquals("Default reminder")
+        var saved: Task? = null
+        rule.setContent { GsdTheme { ReminderSection(stored, defaultReminder = 30, onEdit = { edit -> saved = edit(stored) }) } }
+        rule.onNodeWithTag("reminder_row").assertTextEquals("30 minutes before")
         rule.onNodeWithTag("reminder_row").performClick()
-        rule.onAllNodesWithText("None").assertCountEquals(0)
-        rule.onNode(hasText("Default reminder").and(hasAnyAncestor(isPopup()))).performClick()
-        assertEquals(null, saved?.notifyBefore) // the same null as before: the wire doesn't change
+        rule.onAllNodesWithText("Default reminder").assertCountEquals(0)
+        rule.onNode(hasText("None").and(hasAnyAncestor(isPopup()))).assertIsDisplayed()
+        rule.onNode(hasText("30 minutes before").and(hasAnyAncestor(isPopup()))).performClick()
+        assertEquals(30, saved?.notifyBefore)
+        assertEquals(true, saved?.notificationEnabled)
+    }
+
+    /** Spec name: `turning a reminder off keeps the offset` (D-10 rule 4). None writes only the switch. */
+    @Test
+    fun turningAReminderOffKeepsTheOffset() {
+        val stored = Task(title = "x", urgent = true, important = true, createdAt = t0, updatedAt = t0, dueDate = t0, notifyBefore = 45)
+        var saved: Task? = null
+        rule.setContent { GsdTheme { ReminderSection(stored, defaultReminder = 15, onEdit = { edit -> saved = edit(stored) }) } }
+        rule.onNodeWithTag("reminder_row").performClick()
+        rule.onNode(hasText("None").and(hasAnyAncestor(isPopup()))).performClick()
+        assertEquals(false, saved?.notificationEnabled)
+        assertEquals(45, saved?.notifyBefore)
+    }
+
+    /** B-36: a task whose reminder is off says None, and picking an offset turns it back on. */
+    @Test
+    fun pickingAnOffsetFromNoneTurnsTheReminderOn() {
+        val stored = Task(title = "x", urgent = true, important = true, createdAt = t0, updatedAt = t0, dueDate = t0,
+            notifyBefore = 45, notificationEnabled = false)
+        var saved: Task? = null
+        rule.setContent { GsdTheme { ReminderSection(stored, defaultReminder = 15, onEdit = { edit -> saved = edit(stored) }) } }
+        rule.onNodeWithTag("reminder_row").assertTextEquals("None")
+        rule.onNodeWithTag("reminder_row").performClick()
+        rule.onNode(hasText("1 hour before").and(hasAnyAncestor(isPopup()))).performClick()
+        assertEquals(true, saved?.notificationEnabled)
+        assertEquals(60, saved?.notifyBefore)
     }
 
     @Test
     fun reminderLabelsFollowTheSharedFormula() {
         val stored = Task(title = "x", urgent = true, important = true, createdAt = t0, updatedAt = t0, dueDate = t0, notifyBefore = 2160)
-        rule.setContent { GsdTheme { ReminderSection(draft = stored, onEdit = {}) } }
+        rule.setContent { GsdTheme { ReminderSection(draft = stored, defaultReminder = 15, onEdit = {}) } }
         rule.onNodeWithTag("reminder_row").assertTextEquals("36 hours before")
     }
 
