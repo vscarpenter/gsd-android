@@ -100,6 +100,28 @@ object TopThree {
         }
     }
 
+    enum class Move { UP, DOWN }
+
+    /** "Add to today" (§3.2): today's date and the lowest free rank, or null when today is full. */
+    fun addWrite(tasks: List<Task>, now: Instant, zone: ZoneId): FocusFields? =
+        nextRank(tasks, now, zone)?.let { FocusFields(today(now, zone), it) }
+
+    /**
+     * "Move up" or "Move down" (§3.2): the pick swaps ranks with its neighbor in the list, so a gap in
+     * ranks doesn't matter. Empty at either end, or when [id] isn't one of today's picks.
+     */
+    fun moveWrites(tasks: List<Task>, id: String, move: Move, now: Instant, zone: ZoneId): List<TidyWrite> {
+        val date = today(now, zone)
+        val picks = picksOn(tasks, date)
+        val from = picks.indexOfFirst { it.id == id }
+        val to = if (move == Move.UP) from - 1 else from + 1
+        if (from < 0 || to !in picks.indices) return emptyList()
+        return listOf(
+            TidyWrite(picks[from].id, date, picks[to].focusRank),
+            TidyWrite(picks[to].id, date, picks[from].focusRank),
+        )
+    }
+
     /**
      * An offer, never a write (§3.4): the latest earlier date, at most seven local days back, that still
      * has an eligible pick, in conflict-rule order and capped at three.
