@@ -225,6 +225,7 @@ class SyncEngine(
         // The index is for the queue. With nothing queued, reconciliation's listing is the only one (§9.5).
         if (pending.isEmpty()) return 0 to 0
         val deviceId = local.deviceId()
+        val defaultReminder = local.defaultReminderMinutes()
         val index = fetchRemoteIndex()
         var pushed = 0
         var failures = 0
@@ -258,16 +259,21 @@ class SyncEngine(
                         }
                         // Placement comes from the current row: a payload queued by an older build has none
                         val current = local.taskById(item.taskId)
+                        // D-10: payload ?? current row ?? this device's default, so a pre-upgrade null still sends a number
+                        val offsetDefault = current?.notifyBefore ?: defaultReminder
                         val wire = if (current != null) {
-                            WireMapper.push(payload.copy(savedAt = current.savedAt), deviceId, owner)
+                            WireMapper.push(payload.copy(savedAt = current.savedAt), deviceId, owner, offsetDefault)
                         } else {
-                            WireMapper.push(payload, deviceId, owner, sendSavedAt = false)
+                            WireMapper.push(payload, deviceId, owner, offsetDefault, sendSavedAt = false)
                         }
                         if (remoteEntry != null) {
                             remote.updateTask(remoteEntry.first, wire)
                         } else {
                             val created = remote.createTask(wire)
                             index[item.taskId] = created.id to PbDates.parse(created.clientUpdatedAt)
+                        }
+                        if (payload.notifyBefore == null && current != null && current.notifyBefore == null) {
+                            local.settleNotifyBefore(item.taskId, defaultReminder) // the row now matches the server
                         }
                         local.markQueueItemDone(item.id)
                         pushed++

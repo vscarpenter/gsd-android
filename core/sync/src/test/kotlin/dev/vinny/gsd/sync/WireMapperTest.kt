@@ -37,7 +37,7 @@ class WireMapperTest {
             TimeEntry("entry001", t0, t0.plusSeconds(150), notes = "secret note"), // 2 min
             TimeEntry("entry002", t0, null), // running -> 0
         )
-        val wire = WireMapper.push(task(timeEntries = entries), deviceId = "device-1", owner = "user-1")
+        val wire = WireMapper.push(task(timeEntries = entries), deviceId = "device-1", owner = "user-1", defaultReminder = 15)
         assertEquals("task-abc-123456789012", wire.taskId)
         assertEquals("user-1", wire.owner) // required by the collection rule — blank 400s (field: owner)
         assertEquals("urgent-not-important", wire.quadrant)
@@ -52,9 +52,20 @@ class WireMapperTest {
         assertEquals("", wire.snoozedUntil)
     }
 
+    /** D-10: PocketBase stores a null or missing number as 0, which means "at the due time". */
+    @Test
+    fun `the wire never carries a null offset`() {
+        val legacy = WireMapper.push(task().copy(notifyBefore = null), deviceId = "d", owner = "user-1", defaultReminder = 45)
+        assertEquals(45, legacy.notifyBefore)
+        val obj = Json.parseToJsonElement(WireJson.encode(legacy)).jsonObject
+        assertEquals("45", obj["notify_before"].toString())
+        val numbered = WireMapper.push(task(), deviceId = "d", owner = "user-1", defaultReminder = 45)
+        assertEquals(30, numbered.notifyBefore) // a stored number wins over the default
+    }
+
     @Test
     fun `push serializes with exact wire field names and empty-string nil dates`() {
-        val raw = WireJson.encode(WireMapper.push(task(), deviceId = "d", owner = "user-1"))
+        val raw = WireJson.encode(WireMapper.push(task(), deviceId = "d", owner = "user-1", defaultReminder = 15))
         val obj = Json.parseToJsonElement(raw).jsonObject
         assertTrue("task_id" in obj)
         assertTrue("client_updated_at" in obj)
@@ -62,7 +73,7 @@ class WireMapperTest {
         assertEquals("\"\"", obj["completed_at"].toString()) // nil date -> ""
         // camelCase startedAt survives inside the otherwise snake_case record
         assertTrue("startedAt" in WireJson.encode(
-            WireMapper.push(task(timeEntries = listOf(TimeEntry("e1", t0, t0))), deviceId = "d", owner = "user-1"),
+            WireMapper.push(task(timeEntries = listOf(TimeEntry("e1", t0, t0))), deviceId = "d", owner = "user-1", defaultReminder = 15),
         ))
         assertTrue("\"id\":\"\"" in raw.replace(" ", "")) // record id empty on create
     }
@@ -71,7 +82,7 @@ class WireMapperTest {
     fun `pull with no local copy reconstructs rich entries from minutes`() {
         val wire = WireMapper.push(
             task(timeEntries = listOf(TimeEntry("entry001", t0, t0.plusSeconds(120)))),
-            deviceId = "other", owner = "user-1",
+            deviceId = "other", owner = "user-1", defaultReminder = 15,
         )
         val pulled = WireMapper.pull(wire, local = null)!!
         assertEquals("task-abc-123456789012", pulled.id)
@@ -89,7 +100,7 @@ class WireMapperTest {
             timeEntries = listOf(TimeEntry("entry001", t0, t0.plusSeconds(120), notes = "keep me")),
             snoozedUntil = t0.plusSeconds(9999),
         )
-        val remote = WireMapper.push(task().copy(title = "Renamed remotely"), deviceId = "other", owner = "user-1")
+        val remote = WireMapper.push(task().copy(title = "Renamed remotely"), deviceId = "other", owner = "user-1", defaultReminder = 15)
         val merged = WireMapper.pull(remote, local = richLocal)!!
         assertEquals("Renamed remotely", merged.title) // remote wins synced fields
         assertEquals("parent-123", merged.parentTaskId) // preserved
@@ -128,7 +139,7 @@ class WireMapperTest {
     @Test
     fun `pull that moves the due date resets this device's reminder state`() {
         val local = task(snoozedUntil = t0.plusSeconds(600))
-        val moved = WireMapper.push(local.copy(dueDate = t0.plusSeconds(7200)), deviceId = "other", owner = "user-1")
+        val moved = WireMapper.push(local.copy(dueDate = t0.plusSeconds(7200)), deviceId = "other", owner = "user-1", defaultReminder = 15)
 
         val pulled = WireMapper.pull(moved, local = local)!!
 
@@ -140,7 +151,7 @@ class WireMapperTest {
     @Test
     fun `pull that clears the due date resets this device's reminder state too`() {
         val local = task(snoozedUntil = t0.plusSeconds(600))
-        val cleared = WireMapper.push(local.copy(dueDate = null), deviceId = "other", owner = "user-1")
+        val cleared = WireMapper.push(local.copy(dueDate = null), deviceId = "other", owner = "user-1", defaultReminder = 15)
 
         val pulled = WireMapper.pull(cleared, local = local)!!
 

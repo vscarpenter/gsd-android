@@ -146,7 +146,7 @@ class SignedOutDeletesTest {
             SseClient("http://127.0.0.1:9", { tokens.cachedToken() }),
             scope, GsdPrefs(PreferenceDataStoreFactory.create(produceFile = { prefsFile })),
         )
-        remote.records[synced.id] = WireMapper.push(synced, "other-device", "user-1").copy(id = "rec0")
+        remote.records[synced.id] = WireMapper.push(synced, "other-device", "user-1", defaultReminder = 15).copy(id = "rec0")
         local.upsertFromRemote(synced) // already pulled: no queue row
         // The cursor sits past the synced task and the contract is current, so no later pull lists it again
         local.saveCursor(PbDates.formatSpace(clock.instant()))

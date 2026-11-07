@@ -29,16 +29,17 @@ class FarFutureStampTest {
     private val savedAt = now.minusSeconds(7_200)
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
 
+    // An offset, as every write stores one since D-10. A null would settle on push, which SyncEngineTest pins.
     private fun task(title: String = "local", updatedAt: Instant = longAgo, savedAt: Instant? = null) =
         Task(id = "task-1", title = title, urgent = false, important = true,
-            createdAt = longAgo.minusSeconds(600), updatedAt = updatedAt, savedAt = savedAt)
+            createdAt = longAgo.minusSeconds(600), updatedAt = updatedAt, savedAt = savedAt, notifyBefore = 15)
 
     private fun engine(remote: FakeRemote, local: FakeLocal) =
         SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
 
     /** A server record with a poisoned client stamp. The server's own `updated`, which drives the cursor, stays real. */
     private fun serverWith(stamp: Instant, title: String = "remote", savedAt: Instant? = null) = FakeRemote().apply {
-        records["r1"] = WireMapper.push(task(title, stamp, savedAt), "other-device", "user-1")
+        records["r1"] = WireMapper.push(task(title, stamp, savedAt), "other-device", "user-1", defaultReminder = 15)
         listResponder = { _, _ ->
             val items = records.entries.sortedBy { it.key }.map { it.value.copy(id = it.key) }
             TaskListPage(page = 1, totalPages = 1, items = items, updatedStamps = items.map { PbDates.formatSpace(now) })
@@ -245,7 +246,7 @@ class FarFutureStampTest {
     fun `a far-future stamp leaves a tombstone standing on realtime`() = runTest {
         val local = FakeLocal().apply { tombstones["task-1"] = edited.toEpochMilli() }
 
-        applyRealtimeUpsert(local, WireMapper.push(task("remote", farFuture), "other-device", "user-1"), now) { true }
+        applyRealtimeUpsert(local, WireMapper.push(task("remote", farFuture), "other-device", "user-1", defaultReminder = 15), now) { true }
 
         assertNull(local.tasks["task-1"])
         assertEquals(edited.toEpochMilli(), local.tombstones["task-1"])
@@ -263,7 +264,7 @@ class FarFutureStampTest {
 
     // Realtime
 
-    private fun realtime(stamp: Instant) = WireMapper.push(task("remote", stamp), "other-device", "user-1")
+    private fun realtime(stamp: Instant) = WireMapper.push(task("remote", stamp), "other-device", "user-1", defaultReminder = 15)
 
     @Test
     fun `realtime stores a new far-future record at the ceiling`() = runTest {

@@ -23,6 +23,10 @@ interface TaskDao {
     @Query("UPDATE tasks SET notificationSent = 1, lastNotificationAt = :atMs WHERE id = :id")
     suspend fun markReminderSent(id: String, atMs: Long)
 
+    /** D-10: a resolved offset onto a legacy null row. `updatedAt` stays, and a row that has a number keeps it. */
+    @Query("UPDATE tasks SET notifyBefore = :minutes WHERE id = :id AND notifyBefore IS NULL")
+    suspend fun settleNotifyBefore(id: String, minutes: Int)
+
     @Query("DELETE FROM tasks WHERE id = :id")
     suspend fun deleteById(id: String)
 

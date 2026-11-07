@@ -26,6 +26,7 @@ internal open class FakeLocal : SyncLocalStore {
     val removeTombstoneCalls = mutableListOf<String>()
     val trashed = mutableMapOf<String, Long>()
     val resurrect = mutableSetOf<String>()
+    var defaultReminder = 15
 
     override suspend fun activeTasks(): List<Task> = tasks.values.toList()
     override suspend fun taskById(id: String): Task? = tasks[id]
@@ -72,6 +73,10 @@ internal open class FakeLocal : SyncLocalStore {
     override suspend fun resurrectOnSight(): Set<String> = resurrect.toSet()
     override suspend fun rememberResurrectOnSight(ids: Set<String>) { resurrect += ids }
     override suspend fun forgetResurrectOnSight() { resurrect.clear() }
+    override suspend fun defaultReminderMinutes(): Int = defaultReminder
+    override suspend fun settleNotifyBefore(id: String, minutes: Int) {
+        tasks[id]?.takeIf { it.notifyBefore == null }?.let { tasks[id] = it.copy(notifyBefore = minutes) }
+    }
 }
 
 // internal (not private): AccountDeleterTest reuses this fake across files in the module.
@@ -221,7 +226,7 @@ class SyncEngineTest {
         val local = FakeLocal(); val remote = FakeRemote()
         local.savedCursor = "2026-07-19 11:00:00.000Z" // so the pull's listing is not a full one
         local.tasks["synced"] = task("synced")
-        remote.createTask(WireMapper.push(task("synced"), "other-device", "user-1"))
+        remote.createTask(WireMapper.push(task("synced"), "other-device", "user-1", defaultReminder = 15))
         var fullListings = 0
         remote.listResponder = { _, cursor ->
             if (cursor == "1970-01-01 00:00:00.000Z") fullListings++
@@ -232,6 +237,55 @@ class SyncEngineTest {
         engine(remote, local).runSync(false)
 
         assertEquals(1, fullListings)
+    }
+
+    // --- D-10: the wire always carries a number (web `tasks/spec-notify-before.md`, sections 2 and 3) ---
+
+    @Test
+    fun `a queued null payload pushes a number and stores it on the row, stamp unchanged`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        local.defaultReminder = 30
+        val legacy = task("legacy-offset", updatedAt = now.minusSeconds(60)) // queued before the upgrade, offset null
+        local.tasks[legacy.id] = legacy
+        local.queue += queueItem(1, legacy)
+
+        engine(remote, local).runSync(false)
+
+        assertEquals(30, remote.records.values.single().notifyBefore)
+        assertEquals(30, local.tasks[legacy.id]?.notifyBefore)
+        assertEquals(legacy.updatedAt, local.tasks[legacy.id]?.updatedAt)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    /**
+     * Rule 2: `payload ?? current row ?? this device's default`. Only a null payload over a null row settles
+     * the row, so this device and the server agree without a restamp.
+     */
+    @Test
+    fun `the drain sends the payload's offset, else the row's, else this device's default`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        local.defaultReminder = 30
+        data class Case(val id: String, val payload: Int?, val row: Int?, val rowGone: Boolean, val wire: Int, val after: Int?)
+        val cases = listOf(
+            Case("both-numbers", payload = 20, row = 45, rowGone = false, wire = 20, after = 45),
+            Case("payload-null", payload = null, row = 45, rowGone = false, wire = 45, after = 45),
+            Case("both-null", payload = null, row = null, rowGone = false, wire = 30, after = 30),
+            Case("row-null", payload = 20, row = null, rowGone = false, wire = 20, after = null),
+            Case("row-gone", payload = null, row = null, rowGone = true, wire = 30, after = null),
+        )
+        cases.forEachIndexed { index, case ->
+            val payload = task(case.id, updatedAt = now.minusSeconds(60)).copy(notifyBefore = case.payload)
+            if (!case.rowGone) local.tasks[case.id] = payload.copy(notifyBefore = case.row)
+            local.queue += queueItem(index + 1L, payload)
+        }
+
+        engine(remote, local).runSync(false)
+
+        val pushed = remote.records.values.associateBy { it.taskId }
+        cases.forEach { case ->
+            assertEquals(case.wire, pushed[case.id]?.notifyBefore, "${case.id} on the wire")
+            assertEquals(case.after, local.tasks[case.id]?.notifyBefore, "${case.id} on the row")
+        }
     }
 
     @Test
@@ -285,7 +339,7 @@ class SyncEngineTest {
     fun `a run with nothing to reconcile never needs the identity check`() = runTest {
         val local = FakeLocal(); val remote = FakeRemote()
         remote.rejectIdentity = true
-        remote.records["r1"] = WireMapper.push(task("both-sides"), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("both-sides"), "other", "user-1", defaultReminder = 15)
         local.tasks["both-sides"] = task("both-sides")
         val result = engine(remote, local).runSync(false)
         assertEquals("success", result.status) // no destructive verdict, so no extra request and no failure
@@ -298,10 +352,10 @@ class SyncEngineTest {
         local.tasks["stale"] = task("stale", title = "old local", updatedAt = now.minusSeconds(100))
         local.tasks["equal"] = task("equal", title = "same", updatedAt = now.minusSeconds(50))
         local.tasks["newer"] = task("newer", title = "local wins", updatedAt = now)
-        remote.records["r1"] = WireMapper.push(task("stale", "remote wins", now.minusSeconds(10)), "other", "user-1")
-        remote.records["r2"] = WireMapper.push(task("equal", "remote same", now.minusSeconds(50)), "other", "user-1")
-        remote.records["r3"] = WireMapper.push(task("newer", "remote older", now.minusSeconds(500)), "other", "user-1")
-        remote.records["r4"] = WireMapper.push(task("brand-new", "hello", now.minusSeconds(5)), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("stale", "remote wins", now.minusSeconds(10)), "other", "user-1", defaultReminder = 15)
+        remote.records["r2"] = WireMapper.push(task("equal", "remote same", now.minusSeconds(50)), "other", "user-1", defaultReminder = 15)
+        remote.records["r3"] = WireMapper.push(task("newer", "remote older", now.minusSeconds(500)), "other", "user-1", defaultReminder = 15)
+        remote.records["r4"] = WireMapper.push(task("brand-new", "hello", now.minusSeconds(5)), "other", "user-1", defaultReminder = 15)
 
         val result = engine(remote, local).runSync(triggeredByUser = false)
         assertEquals("remote wins", local.tasks["stale"]!!.title)
@@ -317,7 +371,7 @@ class SyncEngineTest {
     fun `cursor advances to max applied minus five seconds`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("aaaa", updatedAt = now.minusSeconds(30)), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("aaaa", updatedAt = now.minusSeconds(30)), "other", "user-1", defaultReminder = 15)
         engine(remote, local).runSync(false)
         assertEquals(PbDates.cursorAfter(now.minusSeconds(30)), local.savedCursor)
     }
@@ -329,7 +383,7 @@ class SyncEngineTest {
         remote.listResponder = { page, _ ->
             TaskListPage(
                 page = 1, totalPages = 1,
-                items = listOf(WireMapper.push(task("weird"), "other", "user-1")),
+                items = listOf(WireMapper.push(task("weird"), "other", "user-1", defaultReminder = 15)),
                 updatedStamps = listOf("not-a-date"),
             )
         }
@@ -343,7 +397,7 @@ class SyncEngineTest {
         val local = FakeLocal()
         val remote = FakeRemote()
         local.tombstones["task1"] = now.toEpochMilli() // archived/trashed at exactly "now"
-        remote.records["r1"] = WireMapper.push(task("task1", "resurrected?", now), "other", "user-1") // equal instant
+        remote.records["r1"] = WireMapper.push(task("task1", "resurrected?", now), "other", "user-1", defaultReminder = 15) // equal instant
 
         engine(remote, local).runSync(false)
 
@@ -357,7 +411,7 @@ class SyncEngineTest {
         val local = FakeLocal()
         val remote = FakeRemote()
         local.tombstones["task1"] = now.minusSeconds(10).toEpochMilli()
-        remote.records["r1"] = WireMapper.push(task("task1", "edited elsewhere", now), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("task1", "edited elsewhere", now), "other", "user-1", defaultReminder = 15)
 
         engine(remote, local).runSync(false)
 
@@ -374,7 +428,7 @@ class SyncEngineTest {
         remote.listResponder = { _, _ ->
             TaskListPage(
                 page = 1, totalPages = 1,
-                items = listOf(WireMapper.push(task("task1"), "other", "user-1").copy(clientUpdatedAt = "garbage")),
+                items = listOf(WireMapper.push(task("task1"), "other", "user-1", defaultReminder = 15).copy(clientUpdatedAt = "garbage")),
                 updatedStamps = listOf("garbage"),
             )
         }
@@ -405,7 +459,7 @@ class SyncEngineTest {
     fun `push payload guard skips items older than remote`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r9"] = WireMapper.push(task("guarded", "remote newer", now), "other", "user-1")
+        remote.records["r9"] = WireMapper.push(task("guarded", "remote newer", now), "other", "user-1", defaultReminder = 15)
         val stale = task("guarded", "stale local", now.minusSeconds(500))
         local.queue += queueItem(1, stale, SyncOp.UPDATE)
 
@@ -424,7 +478,7 @@ class SyncEngineTest {
     fun `an archive delete is skipped when the remote was edited after the archived version`() = runTest {
         val local = FakeLocal(); val remote = FakeRemote()
         val archived = task("reopened", "done here", now.minusSeconds(500))
-        remote.records["r1"] = WireMapper.push(task("reopened", "reopened elsewhere", now.minusSeconds(200)), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("reopened", "reopened elsewhere", now.minusSeconds(200)), "other", "user-1", defaultReminder = 15)
         local.tombstones["reopened"] = now.minusSeconds(100).toEpochMilli() // archived after that edit
         local.queue += queueItem(1, archived, SyncOp.DELETE)
 
@@ -439,7 +493,7 @@ class SyncEngineTest {
     fun `an archive delete still deletes when the remote holds the archived version`() = runTest {
         val local = FakeLocal(); val remote = FakeRemote()
         val archived = task("archived", "done", now.minusSeconds(500))
-        remote.records["r1"] = WireMapper.push(archived, "this-device", "user-1")
+        remote.records["r1"] = WireMapper.push(archived, "this-device", "user-1", defaultReminder = 15)
         local.tombstones["archived"] = now.minusSeconds(100).toEpochMilli()
         local.queue += queueItem(1, archived, SyncOp.DELETE)
 
@@ -511,7 +565,7 @@ class SyncEngineTest {
     fun `deletion reconciliation removes unprotected absentees only`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("kept-remote"), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("kept-remote"), "other", "user-1", defaultReminder = 15)
         local.tasks["kept-remote"] = task("kept-remote")
         local.tasks["gone-remote"] = task("gone-remote")
         local.tasks["protected-pending"] = task("protected-pending")
@@ -531,7 +585,7 @@ class SyncEngineTest {
     fun `history records counts, status, and trigger`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("incoming"), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("incoming"), "other", "user-1", defaultReminder = 15)
         engine(remote, local).runSync(triggeredByUser = true)
         val entry = local.history.single()
         assertEquals("success", entry.status)
@@ -599,7 +653,7 @@ class SyncEngineTest {
         val local = FakeLocal()
         val remote = FakeRemote()
         val serverCopy = task("deleted-signed-out", title = "remote", updatedAt = now.minusSeconds(3600))
-        remote.records["rec1"] = WireMapper.push(serverCopy, "other-device", "user-1")
+        remote.records["rec1"] = WireMapper.push(serverCopy, "other-device", "user-1", defaultReminder = 15)
         local.tombstones[serverCopy.id] = now.toEpochMilli() // trashed after the server copy's last edit
         local.resurrect += serverCopy.id
         val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
@@ -649,7 +703,7 @@ class SyncEngineTest {
     fun `a remembered id active again with a newer local edit keeps the local copy`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["rec1"] = WireMapper.push(task("t1", title = "remote", updatedAt = now.minusSeconds(3600)), "other-device", "user-1")
+        remote.records["rec1"] = WireMapper.push(task("t1", title = "remote", updatedAt = now.minusSeconds(3600)), "other-device", "user-1", defaultReminder = 15)
         local.tasks["t1"] = task("t1", title = "local", updatedAt = now)
         local.resurrect += "t1"
         val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
@@ -665,7 +719,7 @@ class SyncEngineTest {
     fun `nothing remembered means no extra listing`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["rec1"] = WireMapper.push(task("t1"), "other-device", "user-1")
+        remote.records["rec1"] = WireMapper.push(task("t1"), "other-device", "user-1", defaultReminder = 15)
         local.tasks["t1"] = task("t1")
         val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
 

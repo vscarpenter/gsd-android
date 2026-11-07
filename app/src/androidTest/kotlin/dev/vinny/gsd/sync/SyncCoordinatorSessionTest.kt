@@ -49,7 +49,7 @@ private class SessionRemote(private val token: () -> String?, private val task: 
     private fun guest() = token() == null || tokenRevoked
 
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
-        val items = if (guest()) emptyList() else listOf(WireMapper.push(task, "other-device", "user-1"))
+        val items = if (guest()) emptyList() else listOf(WireMapper.push(task, "other-device", "user-1", defaultReminder = 15))
         return TaskListPage(
             page = 1, totalPages = 1, items = items,
             updatedStamps = items.map { PbDates.formatSpace(task.updatedAt) },
