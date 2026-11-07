@@ -1,6 +1,10 @@
 package dev.vinny.gsd.feedback
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.vinny.gsd.model.FeedbackCategory
 import dev.vinny.gsd.model.FeedbackPayload
 import dev.vinny.gsd.model.Sentiment
@@ -31,6 +35,7 @@ class FeedbackViewModelTest {
     private lateinit var api: FeedbackApi
     private lateinit var prefs: GsdPrefs
     private lateinit var viewModel: FeedbackViewModel
+    private lateinit var viewModelStore: ViewModelStore
     private lateinit var storeFile: File
     private val at = Instant.parse("2026-08-29T12:00:00.000Z")
 
@@ -45,11 +50,18 @@ class FeedbackViewModelTest {
         api = FeedbackApi(client = OkHttpClient(), baseUrl = server.url("/").toString().trimEnd('/'))
         storeFile = File.createTempFile("feedback-prefs", ".preferences_pb").also { it.deleteOnExit() }
         prefs = GsdPrefs(PreferenceDataStoreFactory.create(produceFile = { storeFile }))
-        viewModel = FeedbackViewModel(api, prefs, appVersion = "android-0.7.0.7", now = { at })
+        // Owned by a ViewModelStore so tearDown can clear it: clear() runs onCleared(), which
+        // cancels viewModelScope. Without that, a launched save or send can resume after Main is reset.
+        viewModelStore = ViewModelStore()
+        val factory = viewModelFactory {
+            initializer { FeedbackViewModel(api, prefs, appVersion = "android-0.7.0.7", now = { at }) }
+        }
+        viewModel = ViewModelProvider.create(viewModelStore, factory)[FeedbackViewModel::class]
     }
 
     @After
     fun tearDown() {
+        viewModelStore.clear()
         server.shutdown()
         Dispatchers.resetMain()
         storeFile.delete()
