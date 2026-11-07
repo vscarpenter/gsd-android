@@ -66,17 +66,35 @@ class ReminderPlannerTest {
     }
 
     @Test
-    fun `future snooze replaces the computed time entirely`() {
-        val snooze = now.plusSeconds(3600)
+    fun `a future snooze that ends after the reminder time replaces it`() {
+        val snooze = due.plusSeconds(3600) // the reminder itself is due minus 15 minutes
         assertEquals(snooze, ReminderPlanner.fireTime(task(snoozedUntil = snooze), settings, now, zone))
+    }
+
+    /** Owner decision 2026-11-03, web #669: a short snooze on a task due tomorrow used to lose tomorrow's reminder. */
+    @Test
+    fun `a future snooze that ends before the reminder time leaves the reminder on time`() {
+        val snooze = now.plusSeconds(3600)
+        assertEquals(due.minusSeconds(15 * 60), ReminderPlanner.fireTime(task(snoozedUntil = snooze), settings, now, zone))
+    }
+
+    /**
+     * A posted reminder whose time is still ahead, as after a zone change moves an all-day reminder later. The
+     * snooze reopens it, and v2 then keeps the later reminder time. The web clears the sent flag on a snooze and
+     * gets the same answer. Found by `NotificationsTest.aReminderSnoozedFromItsNotificationIsPlannedAgain`.
+     */
+    @Test
+    fun `a snooze on a posted reminder that ends before the reminder time leaves the reminder on time`() {
+        val posted = task(notificationSent = true, snoozedUntil = now.plusSeconds(3600))
+        assertEquals(due.minusSeconds(15 * 60), ReminderPlanner.fireTime(posted, settings, now, zone))
     }
 
     /** Review finding 5: "Snooze 1 hour" on a reminder that had already posted never fired again. */
     @Test
     fun `a snooze asks for another reminder after the first one posted`() {
+        val posted = task(dueDate = now.plusSeconds(600), notificationSent = true) // its reminder time passed 5 minutes ago
         val snooze = now.plusSeconds(3600)
-        assertEquals(snooze,
-            ReminderPlanner.fireTime(task(notificationSent = true, snoozedUntil = snooze), settings, now, zone))
+        assertEquals(snooze, ReminderPlanner.fireTime(posted.copy(snoozedUntil = snooze), settings, now, zone))
     }
 
     /** Once the snoozed reminder posts, its snooze is in the past. The sent flag must hold, or it would loop. */

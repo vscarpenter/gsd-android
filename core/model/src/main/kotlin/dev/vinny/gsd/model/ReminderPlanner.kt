@@ -36,7 +36,7 @@ object QuietHours {
 
 /**
  * The §11.1 scheduling decision, kept pure so every rule is JVM-testable.
- * A future snooze *is* the fire time; quiet hours defer to the window's end.
+ * A future snooze is the fire time when it ends at or after the reminder time; quiet hours defer to the window's end.
  */
 object ReminderPlanner {
     /** The local hour an all-day task's reminder fires. One constant, so a change is one line. */
@@ -53,7 +53,9 @@ object ReminderPlanner {
         // A future snooze asks for another reminder, even after the first one posted (iOS does the same).
         if (task.notificationSent && snoozed == null) return null
         val offsetMinutes = ReminderOffset.effective(task, settings.defaultReminderMinutes)
-        val base = snoozed ?: baseFireTime(due, offsetMinutes, zone)
+        val planned = baseFireTime(due, offsetMinutes, zone)
+        // One that ends before the reminder time leaves the reminder on time (owner decision 2026-11-03, web #669)
+        val base = snoozed?.takeIf { !it.isBefore(planned) } ?: planned
         if (!base.isAfter(now)) return null
         return deferPastQuietHours(base, settings, zone)
     }
