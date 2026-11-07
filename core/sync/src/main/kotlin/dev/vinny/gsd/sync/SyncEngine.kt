@@ -268,7 +268,7 @@ class SyncEngine(
                         val wire = if (current != null) {
                             WireMapper.push(payload.copy(savedAt = current.savedAt), deviceId, owner, offsetDefault)
                         } else {
-                            WireMapper.push(payload, deviceId, owner, offsetDefault, sendSavedAt = false)
+                            WireMapper.push(payload, deviceId, owner, offsetDefault, hasCurrentRow = false)
                         }
                         if (remoteEntry != null) {
                             remote.updateTask(remoteEntry.first, wire)
