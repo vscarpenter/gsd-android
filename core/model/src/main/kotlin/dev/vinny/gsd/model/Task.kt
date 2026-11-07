@@ -62,6 +62,10 @@ data class Task(
     val timeEntries: List<TimeEntry> = emptyList(),
     /** Non-null keeps the task outside the matrix (web ADR 0018). Synced as `saved_at`. */
     @Serializable(with = InstantIso8601Serializer::class) val savedAt: Instant? = null,
+    /** Local `YYYY-MM-DD` the user picked this task for (top three, D-13). Plain text, never an instant. */
+    val focusDate: String? = null,
+    /** Slot 1 to 3 on [focusDate]. Both fields are set together or not at all (spec-top-three.md §3.5). */
+    val focusRank: Int? = null,
 ) {
     val quadrant: Quadrant get() = Quadrant.from(urgent, important)
 
