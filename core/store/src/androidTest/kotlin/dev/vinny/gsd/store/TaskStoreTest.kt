@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vinny.gsd.model.Subtask
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TaskJson
 import dev.vinny.gsd.model.TaskValidationError
 import dev.vinny.gsd.model.TimeEntry
 import java.time.Clock
@@ -146,5 +147,73 @@ class TaskStoreTest {
     @Test
     fun observeTasksEmitsEmptyListOnFreshDatabase() = runTest {
         assertEquals(emptyList(), store.observeTasks().first())
+    }
+
+    // --- D-10: a task this build writes stores a number (web `tasks/spec-notify-before.md`, section 2) ---
+
+    private suspend fun setDefaultReminder(minutes: Int) = db.notificationSettingsDao().upsert(
+        NotificationSettingsEntity(
+            enabled = true, defaultReminder = minutes, soundEnabled = true,
+            quietHoursStart = null, quietHoursEnd = null, permissionAsked = false, updatedAt = 0L,
+        ),
+    )
+
+    private suspend fun queuedOffsets(id: String): List<Int?> = db.syncQueueDao().pending()
+        .filter { it.taskId == id }
+        .map { row -> row.payloadJson?.let { TaskJson.decodeOrNull(TaskJson.json.parseToJsonElement(it)) }?.notifyBefore }
+
+    /** Spec name: `a new task with no offset stores the default`. */
+    @Test
+    fun aNewTaskWithNoOffsetStoresTheDefault() = runTest {
+        setDefaultReminder(30)
+
+        val added = store.add(draft())
+
+        assertEquals(30, added.notifyBefore)
+        assertEquals(30, store.get(added.id)?.notifyBefore)
+        assertEquals(listOf<Int?>(30), queuedOffsets(added.id))
+    }
+
+    /**
+     * Spec name: `any write of a legacy null pushes the resolved number`. A row stored before this build can
+     * hold null. Whatever write reaches it next stores this device's default and queues that number.
+     */
+    @Test
+    fun anyWriteOfALegacyNullPushesTheResolvedNumber() = runTest {
+        setDefaultReminder(45)
+        val writes: List<Pair<String, suspend (String) -> Task?>> = listOf(
+            "update" to { id -> store.update(store.get(id)!!.copy(title = "updated")) },
+            "edit" to { id -> store.edit(id, store.get(id)!!.copy(title = "edited")) { it.copy(title = "edited") } },
+            "change" to { id -> store.change(id) { it.copy(urgent = true) } },
+            "setCompleted" to { id -> store.setCompleted(id, completed = true) },
+            "duplicate" to { id -> store.duplicate(id) },
+        )
+        writes.forEachIndexed { index, (name, write) ->
+            val legacy = draft("legacy $name").copy(id = "legacy-offset-$index", createdAt = fixed.instant(), updatedAt = fixed.instant())
+            db.taskDao().upsert(legacy.toEntity()) // as a build before D-10 stored it: no offset
+
+            val written = write(legacy.id)!!
+
+            assertEquals(45, written.notifyBefore, "$name stored")
+            assertEquals(45, store.get(written.id)?.notifyBefore, "$name row")
+            assertEquals(listOf<Int?>(45), queuedOffsets(written.id), "$name queued")
+        }
+    }
+
+    /** The drain's write-back (D-10, section 3): device-local, like reminder bookkeeping. */
+    @Test
+    fun settlingANullOffsetKeepsTheStampAndQueuesNothing() = runTest {
+        val legacy = draft("legacy").copy(createdAt = fixed.instant(), updatedAt = fixed.instant())
+        val numbered = draft("numbered").copy(createdAt = fixed.instant(), updatedAt = fixed.instant(), notifyBefore = 20)
+        db.taskDao().upsert(legacy.toEntity())
+        db.taskDao().upsert(numbered.toEntity())
+
+        db.taskDao().settleNotifyBefore(legacy.id, 30)
+        db.taskDao().settleNotifyBefore(numbered.id, 30)
+
+        assertEquals(30, store.get(legacy.id)?.notifyBefore)
+        assertEquals(legacy.updatedAt.toEpochMilli(), store.get(legacy.id)?.updatedAt?.toEpochMilli())
+        assertEquals(20, store.get(numbered.id)?.notifyBefore) // a number written since the push stays
+        assertTrue(db.syncQueueDao().pending().isEmpty())
     }
 }

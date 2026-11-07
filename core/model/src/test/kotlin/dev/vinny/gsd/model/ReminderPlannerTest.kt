@@ -196,6 +196,18 @@ class ReminderPermissionTest {
     fun `asks when an edit changes the reminder on a dated task`() =
         assertEquals(true, ReminderPermission.shouldAsk(fresh, false, dated, dated.copy(notifyBefore = 60)))
 
+    /** B-36: picking an offset from None gives the task a reminder, even when the number stays the same. */
+    @Test
+    fun `asks when an edit turns a task's reminder back on`() {
+        val off = dated.copy(notifyBefore = 15, notificationEnabled = false)
+        assertEquals(true, ReminderPermission.shouldAsk(fresh, false, off, off.copy(notificationEnabled = true)))
+    }
+
+    /** D-10, section 4: a legacy null already fires the default, so picking that number changes nothing. */
+    @Test
+    fun `never asks when an edit resolves a null offset to the default`() =
+        assertEquals(false, ReminderPermission.shouldAsk(fresh, false, dated, dated.copy(notifyBefore = fresh.defaultReminderMinutes)))
+
     @Test
     fun `never asks twice`() =
         assertEquals(false, ReminderPermission.shouldAsk(fresh.copy(permissionAsked = true), false, noDate, dated))

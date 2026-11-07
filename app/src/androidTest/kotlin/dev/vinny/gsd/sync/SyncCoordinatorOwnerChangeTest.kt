@@ -51,7 +51,7 @@ private class AccountsRemote : SyncRemote {
     var sessionUser: String? = null
 
     fun seed(owner: String, task: Task, updated: Instant) {
-        rows += Row(WireMapper.push(task, "other-device", owner).copy(id = "rec${nextId++}"), updated)
+        rows += Row(WireMapper.push(task, "other-device", owner, defaultReminder = 15).copy(id = "rec${nextId++}"), updated)
     }
 
     fun taskIdsOf(owner: String): List<String> = rows.filter { it.wire.owner == owner }.map { it.wire.taskId }

@@ -136,11 +136,13 @@ The MCP server (Claude Desktop) reads/writes the same backend with ~20 tools (li
 
 ### 4.7 Device-local fields
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
+>
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S2
 
 `notificationSent`, `lastNotificationAt`, and `snoozedUntil` are **device-local**: they are pushed on the wire but **never taken from the remote on pull/merge** — each device manages its own reminder state (§9.4). Preserving this rule is what keeps a snooze on the phone from silencing a reminder on the tablet, and vice versa. One exception: a pull that moves the due date (compared as instants, either side may be empty) resets all three, as a local edit of the due date does (§8.5). A new due date is a new reminder, and a reminder this device already showed would otherwise hide it (parity backlog B-55, web #669, amended 2026-11-06).
 
-**Reminder bookkeeping never touches the LWW key.** When a reminder posts, the app records `notificationSent` and `lastNotificationAt` through `TaskStore.markReminderSent`, a single column update. It does not restamp `updatedAt` and it enqueues no push, which matches the web client. It is the one local write outside the enqueue-before-write rule, and it is safe because a device that already holds the task never takes these fields from the wire. iOS reads them only when it first creates its local copy, by which time the fire time has usually passed. A restamp here let a fired reminder overwrite a newer edit from another device. A user-initiated snooze is different: it restamps and syncs on all three clients.
+**Reminder bookkeeping never touches the LWW key.** When a reminder posts, the app records `notificationSent` and `lastNotificationAt` through `TaskStore.markReminderSent`, a single column update. It does not restamp `updatedAt` and it enqueues no push, which matches the web client. It is one of two local writes outside the enqueue-before-write rule (the other is the drain's offset write-back, §9.5), and it is safe because a device that already holds the task never takes these fields from the wire. iOS reads them only when it first creates its local copy, by which time the fire time has usually passed. A restamp here let a fired reminder overwrite a newer edit from another device. A user-initiated snooze is different: it restamps and syncs on all three clients.
 
 ---
 
@@ -472,6 +474,8 @@ All entities must be representable in the Room store, in the JSON import/export 
 
 ### 7.2 Task (the core entity)
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
+>
 > Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
 
 | Field | Type | Required | Default | Constraints / Notes |
@@ -492,8 +496,8 @@ All entities must be representable in the Room store, in the JSON import/export 
 | `subtasks` | [Subtask] | yes | `[]` | 0–50 items |
 | `dependencies` | [String] | yes | `[]` | 0–50 task IDs that must complete first |
 | `parentTaskId` | String? | no | — | recurring-instance lineage. **Device-local: has no wire column, never synced.** |
-| `notifyBefore` | Int? | no | — | minutes before `dueDate`; ≥ 0 (0 = "at time of event") |
-| `notificationEnabled` | Bool | yes | `true` | per-task reminder switch |
+| `notifyBefore` | Int? | no | this device's default | minutes before `dueDate`; ≥ 0 (0 = "at time of event"). Every write stores a number: `TaskStore` resolves `notifyBefore ?? this device's default` (D-10). A row from an earlier build may still hold null, which fires the default until the row is next written, so reads keep the fallback for good |
+| `notificationEnabled` | Bool | yes | `true` | per-task reminder switch. Off keeps `notifyBefore`, so turning it back on restores the offset (B-36) |
 | `notificationSent` | Bool | yes | `false` | **device-local** (§4.7) |
 | `lastNotificationAt` | Date? | no | — | **device-local** |
 | `snoozedUntil` | Date? | no | — | **device-local**; reminders suppressed until then; max 365 days out |
@@ -648,12 +652,14 @@ After parsing, the cleaned title has tokens/URLs removed and whitespace collapse
 
 ### 8.3 Task editor
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
+>
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding 44
 > Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, findings 6 and 7
 > Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, finding 30, and `tasks/todo.md` J, `TaskStore.edit` validating untouched fields
 
-**Behavior.** Full create/edit surface for every field; save validates §7.2 limits; save disabled while the title is empty. Editing `dueDate` or `notifyBefore` **resets reminder state** (`notificationSent = false`, clears `lastNotificationAt` and `snoozedUntil`) so the user gets re-notified.
+**Behavior.** Full create/edit surface for every field; save validates §7.2 limits; save disabled while the title is empty. Editing `dueDate` or `notifyBefore` **resets reminder state** (`notificationSent = false`, clears `lastNotificationAt` and `snoozedUntil`) so the user gets re-notified. The offset compares effective values, `notifyBefore ?? this device's default`, so resolving a legacy null to the number it already fires isn't a change and re-arms nothing (D-10, section 4). The notification-permission ask (§11.2) compares the same way.
 
 **What Save writes.** Saving an existing task does not write the row the editor opened. The editor owns twelve fields: title, description, urgent, important, tags, due date, recurrence, subtasks, dependencies, reminder offset, estimate, and snooze. For each one, the user's value is written only where the user changed it. Everything else is the row as it is in the store at the moment of the write, read inside the same transaction (`TaskStore.edit` with `EditorRules.merge`). The draft the user sees is what validates (§7.11). The merged row is only normalized, like any state change to a stored task: a field the user never touched may have arrived by sync over a limit, since iOS counts characters and Android counts UTF-16 units, and it must not fail a save that shows the old, legal value. A completion, a timer, or a snooze that landed while the sheet was open survives the save. Where the user and another writer changed the same field, the user's save wins that field, which is ordinary last-write-wins.
 
@@ -666,7 +672,7 @@ If the task was deleted while the sheet was open, Save writes nothing. The sheet
 - **Notes** (description).
 - **Links** — read-only tappable list auto-detected (http/https) from the notes.
 - **Due date** — a date row ("Pick a date" when there is none) that opens the Material date picker, a time row that opens the Material time picker, and the four preset chips (§8.10). Picking a date keeps the time of day already set, as iOS's date picker does. The time picker opens on the time already set, or 9:00 for an all-day date. Its **All day** button clears the time. A preset chip shows as selected when the due date falls on the day it resolves to, at any time of day. The first edit that gives a task a due date with a reminder asks for the notification permission (§11.2).
-- **Reminder** — visible only when a due date is set: **"Default reminder" first, then the seven presets `0, 5, 15, 30, 60, 120, 1440` plus any off-list stored value** (defaults to the global default reminder). The option list is `ReminderOptions.including(stored: Int?)` in `:core:model`: `null` or an already-present value → the presets alone; anything else → the presets **plus `stored`, sorted ascending**. A negative stored value is off-list too — it is rendered, never snapped; the validator, not the picker, owns range rules. **An off-list stored `notifyBefore` renders as its own option rather than snapping to a neighbour**, so opening and saving a task without touching the picker leaves `notifyBefore` byte-for-byte as stored (both siblings honor this; editing never silently rewrites the value). Labels come from one pure formula, `ReminderLabel.of(minutes)` in `:core:model` (a shape mapped to plural string resources in `:app`), in this order: `0` → "At due time"; `1` → "1 minute before"; `< 60` **or** `minutes % 60 != 0` → "{n} minutes before"; `< 1440` → "{n/60} hour(s) before"; `minutes % 1440 != 0` → "{n/60} hours before"; else "{n/1440} day(s) before". Worked: 5 → "5 minutes before"; 45 → "45 minutes before"; 60 → "1 hour before"; 90 → "90 minutes before" (not "1.5 hours"); 120 → "2 hours before"; 1440 → "1 day before"; 2160 → "36 hours before"; 2880 → "2 days before". "Default reminder" writes `notifyBefore = null`, which fires the global default reminder on this device (it used to read "None", which was misleading), and **does not** touch `notificationEnabled` — a declared divergence from the web (which also clears the flag) and iOS (which does both).
+- **Reminder** — visible only when a due date is set: **None first, then the seven presets `0, 5, 15, 30, 60, 120, 1440` plus any off-list offset**. The option list is `ReminderOptions.including(ReminderOffset.effective(task, default))` in `:core:model`: an already-present value → the presets alone; anything else → the presets **plus `stored`, sorted ascending**. A negative stored value is off-list too — it is rendered, never snapped; the validator, not the picker, owns range rules. **An off-list stored `notifyBefore` renders as its own option rather than snapping to a neighbour**, so opening and saving a task without touching the picker leaves `notifyBefore` byte-for-byte as stored (both siblings honor this; editing never silently rewrites the value). Labels come from one pure formula, `ReminderLabel.of(minutes)` in `:core:model` (a shape mapped to plural string resources in `:app`), in this order: `0` → "At due time"; `1` → "1 minute before"; `< 60` **or** `minutes % 60 != 0` → "{n} minutes before"; `< 1440` → "{n/60} hour(s) before"; `minutes % 1440 != 0` → "{n/60} hours before"; else "{n/1440} day(s) before". Worked: 5 → "5 minutes before"; 45 → "45 minutes before"; 60 → "1 hour before"; 90 → "90 minutes before" (not "1.5 hours"); 120 → "2 hours before"; 1440 → "1 day before"; 2160 → "36 hours before"; 2880 → "2 days before". None writes `notificationEnabled = false` and keeps `notifyBefore`. Picking an offset writes it with `notificationEnabled = true`. Both sync, so None means the same on every device, as on iOS and the web (amended 2026-11-07, B-36). The row reads None while the switch is off, otherwise the offset's label. A legacy null with reminders on shows this device's default's label, as iOS does, and Save writes that number. Android used to offer "Default reminder" here, which wrote null and reached the server as `0`.
 - **Repeat** — Never / Daily / Weekly / Monthly.
 - **Subtasks** — inline checklist: add, toggle, drag-reorder, swipe-delete. Each row is one checkbox (role and state for TalkBack) with a Material checkbox in `success`, and the add field has the editor's field container. At 50 subtasks the field gives way to a note, and a subtask being typed stops at 100 characters.
 - **Estimate** — minutes field (1–10080) + "Tracked *Xm* of *Ym*" readout; over-estimate renders in `alert`. The field opens the number keyboard, takes at most five digits, and shows its unit ("min") and, from an hour up, its length ("· 1h 30m"). The hint reads "How many minutes it should take".
@@ -840,6 +846,8 @@ Completed tasks never appear here (`upcoming` is active-only), so they never car
 
 ### 8.16 Import / export, erase
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
+>
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
@@ -866,7 +874,7 @@ Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet. Th
 
 **Import — lenient, version-tolerant.** Order of guards: **10 MB UTF-8 byte cap** → structural decode → record-count cap → per-record lenient decode. **The count cap counts all three task-bearing arrays**: `tasks + archivedTasks + deletedTasks ≤ 10,000` (`smartViews` and the singletons are not counted). `version` accepts a string or a number, normalized to string; **absent is accepted and treated as `"1"`** so an old v1 export keeps importing. Every store key beyond `tasks` is **optional**, and **absent ≠ empty**: an absent key leaves the local store untouched in *both* modes; an empty array *present* in the payload clears that store in replace mode. Per-record failures skip-and-count rather than aborting the whole import — a deliberate Android leniency choice in the iOS style (the web's `importPayloadSchema` rejects the entire payload on any invalid record); reported as "imported N, skipped M". A task over a local limit (Appendix B) is a per-record failure too, so one iOS title with an emoji skips that task and nothing else. The whole import is **one transaction**: a failure part way leaves every store as it was. The file is read and parsed off the main thread; an unreadable file, a malformed one, and one over the caps each get a plain message, never an exception's text. Two modes, chosen after picking a file (`ACTION_OPEN_DOCUMENT`):
 
-- **Replace** — `tasks`: stamp `updatedAt = now`, enqueue `update` for every imported ID **and `delete` for every existing ID not in the import**, then swap the table atomically. `archivedTasks`/`deletedTasks` (when present): clear then insert. The three singletons (when present): put — replace is the **only** mode that applies incoming settings.
+- **Replace** — `tasks`: stamp `updatedAt = now`, enqueue `update` for every imported ID **and `delete` for every existing ID not in the import**, then swap the table atomically. `archivedTasks`/`deletedTasks` (when present): clear then insert. The three singletons (when present): put — replace is the **only** mode that applies incoming settings. They land before the tasks, in the same transaction, so an imported task with no offset resolves to the default this import brings. Merge resolves it to this device's default (D-10).
 - **Merge** — `tasks`: insert alongside existing; colliding IDs get regenerated (collision-checked against existing + imported + already-assigned), with `dependencies` **and `parentTaskId`** remapped through the complete ID map (forward references included); stamp `updatedAt = now`, enqueue `update` per task. `archivedTasks`/`deletedTasks`: insert; **on id collision the existing local row wins** (skip, no remap); an id already present in the imported or local `tasks` is skipped in either tombstone store — an id lives in one store, never both. `smartViews`: upsert by id, never accepting a payload row with `isBuiltIn: true`. The three singletons are **not applied** in merge — merge combines task lists and never adopts another device's configuration.
 - Neither mode enqueues sync operations for `archivedTasks`, `deletedTasks`, `smartViews`, or the singletons — those stores never sync.
 
@@ -878,6 +886,8 @@ Both cross-platform fixtures (`ios-backup-export.json`, `web-backup-2.1.0.json`,
 
 ### 8.17 Settings
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
+>
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
@@ -890,7 +900,7 @@ Sections in order (Material list groups). Every tappable row is at least 48dp ta
 2. **Sharing** — "Fetch titles for shared links" (default **off**; footer explains it performs a network fetch).
 3. **Account** — signed out: Sign in with Google / Apple / GitHub as outlined pill buttons (the onboarding's, §8.19), not bare text links + a one-line privacy hint; signed in: account email, a **two-tier Apple note** when the session's provider is Apple (§10.4) — relay address (`…@privaterelay.appleid.com`): "Signed in with a private relay email. This is a separate account from your web tasks."; any other Apple sign-in: "Signed in with Apple. If your web account uses a different email, it won't show the same tasks." — sync status ("Synced · N pending"), health message when unhealthy, **Sync now**, **Sync history** (screen: totals + the ~50 most recent entries with status/counts/duration), **Sign out**, **Delete account…** (§8.21). There is deliberately **no** sync on/off toggle — signing in *is* enabling sync.
 4. **Archive** — auto-archive toggle; "Archive after" 30/60/90 as chips ("30 days") with a selected state; **Archive now** as its own row, apart from the day chips + status line.
-5. **Notifications** — Enable Reminders; Default Reminder (15m/30m/1h/2h/1d) as chips in the editor's words ("15 minutes before") with a selected state; Sound; Quiet Hours toggle + from/to pickers (default 22:00–07:00): "Quiet from" and "Quiet until" rows print the time in the user's clock, 12 or 24 hours as the device is set, and each opens a time picker; system-permission status row with a contextual **Enable notifications** / **Open system settings** action.
+5. **Notifications** — Enable Reminders; Default Reminder (15m/30m/1h/2h/1d) as chips in the editor's words ("15 minutes before") with a selected state, under the helper "For new tasks", because a changed default doesn't move a task that already stores a number (D-10); Sound; Quiet Hours toggle + from/to pickers (default 22:00–07:00): "Quiet from" and "Quiet until" rows print the time in the user's clock, 12 or 24 hours as the device is set, and each opens a time picker; system-permission status row with a contextual **Enable notifications** / **Open system settings** action.
 6. **Data & storage** — Export (prepare → share/save); Import (file picker → Merge/Replace choice, with a line on what each does); Erase all data (§8.16).
 7. **Feedback** — its own group with one row, "Send feedback", which opens the Feedback screen: a pushed screen with an Up arrow (§6.1), which the palette's Send feedback action also opens (§8.14). The row used to sit at the end of Data & storage. The screen is anonymous, opt-in, no auth header, no identifiers beyond the payload: sentiment toggle (up/down), category chips (idea/praise/gripe/bug), message field (≤1000 chars, live count near the limit), a roadmap vote checklist (Android's 8 slugs: `natural-language-dates, calendar-sync, task-templates, weekly-review, focus-timer, task-notes, shared-lists, wear-os`), and a **"What gets sent" preview** rendering the literal payload object, built by the same pure builder that produces the request body so preview and payload cannot drift. The draft persists locally (DataStore) and clears on success; Send is disabled while the draft is empty. Confirmation is calm ("Thanks — sent."). Wire contract: `POST https://api.vinny.io/api/collections/feedback/records`, no Authorization header, no cookies; exactly 7 snake_case keys (`submission_id`, `sentiment`, `category`, `message`, `votes`, `app_version`, `client_submitted_at` — limits in Appendix B), pinned by an exact-keys test. A 2xx is success; a 400 whose body has `data.submission_id.code == "validation_not_unique"` (a duplicate retry of the same draft) also collapses to success.
 
@@ -984,6 +994,8 @@ Sync is **optional and opt-in**. With no account the app is fully functional off
 
 ### 9.1 The `tasks` collection (authoritative wire model)
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
+
 snake_case fields. The collection exists; read/write these exact names:
 
 | Field | Type | Notes |
@@ -1002,7 +1014,8 @@ snake_case fields. The collection exists; read/write these exact names:
 | `subtasks` | json [{id,title,completed}] | |
 | `dependencies` | json [string] | |
 | `notification_enabled`, `notification_sent` | bool | device-local semantics (§4.7) |
-| `notify_before`, `estimated_minutes` | number/null | omit when nil. **PocketBase returns absent numbers as `0`** — treat `estimated_minutes == 0` as unset |
+| `notify_before` | number | **always sent as a number** (D-10, amended 2026-11-07). PocketBase stores a null or missing number as `0`, and `0` means "at the due time", so push never omits it. `WireMapper.push` requires this device's default. Read tolerantly: an absent key decodes as null |
+| `estimated_minutes` | number/null | omit when nil. **PocketBase returns absent numbers as `0`**, so treat `estimated_minutes == 0` as unset |
 | `time_spent` | number | `timeSpent ?? 0` |
 | `time_entries` | json | flattened `{id, startedAt, minutes}` — note `startedAt` stays **camelCase** inside the otherwise snake_case record |
 | `client_updated_at` | string | ISO-8601 ms — **the LWW key** |
@@ -1068,6 +1081,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 ### 9.5 Push & the sync queue
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
+>
 > Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-09-06 — see `docs/2026-09-06-cross-platform-parity-spec.md`
@@ -1081,7 +1096,7 @@ Push algorithm:
 1. **Bulk-fetch the remote index once per push** (list since epoch, through the bounded fail-closed walk of §9.4). A run with nothing queued takes no index, so it lists the whole collection only once, for reconciliation: map `task_id → (recordId, client_updated_at)` — avoids per-item lookups and 429s. If the walk throws `RemoteListingIncomplete`, the push does not proceed on partial data.
 2. Drain pending items oldest-first, each gated by backoff (`retryCount` → wait **5s / 10s / 30s / 60s / 300s**).
 3. **A malformed remote version never authorizes an overwrite.** For a create/update whose task *does* have a record in the remote index, if that record's `client_updated_at` is missing or unparseable (`PbDates.parse` → `null`), the item is **skipped for this drain** — `bumpQueueRetry(…, "Remote task version is missing or malformed", …)`, counting toward the five-failure threshold like any other error — and **no write is issued**. Previously this case fell through to `updateTask`. A missing version may protect or quarantine data; it may not license clobbering it.
-4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it. **An archive's delete is skipped** (marked done, no request) when the remote's `client_updated_at` is newer than the archived payload's `updatedAt`: another device edited the task after this copy last synced, either in an edit a pull missed or one that landed between the pull and the archive, and that edit must survive. After a normal sync the two stamps are equal, so ordinary archives still delete. Archiving also removes the task's older queue rows in the same transaction: the drain skips a row waiting out its backoff, so an older update could otherwise push after the delete and recreate the record. **Any delete is skipped** the same way when the remote's `client_updated_at` is newer than the queue row's `timestamp` (2026-10-29, parity backlog B-42; web `isStaleDelete`): a Trash or manual delete must not remove an edit another device made after the delete was queued. A delete whose remote record has no usable version deletes as before. A create or update takes `savedAt` from the task's **current row**, not the queued payload, because a payload an older build queued has no placement; with no current row it leaves `saved_at` off the record (§9.1).
+4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it. **An archive's delete is skipped** (marked done, no request) when the remote's `client_updated_at` is newer than the archived payload's `updatedAt`: another device edited the task after this copy last synced, either in an edit a pull missed or one that landed between the pull and the archive, and that edit must survive. After a normal sync the two stamps are equal, so ordinary archives still delete. Archiving also removes the task's older queue rows in the same transaction: the drain skips a row waiting out its backoff, so an older update could otherwise push after the delete and recreate the record. **Any delete is skipped** the same way when the remote's `client_updated_at` is newer than the queue row's `timestamp` (2026-10-29, parity backlog B-42; web `isStaleDelete`): a Trash or manual delete must not remove an edit another device made after the delete was queued. A delete whose remote record has no usable version deletes as before. A create or update takes `savedAt` from the task's **current row**, not the queued payload, because a payload an older build queued has no placement; with no current row it leaves `saved_at` off the record (§9.1). It sends `notify_before` as `payload ?? current row ?? this device's default`. When the payload and the row are both null, as in a payload queued before D-10, the drain also writes that number onto the row through `SyncLocalStore.settleNotifyBefore`: one column, only while it's still null, with no restamp and no queue row, so this device and the server agree (amended 2026-11-07).
 5. **Throttle ~100 ms between operations.** On HTTP **429, abort the entire push loop** immediately (items stay pending for the next cycle).
 6. Other errors bump `retryCount` + `lastError`; at **5 failures** the item becomes `failed` — kept, surfaced for retry, never dropped. Failed items auto-requeue (reset to pending) on **launch, foreground, network-regained, and manual sync** — deliberately *not* on the periodic cadence or post-mutation pushes, so a poison item can't hammer a rejecting server every two minutes.
 

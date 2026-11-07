@@ -14,8 +14,15 @@ object WireMapper {
     /**
      * [sendSavedAt] false leaves `saved_at` off the record, so the server keeps its value. Push uses that when
      * it can't read the task's current row, since a payload queued by an older build has no placement.
+     * [defaultReminder] is this device's default: the wire always carries a number (D-10).
      */
-    fun push(task: Task, deviceId: String, owner: String, sendSavedAt: Boolean = true): WireTask = WireTask(
+    fun push(
+        task: Task,
+        deviceId: String,
+        owner: String,
+        defaultReminder: Int,
+        sendSavedAt: Boolean = true,
+    ): WireTask = WireTask(
         id = "",
         taskId = task.id,
         owner = owner, // required by the collection rule — blank is a 400
@@ -36,7 +43,7 @@ object WireMapper {
         dependencies = task.dependencies,
         notificationEnabled = task.notificationEnabled,
         notificationSent = task.notificationSent,
-        notifyBefore = task.notifyBefore,
+        notifyBefore = task.notifyBefore ?: defaultReminder, // D-10: the server stores a null number as 0
         estimatedMinutes = task.estimatedMinutes,
         timeSpent = task.timeSpent,
         timeEntries = task.timeEntries.map { entry ->

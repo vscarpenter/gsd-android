@@ -30,3 +30,16 @@ sealed interface ReminderLabel {
         }
     }
 }
+
+/**
+ * D-10: `notify_before` is always a number (web `tasks/spec-notify-before.md`). A task this build writes
+ * stores one, and `0` means at the due time. A row stored before this build may still hold null, which
+ * fires this device's default until the row is next written. That read fallback stays for good, because
+ * such rows can outlive any one release.
+ */
+object ReminderOffset {
+    fun effective(task: Task, defaultReminder: Int): Int = task.notifyBefore ?: defaultReminder
+
+    fun resolve(task: Task, defaultReminder: Int): Task =
+        if (task.notifyBefore != null) task else task.copy(notifyBefore = defaultReminder)
+}

@@ -284,4 +284,33 @@ class BackupRoundTripTest {
         assertEquals(ImportSummary(imported = 1, skipped = 1), summary)
         assertEquals(listOf("fine"), taskStore.observeTasks().first().map { it.title })
     }
+
+    /**
+     * Spec name: `a backup with no offset imports with the default`. Merge keeps this device's settings, so it
+     * resolves with this device's default. Replace adopts the backup's settings in the same transaction, so a
+     * task resolves with the default this device has once the import lands.
+     */
+    @Test
+    fun aBackupWithNoOffsetImportsWithTheDefault() = runTest {
+        db.notificationSettingsDao().upsert(
+            NotificationSettingsEntity(
+                enabled = true, defaultReminder = 30, soundEnabled = true,
+                quietHoursStart = null, quietHoursEnd = null, permissionAsked = false, updatedAt = 1_000L,
+            ),
+        )
+        val backupSettings = BackupNotificationSettings(
+            enabled = true, defaultReminder = 60, soundEnabled = true,
+            quietHoursStart = null, quietHoursEnd = null, permissionAsked = false, updatedAt = fixed.instant(),
+        )
+        val withSettings = BackupEnvelope(tasks = listOf(draft("no-offset01")), notificationSettings = backupSettings)
+
+        applier.apply(BackupImport(withSettings, "2.1.0", 0), ImportMode.MERGE)
+        assertEquals(30, taskStore.get("no-offset01")?.notifyBefore)
+
+        applier.apply(BackupImport(BackupEnvelope(tasks = listOf(draft("no-offset02"))), "2.1.0", 0), ImportMode.REPLACE)
+        assertEquals(30, taskStore.get("no-offset02")?.notifyBefore)
+
+        applier.apply(BackupImport(withSettings, "2.1.0", 0), ImportMode.REPLACE)
+        assertEquals(60, taskStore.get("no-offset01")?.notifyBefore)
+    }
 }

@@ -27,7 +27,7 @@ class TaskEditorTest {
     @Test
     fun saveDisabledWhileTitleEmpty() {
         rule.setContent {
-            GsdTheme { EditorContent(draft = draft(title = ""), canSave = false, onEdit = {}, onSave = {}) }
+            GsdTheme { EditorContent(draft = draft(title = ""), canSave = false, onEdit = {}, onSave = {}, defaultReminder = 15) }
         }
         rule.onNodeWithText("Save").assertIsNotEnabled()
     }
@@ -38,7 +38,7 @@ class TaskEditorTest {
         var edited: Task? = null
         rule.setContent {
             GsdTheme {
-                EditorContent(draft = base, canSave = true, onEdit = { edited = it(base) }, onSave = {})
+                EditorContent(draft = base, canSave = true, onEdit = { edited = it(base) }, onSave = {}, defaultReminder = 15)
             }
         }
         rule.onNodeWithText("Do First").performClick()
@@ -54,7 +54,7 @@ class TaskEditorTest {
                     draft = draft(description = "see https://example.com/spec"),
                     canSave = true,
                     onEdit = {},
-                    onSave = {},
+                    onSave = {}, defaultReminder = 15,
                 )
             }
         }
@@ -69,7 +69,7 @@ class TaskEditorTest {
                     draft = draft().copy(tags = listOf("work")),
                     canSave = true,
                     onEdit = {},
-                    onSave = {},
+                    onSave = {}, defaultReminder = 15,
                 )
             }
         }

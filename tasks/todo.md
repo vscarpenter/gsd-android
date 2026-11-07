@@ -1,5 +1,21 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-07): Sprint 2 AND-D10, committed locally
+
+- **Done, on `feat/notify-before-number`, not pushed:** D-10 and B-36 (Sprint 2 AND-D10; contract note
+  `gsd-taskmanager/tasks/spec-notify-before.md`). Every `TaskStore` write stores `notifyBefore ?? this device's
+  default`. `WireMapper.push` requires the default, and the drain sends `payload ?? current row ?? default`, settling a
+  pre-upgrade null row with no restamp. `EditorRules.merge` and `ReminderPermission.shouldAsk` compare effective
+  offsets. The editor's first reminder row is a real None (`notificationEnabled = false`, number kept). Settings says
+  "For new tasks". A replace import applies settings before tasks. Spec folded in at `531ea50`.
+- **Gates, on `gsd-e2e`:** `:core:model:test` 226, `:core:sync` 175, `:app:testDebugUnitTest` 98, `:core:store`
+  connected 87, `:app` connected 272, 0 failures; `:app:assembleDebug` green. Every test that never went red was
+  proved by a mutation.
+- **Next:** push and PR wait on Vinny (sprint OWNER-DECISIONS item 23); the PR text is drafted in the sprint folder.
+  Then AND-SAVED-GUARD (`fix/backfill-saved-skips-completed`, from `main`), AND-DUE-V2, and AND-C4.
+- **Not verified:** the real-server run on a bare PocketBase 0.40.4. It's parked on Vinny (item 24).
+- **Blockers:** none on this repo beyond those two owner holds.
+
 ## Resuming From Here (2026-11-06, night): 0.11.0 sent to Alpha for review
 
 - **Done:** 14 (0.11.0) submitted to Closed testing, Alpha, at 16:43 CST, status Changes in review. Built from

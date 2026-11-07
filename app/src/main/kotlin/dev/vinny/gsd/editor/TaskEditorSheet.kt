@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Quadrant
+import dev.vinny.gsd.model.ReminderSettings
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskValidator
 import dev.vinny.gsd.notifications.rememberReminderPermissionAsk
@@ -89,6 +90,8 @@ fun TaskEditorSheet(
 ) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val askForReminders = rememberReminderPermissionAsk(reminderSettings)
+    // A task with no offset shows and saves this device's default (D-10)
+    val reminderDefaults by reminderSettings.observe().collectAsStateWithLifecycle(initialValue = ReminderSettings())
     val task = draft ?: return
     val gsd = LocalGsdColors.current
     val context = LocalContext.current
@@ -126,6 +129,7 @@ fun TaskEditorSheet(
         EditorContent(
             draft = task,
             canSave = task.title.isNotBlank(),
+            defaultReminder = reminderDefaults.defaultReminderMinutes,
             onEdit = { transform ->
                 val before = viewModel.draft.value
                 viewModel.edit(transform)
@@ -182,6 +186,7 @@ fun EditorContent(
     canSave: Boolean,
     onEdit: ((Task) -> Task) -> Unit,
     onSave: () -> Unit,
+    defaultReminder: Int,
     modifier: Modifier = Modifier,
     allTasks: List<Task> = emptyList(),
     isNew: Boolean = true,
@@ -206,7 +211,7 @@ fun EditorContent(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            EditorSections(draft, onEdit, allTasks)
+            EditorSections(draft, onEdit, allTasks, defaultReminder)
         }
     }
 }
@@ -253,7 +258,7 @@ private fun EditorHeader(isNew: Boolean, canSave: Boolean, onSave: () -> Unit, o
 
 /** The editable sections, in spec §8.3 order. */
 @Composable
-private fun EditorSections(draft: Task, onEdit: ((Task) -> Task) -> Unit, allTasks: List<Task>) {
+private fun EditorSections(draft: Task, onEdit: ((Task) -> Task) -> Unit, allTasks: List<Task>, defaultReminder: Int) {
     val gsd = LocalGsdColors.current
     SectionLabel(R.string.editor_section_title)
     val titleHint = stringResource(R.string.editor_title_hint)
@@ -315,7 +320,7 @@ private fun EditorSections(draft: Task, onEdit: ((Task) -> Task) -> Unit, allTas
 
     if (draft.dueDate != null) {
         SectionLabel(R.string.editor_section_reminder)
-        ReminderSection(draft, onEdit)
+        ReminderSection(draft, defaultReminder, onEdit)
     }
 
     SectionLabel(R.string.editor_section_repeat)

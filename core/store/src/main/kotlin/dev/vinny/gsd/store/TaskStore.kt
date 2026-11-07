@@ -2,6 +2,7 @@ package dev.vinny.gsd.store
 
 import androidx.room.withTransaction
 import dev.vinny.gsd.model.RecurrenceEngine
+import dev.vinny.gsd.model.ReminderOffset
 import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskDuplicator
@@ -31,16 +32,19 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
 
     suspend fun get(id: String): Task? = db.taskDao().byId(id)?.toTask()
 
+    /** This device's default reminder, for rules that compare effective offsets (D-10). */
+    suspend fun defaultReminder(): Int = db.defaultReminderMinutes()
+
     suspend fun add(task: Task): Task {
         val now = clock.instant()
-        val stamped = TaskValidator.validate(task, now).copy(createdAt = now, updatedAt = now)
+        val stamped = TaskValidator.validate(task, now).copy(createdAt = now, updatedAt = now).withOffset()
         write(SyncOp.CREATE, stamped, now)
         return stamped
     }
 
     suspend fun update(task: Task): Task {
         val now = clock.instant()
-        val stamped = TaskValidator.validate(task, now).copy(updatedAt = now)
+        val stamped = TaskValidator.validate(task, now).copy(updatedAt = now).withOffset()
         write(SyncOp.UPDATE, stamped, now)
         return stamped
     }
@@ -57,7 +61,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         TaskValidator.validate(typed, now)
         return db.withTransaction {
             val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
-            val edited = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
+            val edited = TaskValidator.normalize(transform(current), now).copy(updatedAt = now).withOffset()
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, edited, now))
             db.taskDao().upsert(edited.toEntity())
             edited
@@ -75,7 +79,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
             val current = db.taskDao().byId(id)?.toTask() ?: return@withTransaction null
             // Saved work waits for a return to the matrix (web ADR 0018): nothing is written
             if (refuseSaved && current.isSaved) return@withTransaction current
-            val changed = TaskValidator.normalize(transform(current), now).copy(updatedAt = now)
+            val changed = TaskValidator.normalize(transform(current), now).copy(updatedAt = now).withOffset()
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, changed, now))
             db.taskDao().upsert(changed.toEntity())
             changed
@@ -86,10 +90,16 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
     suspend fun duplicate(id: String): Task? {
         val original = get(id) ?: return null
         val now = clock.instant()
-        val copy = TaskValidator.normalize(TaskDuplicator.duplicate(original, now), now)
+        val copy = TaskValidator.normalize(TaskDuplicator.duplicate(original, now), now).withOffset()
         write(SyncOp.CREATE, copy, now)
         return copy
     }
+
+    /**
+     * D-10: every write stores a number, so a task's reminder means the same on every device. A legacy null
+     * resolves to this device's default, which it was already firing, the next time anything writes its row.
+     */
+    private suspend fun Task.withOffset(): Task = ReminderOffset.resolve(this, db.defaultReminderMinutes())
 
     private suspend fun write(op: SyncOp, task: Task, now: Instant) {
         db.withTransaction {
@@ -125,7 +135,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
             val updated = TaskValidator.normalize(
                 current.copy(completed = completed, completedAt = if (completed) now else null),
                 now,
-            ).copy(updatedAt = now)
+            ).copy(updatedAt = now).withOffset()
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.UPDATE, updated, now))
             db.taskDao().upsert(updated.toEntity())
             val spawned = if (completed) RecurrenceEngine.spawnNext(updated, now, ZoneId.systemDefault()) else null
@@ -166,7 +176,7 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
      */
     suspend fun replaceAll(imported: List<Task>) {
         val now = clock.instant()
-        val stamped = imported.map { TaskValidator.validate(it, now).copy(updatedAt = now) }
+        val stamped = imported.map { TaskValidator.validate(it, now).copy(updatedAt = now).withOffset() }
         val importedIds = stamped.map { it.id }.toSet()
         db.withTransaction {
             db.taskDao().all().filter { it.id !in importedIds }.forEach { row ->

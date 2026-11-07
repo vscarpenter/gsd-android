@@ -60,6 +60,14 @@ class SettingsPolishTest {
         rule.onNodeWithText("Archive now").performScrollTo().assertHeightIsAtLeast(48.dp)
     }
 
+    /** D-10 rule 5: a changed default doesn't move a task that already has a number, so Settings says so. */
+    @Test
+    fun theDefaultReminderSaysItAppliesToNewTasks() {
+        rule.setContent { GsdTheme { SettingsScreen(container, onOpenHelp = {}) } }
+
+        rule.onNodeWithText("For new tasks").performScrollTo().assertIsDisplayed()
+    }
+
     @Test
     fun signInChoicesAreButtons() {
         assumeFalse("signed in: no sign-in choices to check", container.syncCoordinator.signedIn.value)

@@ -8,6 +8,7 @@ import dev.vinny.gsd.store.SyncMetadataEntity
 import dev.vinny.gsd.store.SyncOp
 import dev.vinny.gsd.store.SyncQueueEntity
 import dev.vinny.gsd.store.abandonToTrash
+import dev.vinny.gsd.store.defaultReminderMinutes
 import dev.vinny.gsd.store.deleteFromRemote
 import dev.vinny.gsd.store.toEntity
 import dev.vinny.gsd.store.toTask
@@ -120,4 +121,8 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
     override suspend fun forgetResurrectOnSight() {
         db.syncMetadataDao().get()?.let { db.syncMetadataDao().upsert(it.copy(resurrectTaskIdsJson = "[]")) }
     }
+
+    override suspend fun defaultReminderMinutes(): Int = db.defaultReminderMinutes()
+
+    override suspend fun settleNotifyBefore(id: String, minutes: Int) = db.taskDao().settleNotifyBefore(id, minutes)
 }

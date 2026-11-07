@@ -45,6 +45,12 @@ class ImportApplier(
         val now = clock.instant()
         val (tasks, overLimit) = env.tasks.partition { it.passesValidation(now) }
         var skipped = import.skipped + overLimit.size
+        // Configuration first, so a task with no offset resolves to the default this import brings (D-10)
+        if (mode == ImportMode.REPLACE) { // merge never adopts another device's configuration (P§2.2)
+            env.notificationSettings?.let { db.notificationSettingsDao().upsert(it.toEntity()) }
+            env.archiveSettings?.let { db.archiveSettingsDao().upsert(it.toEntity()) }
+            env.appPreferences?.let { db.appPreferencesDao().upsert(it.toEntity()) }
+        }
         val imported = when (mode) {
             ImportMode.REPLACE -> {
                 taskStore.replaceAll(tasks)
@@ -92,12 +98,6 @@ class ImportApplier(
                 db.smartViewDao().upsert(view.toEntity())
                 if (isNew) { existingIds += view.id; admitted++ }
             }
-        }
-
-        if (mode == ImportMode.REPLACE) { // merge never adopts another device's configuration (P§2.2)
-            env.notificationSettings?.let { db.notificationSettingsDao().upsert(it.toEntity()) }
-            env.archiveSettings?.let { db.archiveSettingsDao().upsert(it.toEntity()) }
-            env.appPreferences?.let { db.appPreferencesDao().upsert(it.toEntity()) }
         }
 
         ImportSummary(imported, skipped)

@@ -99,6 +99,15 @@ interface SyncLocalStore {
     suspend fun resurrectOnSight(): Set<String>
     suspend fun rememberResurrectOnSight(ids: Set<String>)
     suspend fun forgetResurrectOnSight()
+
+    /** This device's default reminder (D-10): what a null offset resolves to on the wire. */
+    suspend fun defaultReminderMinutes(): Int
+
+    /**
+     * Writes a resolved offset onto a row that still holds null (D-10). Like reminder bookkeeping, it neither
+     * restamps `updatedAt` nor enqueues: the drain just pushed this number, so the device and the server agree.
+     */
+    suspend fun settleNotifyBefore(id: String, minutes: Int)
 }
 
 enum class SyncHealth { OFFLINE, SESSION_EXPIRED, FAILED_ITEMS, STALE_QUEUE, OK }

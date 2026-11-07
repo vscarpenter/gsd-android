@@ -111,7 +111,7 @@ class TaskStoreEditTest {
         store.change(opened.id) { it.copy(title = synced) } // what sync may write; it only normalizes
 
         val typed = opened.copy(description = "notes")
-        store.edit(opened.id, typed) { current -> dev.vinny.gsd.model.EditorRules.merge(current, opened, typed) }
+        store.edit(opened.id, typed) { current -> dev.vinny.gsd.model.EditorRules.merge(current, opened, typed, defaultReminder = 15) }
 
         val saved = store.get(opened.id)
         assertEquals("notes", saved?.description)

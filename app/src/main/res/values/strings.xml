@@ -64,7 +64,7 @@
     <string name="repeat_daily">Daily</string>
     <string name="repeat_weekly">Weekly</string>
     <string name="repeat_monthly">Monthly</string>
-    <string name="reminder_default">Default reminder</string>
+    <string name="reminder_none">None</string>
     <string name="reminder_at_time">At due time</string>
     <plurals name="reminder_minutes_before">
         <item quantity="one">%1$d minute before</item>
@@ -443,6 +443,7 @@
     <string name="settings_notifications">Notifications</string>
     <string name="settings_enable_reminders">Enable reminders</string>
     <string name="settings_default_reminder">Default reminder</string>
+    <string name="settings_default_reminder_hint">For new tasks</string>
     <string name="settings_reminder_footer">Tasks with a due time remind you this long before it. All-day tasks remind you at 9 AM on the due day, or at 9 AM the day before with 1 day.</string>
     <string name="settings_sound">Sound</string>
     <string name="settings_quiet_hours">Quiet hours</string>

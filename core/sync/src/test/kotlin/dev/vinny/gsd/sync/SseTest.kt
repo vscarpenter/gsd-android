@@ -41,6 +41,8 @@ private class FakeSseLocal : SyncLocalStore {
     override suspend fun resurrectOnSight(): Set<String> = emptySet()
     override suspend fun rememberResurrectOnSight(ids: Set<String>) = Unit
     override suspend fun forgetResurrectOnSight() = Unit
+    override suspend fun defaultReminderMinutes(): Int = 15
+    override suspend fun settleNotifyBefore(id: String, minutes: Int) = Unit
 }
 
 class SseTest {
@@ -167,7 +169,7 @@ class SseTest {
     private fun wire(taskId: String, updatedAtMs: Long) = WireMapper.push(
         Task(id = taskId, title = "remote", urgent = true, important = true,
             createdAt = Instant.EPOCH, updatedAt = Instant.ofEpochMilli(updatedAtMs)),
-        "other-device", "user-1",
+        "other-device", "user-1", defaultReminder = 15,
     )
 
     private fun localTask(id: String, updatedAtMs: Long) = Task(id = id, title = "local", urgent = true,

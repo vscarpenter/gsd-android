@@ -52,7 +52,7 @@ class SyncSafetyTest {
     fun `a sign-out during the pull writes nothing it pulled`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("from-old-account"), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("from-old-account"), "other", "user-1", defaultReminder = 15)
         remote.endSessionOnListing(onCall = 1, nextOwner = null)
 
         val result = engine(remote, local).runSync(false)
@@ -67,7 +67,7 @@ class SyncSafetyTest {
     fun `an account switch during the pull writes nothing from the old account`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("old-account-task"), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("old-account-task"), "other", "user-1", defaultReminder = 15)
         remote.endSessionOnListing(onCall = 1, nextOwner = "user-2")
 
         engine(remote, local).runSync(false)
@@ -104,7 +104,7 @@ class SyncSafetyTest {
         }
         val remote = FakeRemote()
         remote.records["r1"] = WireMapper.push(
-            task("save-1", updatedAt = now.minusSeconds(3_600)).copy(savedAt = savedAt), "other", "user-1",
+            task("save-1", updatedAt = now.minusSeconds(3_600)).copy(savedAt = savedAt), "other", "user-1", defaultReminder = 15,
         )
         remote.endSessionOnListing(onCall = 1, nextOwner = null)
 
@@ -119,7 +119,7 @@ class SyncSafetyTest {
         val buriedAt = now.minusSeconds(3_600).toEpochMilli()
         val local = FakeLocal().apply { tombstones["trashed-task"] = buriedAt }
         val remote = FakeRemote()
-        remote.records["r1"] = WireMapper.push(task("trashed-task", title = "edited elsewhere"), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("trashed-task", title = "edited elsewhere"), "other", "user-1", defaultReminder = 15)
         remote.endSessionOnListing(onCall = 1, nextOwner = "user-2")
 
         val result = engine(remote, local).runSync(false)
@@ -166,7 +166,7 @@ class SyncSafetyTest {
         val local = FakeLocal()
         val remote = FakeRemote()
         val deleted = task("edited-elsewhere", updatedAt = now.minusSeconds(600))
-        remote.records["r1"] = WireMapper.push(task("edited-elsewhere", "edited later", now.minusSeconds(30)), "other", "user-1")
+        remote.records["r1"] = WireMapper.push(task("edited-elsewhere", "edited later", now.minusSeconds(30)), "other", "user-1", defaultReminder = 15)
         local.tombstones[deleted.id] = now.minusSeconds(60).toEpochMilli()
         local.queue += queueItem(1, deleted, SyncOp.DELETE, queuedAt = now.minusSeconds(60))
 
@@ -182,7 +182,7 @@ class SyncSafetyTest {
         val local = FakeLocal()
         val remote = FakeRemote()
         val deleted = task("gone", updatedAt = now.minusSeconds(600))
-        remote.records["r1"] = WireMapper.push(deleted, "this-device", "user-1")
+        remote.records["r1"] = WireMapper.push(deleted, "this-device", "user-1", defaultReminder = 15)
         local.tombstones[deleted.id] = now.minusSeconds(60).toEpochMilli()
         local.queue += queueItem(1, deleted, SyncOp.DELETE, queuedAt = now.minusSeconds(60))
 

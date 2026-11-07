@@ -79,7 +79,10 @@ class TaskEditorViewModel(private val store: TaskStore) : ViewModel() {
                 val saved = if (isNew || loaded == null) {
                     store.add(edited)
                 } else {
-                    store.edit(edited.id, typed = edited) { current -> EditorRules.merge(current, loaded, edited) }
+                    val defaultReminder = store.defaultReminder()
+                    store.edit(edited.id, typed = edited) { current ->
+                        EditorRules.merge(current, loaded, edited, defaultReminder)
+                    }
                 }
                 _draft.value = null
                 if (saved == null) onMissing() else onDone()
