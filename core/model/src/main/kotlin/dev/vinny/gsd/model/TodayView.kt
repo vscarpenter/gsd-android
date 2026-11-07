@@ -1,11 +1,29 @@
 package dev.vinny.gsd.model
 
 import java.time.Instant
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 /** Picks from an earlier day that are still open, offered again and never written (spec-top-three.md §3.4). */
-data class CarryOverOffer(val from: LocalDate, val tasks: List<Task>)
+data class CarryOverOffer(val from: LocalDate, val tasks: List<Task>) {
+    /**
+     * How the offer is named (§4): one day back is yesterday, two to six days back is the weekday, and seven days
+     * back is "a week ago", because that weekday would match today's.
+     */
+    fun label(today: LocalDate): CarryOverLabel = when (ChronoUnit.DAYS.between(from, today)) {
+        1L -> CarryOverLabel.Yesterday
+        in 2L..6L -> CarryOverLabel.Weekday(from.dayOfWeek)
+        else -> CarryOverLabel.AWeekAgo
+    }
+}
+
+sealed interface CarryOverLabel {
+    data object Yesterday : CarryOverLabel
+    data class Weekday(val day: DayOfWeek) : CarryOverLabel
+    data object AWeekAgo : CarryOverLabel
+}
 
 /**
  * What the Today section draws (spec-top-three.md §4), composed from the pure rules so the screen holds no
@@ -32,9 +50,10 @@ data class TodayView(
     /** Zero-based place among today's picks, or null when the task isn't one. */
     fun positionOf(id: String): Int? = picks.indexOfFirst { it.id == id }.takeIf { it >= 0 }
 
-    fun canMoveUp(id: String): Boolean = (positionOf(id) ?: 0) > 0
+    /** Neither move is offered while a tidy is pending: Tidy comes first, so two picks never trade a shared rank. */
+    fun canMoveUp(id: String): Boolean = !needsTidy && (positionOf(id) ?: 0) > 0
 
-    fun canMoveDown(id: String): Boolean = positionOf(id)?.let { it < picks.lastIndex } == true
+    fun canMoveDown(id: String): Boolean = !needsTidy && positionOf(id)?.let { it < picks.lastIndex } == true
 
     companion object {
         fun build(tasks: List<Task>, now: Instant, windowDays: Int?, zone: ZoneId): TodayView {

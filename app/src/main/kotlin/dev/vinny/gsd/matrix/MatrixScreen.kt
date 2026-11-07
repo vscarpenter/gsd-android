@@ -59,7 +59,6 @@ import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.TodayView
-import dev.vinny.gsd.model.TopThree
 import dev.vinny.gsd.palette.ConsumeWhileResumed
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
@@ -477,16 +476,12 @@ private fun EmptyQuadrantPrompt(quadrant: Quadrant, modifier: Modifier = Modifie
     }
 }
 
-/** The Today rows of a card's menu, wired to [vm]. Null until the first snapshot, when no card has a menu yet. */
-private fun TodayView?.rowMenu(task: dev.vinny.gsd.model.Task, vm: TodayViewModel): TodayRowMenu {
-    val view = this ?: return TodayRowMenu()
-    return TodayRowMenu(
-        action = view.menuActionFor(task),
-        canMoveUp = view.canMoveUp(task.id),
-        canMoveDown = view.canMoveDown(task.id),
+/** The Today rows of a card's menu, wired to [vm]. */
+private fun TodayView?.rowMenu(task: dev.vinny.gsd.model.Task, vm: TodayViewModel): TodayRowMenu =
+    todayRowMenu(
+        view = this,
+        task = task,
         onAdd = { vm.addToToday(task.id) },
         onRemove = { vm.removeFromToday(task.id) },
-        onMoveUp = { vm.move(task.id, TopThree.Move.UP) },
-        onMoveDown = { vm.move(task.id, TopThree.Move.DOWN) },
+        onMove = { vm.move(task.id, it) },
     )
-}

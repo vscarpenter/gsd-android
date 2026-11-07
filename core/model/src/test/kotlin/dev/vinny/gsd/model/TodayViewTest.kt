@@ -168,4 +168,38 @@ class TodayViewTest {
         assertEquals(false, view.hasFreeSlot)
         assertEquals(TodayView.MenuAction.FULL, view.menuActionFor(task("x")))
     }
+
+    // --- T7: no moving while the Tidy offer is up ---
+
+    @Test
+    fun `no pick can move while a tidy is pending`() {
+        val view = build(pick("a", 1), pick("b", 1), pick("c", 2))
+        assertTrue(view.needsTidy)
+        view.picks.forEach {
+            assertEquals(false, view.canMoveUp(it.id), "up for ${it.id}")
+            assertEquals(false, view.canMoveDown(it.id), "down for ${it.id}")
+        }
+    }
+
+    // --- T12: the carry-over label (§4) ---
+
+    private fun carryLabel(from: String) =
+        CarryOverOffer(LocalDate.parse(from), emptyList()).label(LocalDate.of(2026, 11, 4))
+
+    @Test
+    fun `one day back reads yesterday`() {
+        assertEquals(CarryOverLabel.Yesterday, carryLabel("2026-11-03"))
+    }
+
+    @Test
+    fun `two to six days back name the weekday`() {
+        assertEquals(CarryOverLabel.Weekday(java.time.DayOfWeek.MONDAY), carryLabel("2026-11-02"))
+        assertEquals(CarryOverLabel.Weekday(java.time.DayOfWeek.FRIDAY), carryLabel("2026-10-30"))
+        assertEquals(CarryOverLabel.Weekday(java.time.DayOfWeek.THURSDAY), carryLabel("2026-10-29"))
+    }
+
+    @Test
+    fun `seven days back reads a week ago, because the weekday would match today's`() {
+        assertEquals(CarryOverLabel.AWeekAgo, carryLabel("2026-10-28"))
+    }
 }

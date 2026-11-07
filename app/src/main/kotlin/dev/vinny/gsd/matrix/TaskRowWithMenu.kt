@@ -29,6 +29,7 @@ import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.ShareText
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TodayView
+import dev.vinny.gsd.model.TopThree
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
@@ -65,6 +66,26 @@ data class TaskRowActions(
     val onDelete: () -> Unit = {},
     val today: TodayRowMenu = TodayRowMenu(),
 )
+
+/** The Today rows of [task]'s menu for [view], wired to the four writes. A null view, before the first snapshot, offers none. */
+fun todayRowMenu(
+    view: TodayView?,
+    task: Task,
+    onAdd: () -> Unit,
+    onRemove: () -> Unit,
+    onMove: (TopThree.Move) -> Unit,
+): TodayRowMenu {
+    if (view == null) return TodayRowMenu()
+    return TodayRowMenu(
+        action = view.menuActionFor(task),
+        canMoveUp = view.canMoveUp(task.id),
+        canMoveDown = view.canMoveDown(task.id),
+        onAdd = onAdd,
+        onRemove = onRemove,
+        onMoveUp = { onMove(TopThree.Move.UP) },
+        onMoveDown = { onMove(TopThree.Move.DOWN) },
+    )
+}
 
 /** The full §8.1 menu for one task. Every screen that draws a task row builds its actions here. */
 fun taskRowActions(

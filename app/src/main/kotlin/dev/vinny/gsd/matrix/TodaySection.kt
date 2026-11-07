@@ -22,7 +22,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.vinny.gsd.R
-import dev.vinny.gsd.model.DependencyGraph
+import dev.vinny.gsd.model.CarryOverLabel
+import dev.vinny.gsd.model.CarryOverOffer
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TodayView
 import dev.vinny.gsd.theme.GsdShapes
@@ -83,7 +84,7 @@ fun TodaySection(
         }
         if (view.needsTidy && !tidyDismissed) TidyOffer(onTidy, onNotNow)
         view.carryOver?.let { offer ->
-            OfferGroup(carryOverTitle(offer.from, today), offer.tasks, onAdd)
+            OfferGroup(carryOverTitle(offer, today), offer.tasks, onAdd)
         }
         if (view.hasFreeSlot) {
             PickLine(suggestionsOpen, onToggleSuggestions)
@@ -104,12 +105,11 @@ fun TodaySection(
 }
 
 @Composable
-private fun carryOverTitle(from: LocalDate, today: LocalDate): String =
-    if (from == today.minusDays(1)) {
-        stringResource(R.string.today_from_yesterday)
-    } else {
-        stringResource(R.string.today_from_weekday, weekdayName(from.dayOfWeek))
-    }
+private fun carryOverTitle(offer: CarryOverOffer, today: LocalDate): String = when (val label = offer.label(today)) {
+    CarryOverLabel.Yesterday -> stringResource(R.string.today_from_yesterday)
+    is CarryOverLabel.Weekday -> stringResource(R.string.today_from_weekday, weekdayName(label.day))
+    CarryOverLabel.AWeekAgo -> stringResource(R.string.today_from_week_ago)
+}
 
 private fun weekdayName(day: DayOfWeek): String = day.getDisplayName(TextStyle.FULL, Locale.getDefault())
 

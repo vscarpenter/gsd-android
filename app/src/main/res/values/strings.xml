@@ -534,6 +534,7 @@
     <string name="today_move_down">Move down</string>
     <string name="today_from_yesterday">From yesterday</string>
     <string name="today_from_weekday">From %1$s</string>
+    <string name="today_from_week_ago">From a week ago</string>
     <string name="today_tidy_prompt">Two devices picked for today. Tidy up?</string>
     <string name="today_tidy">Tidy</string>
     <string name="today_not_now">Not now</string>

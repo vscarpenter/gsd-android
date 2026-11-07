@@ -48,8 +48,9 @@ class TodaySectionTest {
         tidyDismissed: Boolean = false,
     ) = rule.setContent {
         GsdTheme {
+            val view = TodayView.build(tasks, now, windowDays = 2, zone)
             TodaySection(
-                view = TodayView.build(tasks, now, windowDays = 2, zone),
+                view = view,
                 suggestionsOpen = suggestionsOpen,
                 tidyDismissed = tidyDismissed,
                 today = today,
@@ -57,7 +58,8 @@ class TodaySectionTest {
                 onAdd = onAdd,
                 onTidy = onTidy,
                 onNotNow = onNotNow,
-                rowActions = { TaskRowActions() },
+                // The same mapping the Matrix screen uses, so the menu rows under test are the real ones
+                rowActions = { task -> TaskRowActions(today = todayRowMenu(view, task, {}, {}, {})) },
             )
         }
     }
@@ -169,5 +171,40 @@ class TodaySectionTest {
 
     private fun stateIs(label: String) = SemanticsMatcher("state description is $label") {
         it.config.getOrNull(SemanticsProperties.StateDescription) == label
+    }
+
+    @Test
+    fun noMoveRowsWhileTheTidyOfferIsUp() {
+        show(listOf(task("a", "2026-11-04", 1), task("b", "2026-11-04", 1), task("c", "2026-11-04", 2)))
+        rule.onNodeWithText("Two devices picked for today. Tidy up?").assertIsDisplayed()
+
+        rule.onAllNodes(hasContentDescription("Task options"))[0].performClick()
+
+        rule.onNodeWithText("Remove from today").assertIsDisplayed()
+        rule.onAllNodes(hasText("Move up")).assertCountEquals(0)
+        rule.onAllNodes(hasText("Move down")).assertCountEquals(0)
+    }
+
+    @Test
+    fun theMoveRowsAppearOnceThereIsNoConflict() {
+        show(listOf(task("a", "2026-11-04", 1), task("b", "2026-11-04", 2)))
+
+        rule.onAllNodes(hasContentDescription("Task options"))[0].performClick()
+
+        rule.onNodeWithText("Move down").assertIsDisplayed()
+        rule.onAllNodes(hasText("Move up")).assertCountEquals(0) // the first pick can't go up
+    }
+
+    @Test
+    fun aPickSevenDaysBackReadsFromAWeekAgo() {
+        show(listOf(task("a", "2026-10-28", 1))) // seven days before Wednesday 2026-11-04
+        rule.onNodeWithText("From a week ago").assertIsDisplayed()
+        rule.onAllNodes(hasText("From Wednesday")).assertCountEquals(0)
+    }
+
+    @Test
+    fun twoToSixDaysBackStillNamesTheWeekday() {
+        show(listOf(task("a", "2026-10-29", 1))) // six days back, a Thursday
+        rule.onNodeWithText("From Thursday").assertIsDisplayed()
     }
 }
