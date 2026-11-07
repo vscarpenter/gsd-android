@@ -5,7 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -168,6 +172,13 @@ fun MatrixScreen(
                 onOpen = { onNavigate("whats-new") },
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
+            val sweepShown by viewModel.sweepEntryShown.collectAsStateWithLifecycle()
+            if (sweepShown && !selectionMode) {
+                SweepEntryLine(
+                    onOpen = { onNavigate("sweep") },
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+            }
             val onToggle: (dev.vinny.gsd.model.Task) -> Unit = { task ->
                 celebration.onToggle(task)
                 actions.toggleCompleted(task.id)
@@ -405,6 +416,27 @@ fun MatrixList(
                 }
             }
         }
+    }
+}
+
+/** A quiet line, not a banner: it states what's there and asks nothing (spec-weekly-sweep.md §7). */
+@Composable
+private fun SweepEntryLine(onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val gsd = LocalGsdColors.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onOpen)
+            .testTag("sweep_entry"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.sweep_entry), style = GsdType.subhead, color = gsd.tint, modifier = Modifier.weight(1f))
+        Icon(
+            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = gsd.ink3,
+        )
     }
 }
 

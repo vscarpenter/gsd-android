@@ -42,9 +42,14 @@ class TaskActionsViewModel(
 
     /** Delete commits at once (spec §8.20). The snackbar offers undo after the fact. */
     fun delete(id: String) {
-        viewModelScope.launch {
-            _lastDeleted.value = store.delete(id)?.let { DeletedSnapshot(it.id, it.title) }
-        }
+        viewModelScope.launch { deleteNow(id) }
+    }
+
+    /** [delete] for a caller that moves on only once the write worked, as the weekly sweep does. */
+    suspend fun deleteNow(id: String): Boolean {
+        val deleted = store.delete(id)
+        _lastDeleted.value = deleted?.let { DeletedSnapshot(it.id, it.title) }
+        return deleted != null
     }
 
     /** Undo restores from trash (parity spec P§3.1). The original timestamps come back with it. */
@@ -69,14 +74,18 @@ class TaskActionsViewModel(
      * refusal here means the task changed under the menu: nothing moves and no Undo is offered.
      */
     fun moveToSaved(id: String) {
-        viewModelScope.launch {
-            val saved = try {
-                store.moveToSaved(id)
-            } catch (_: SavedPlacement.CannotSave) {
-                null
-            }
-            _lastSaved.value = saved?.let { SavedSnapshot(it.id, it.title) }
+        viewModelScope.launch { moveToSavedNow(id) }
+    }
+
+    /** [moveToSaved] for a caller that moves on only once the write worked. */
+    suspend fun moveToSavedNow(id: String): Boolean {
+        val saved = try {
+            store.moveToSaved(id)
+        } catch (_: SavedPlacement.CannotSave) {
+            null
         }
+        _lastSaved.value = saved?.let { SavedSnapshot(it.id, it.title) }
+        return saved != null
     }
 
     /** Undo puts the task back where it was: Save changed nothing but the placement. */
@@ -102,12 +111,16 @@ class TaskActionsViewModel(
      * what makes Undo's `urgent = false` the exact inverse.
      */
     fun markUrgent(id: String) {
-        viewModelScope.launch {
-            val current = store.get(id) ?: return@launch
-            if (current.urgent) return@launch
-            val changed = store.change(id) { it.copy(urgent = true) } ?: return@launch
-            _lastUrgent.value = UrgentSnapshot(changed.id, changed.title, changed.quadrant)
-        }
+        viewModelScope.launch { markUrgentNow(id) }
+    }
+
+    /** [markUrgent] for a caller that moves on only once the write worked. */
+    suspend fun markUrgentNow(id: String): Boolean {
+        val current = store.get(id) ?: return false
+        if (current.urgent) return false
+        val changed = store.change(id) { it.copy(urgent = true) } ?: return false
+        _lastUrgent.value = UrgentSnapshot(changed.id, changed.title, changed.quadrant)
+        return true
     }
 
     fun undoMarkUrgent() {
@@ -125,11 +138,14 @@ class TaskActionsViewModel(
 
     /** Drag-and-drop reclassification (spec §6.2): the flags change, quadrant follows. */
     fun moveToQuadrant(id: String, quadrant: Quadrant) {
-        viewModelScope.launch {
-            val current = store.get(id) ?: return@launch
-            if (current.quadrant == quadrant) return@launch
-            store.change(id) { it.copy(urgent = quadrant.urgent, important = quadrant.important) }
-        }
+        viewModelScope.launch { moveToQuadrantNow(id, quadrant) }
+    }
+
+    /** [moveToQuadrant] for a caller that moves on only once the write worked. */
+    suspend fun moveToQuadrantNow(id: String, quadrant: Quadrant): Boolean {
+        val current = store.get(id) ?: return false
+        if (current.quadrant == quadrant) return false
+        return store.change(id) { it.copy(urgent = quadrant.urgent, important = quadrant.important) } != null
     }
 
     fun duplicate(id: String) {

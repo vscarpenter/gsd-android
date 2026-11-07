@@ -236,7 +236,7 @@ private fun NotesDialog(task: Task, onSave: (String) -> Unit, onDismiss: () -> U
 
 /** Return reviews the quadrant and the date before the task rejoins the matrix (iOS ADR 0001). */
 @Composable
-private fun ReturnDialog(
+internal fun ReturnDialog(
     task: Task,
     today: LocalDate,
     zone: ZoneId,

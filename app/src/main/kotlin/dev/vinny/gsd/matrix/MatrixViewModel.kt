@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.WeeklySweep
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.TaskStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +45,14 @@ class MatrixViewModel(
         combine(store.observeTasks(), prefs.showCompleted) { tasks, showCompleted ->
             buildSections(tasks, showCompleted)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** The quiet "Weekly sweep" line above the matrix (spec-weekly-sweep.md §7): at least one card, and a week since the last sweep. */
+    val sweepEntryShown: StateFlow<Boolean> =
+        combine(store.observeTasks(), prefs.escalationWindow, prefs.lastSweptAt) { tasks, window, lastSwept ->
+            val now = java.time.Instant.now()
+            val zone = java.time.ZoneId.systemDefault()
+            WeeklySweep.entryShown(lastSwept, WeeklySweep.cards(tasks, now, window, zone).size, now, zone)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     // --- Multi-select + bulk (spec §8.11) ---
     private val _selectionMode = MutableStateFlow(false)
