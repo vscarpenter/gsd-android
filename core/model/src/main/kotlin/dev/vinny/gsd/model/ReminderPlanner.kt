@@ -118,6 +118,8 @@ object ReminderPermission {
     fun shouldAsk(settings: ReminderSettings, granted: Boolean, before: Task, after: Task): Boolean {
         if (!settings.enabled || settings.permissionAsked || granted) return false
         if (after.dueDate == null || !after.notificationEnabled) return false
-        return after.dueDate != before.dueDate || after.notifyBefore != before.notifyBefore || !before.notificationEnabled
+        val default = settings.defaultReminderMinutes
+        val movedOffset = ReminderOffset.effective(after, default) != ReminderOffset.effective(before, default)
+        return after.dueDate != before.dueDate || movedOffset || !before.notificationEnabled
     }
 }
