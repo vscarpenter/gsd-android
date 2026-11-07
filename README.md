@@ -56,7 +56,7 @@ Requires JDK 17 or newer. Gradle provisions its own toolchain.
 
 ## Status
 
-In Google Play closed testing (Alpha) as 0.10.2 (versionCode 13), published there on 2026-11-02. Since 0.10.0 it adds Saved, escalation with Mark urgent, all-day reminders at 9 AM, pull to refresh on the Matrix, completion by tag on the Dashboard, sync history totals, and sync-safety fixes.
+In Google Play closed testing (Alpha) as 0.11.0 (versionCode 14), sent for review on 2026-11-06; 0.10.2 (versionCode 13, published 2026-11-02) serves testers until it publishes. Since 0.10.2 it adds What's new in Settings with a post-update line, a fuller Field Guide and clearer Settings copy, and sync fixes: a moved due date resets the reminder, deletes made while signed out never reach the account and come back after sign-in, and more checks before sync removes anything.
 
 Feature-complete through the spec's eight-phase roadmap, tagged `v0.1.0-phase1` through `v0.7.0-phase7`. The August 2026 cross-platform parity catch-up — backup envelope 2.1.0, a 30-day trash, the shared 40-case capture-parser corpus, and anonymous opt-in feedback — landed 2026-08-29, with fixtures kept byte-identical to the sibling web and iOS repos. A second parity round landed 2026-09-06 on `feat/parity-2026-09`: per-quadrant completion rings and day-based deadline badges on the Dashboard, a Browse-wide task search with a shared list ordering, first-frame skeletons on the Matrix, Dashboard, and smart-view lists, off-list reminder offsets rendered instead of snapped, bounded smart-view import/export, and the sibling security hardening — fail-closed remote listings, a malformed-version push guard, three-verdict remote-absence reconciliation, and route-first account deletion with surfaced outcomes.
 
