@@ -1,19 +1,24 @@
 package dev.vinny.gsd.sync
 
 import dev.vinny.gsd.model.Quadrant
+import dev.vinny.gsd.model.FocusFields
 import dev.vinny.gsd.model.Recurrence
 import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.Subtask
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TimeEntry
+import dev.vinny.gsd.model.TopThree
 import java.time.Instant
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 
 /** Local ⇄ wire translation (spec §9.2). The wire time-entry form is lossy on purpose. */
 object WireMapper {
 
     /**
-     * [sendSavedAt] false leaves `saved_at` off the record, so the server keeps its value. Push uses that when
-     * it can't read the task's current row, since a payload queued by an older build has no placement.
+     * [hasCurrentRow] false leaves `saved_at` and the top three pick off the record, so the server keeps its values.
+     * Push uses that when it can't read the task's current row, since a payload queued by an older build has neither
+     * (C4-6).
      * [defaultReminder] is this device's default: the wire always carries a number (D-10).
      */
     fun push(
@@ -21,7 +26,7 @@ object WireMapper {
         deviceId: String,
         owner: String,
         defaultReminder: Int,
-        sendSavedAt: Boolean = true,
+        hasCurrentRow: Boolean = true,
     ): WireTask = WireTask(
         id = "",
         taskId = task.id,
@@ -35,7 +40,9 @@ object WireMapper {
         completedAt = PbDates.formatWire(task.completedAt),
         lastNotificationAt = PbDates.formatWire(task.lastNotificationAt),
         snoozedUntil = PbDates.formatWire(task.snoozedUntil),
-        savedAt = if (sendSavedAt) PbDates.formatWire(task.savedAt) else null,
+        savedAt = if (hasCurrentRow) PbDates.formatWire(task.savedAt) else null,
+        focusDate = wireFocus(task, hasCurrentRow)?.focusDate,
+        focusRank = wireFocus(task, hasCurrentRow)?.let { JsonPrimitive(it.focusRank) },
         completed = task.completed,
         recurrence = task.recurrence.wire,
         tags = task.tags,
@@ -59,6 +66,10 @@ object WireMapper {
         clientCreatedAt = PbDates.formatWire(task.createdAt),
         deviceId = deviceId,
     )
+
+    /** The pick as the row holds it, `""` and `0` when unset, or null to leave both keys off (C4-6). */
+    private fun wireFocus(task: Task, hasCurrentRow: Boolean): TopThree.WireFocus? =
+        TopThree.pushFocus(FocusFields(task.focusDate, task.focusRank).takeIf { hasCurrentRow })
 
     /**
      * Wire → local. Null when the record is unusable (missing task_id was
@@ -84,6 +95,8 @@ object WireMapper {
         // A new due date is a new reminder, as a local edit makes it (EditorRules): a reminder this
         // device already showed for the old date would otherwise hide the new one. Compared as instants.
         val reminderSource = local?.takeIf { it.dueDate?.toEpochMilli() == dueDate?.toEpochMilli() }
+        // Only a real date with an integer rank from 1 to 3 is a pick (spec-top-three.md §3.5)
+        val pulledFocus = TopThree.fromWire(wire.focusDate, wire.focusRank?.takeIf { !it.isString }?.doubleOrNull)
         val pulled = Task(
             id = wire.taskId,
             title = wire.title,
@@ -108,6 +121,8 @@ object WireMapper {
             estimatedMinutes = wire.estimatedMinutes?.takeIf { it != 0 },
             timeEntries = local?.timeEntries ?: reconstructed,
             savedAt = PbDates.parse(wire.savedAt),
+            focusDate = pulledFocus.focusDate,
+            focusRank = pulledFocus.focusRank,
         )
         return SavedPlacement.afterRemoteChange(local, pulled)
     }

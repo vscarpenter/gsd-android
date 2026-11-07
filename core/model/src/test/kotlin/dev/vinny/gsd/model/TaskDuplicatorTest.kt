@@ -27,4 +27,14 @@ class TaskDuplicatorTest {
         assertTrue(copy.subtasks.map { it.id }.none { it in listOf("sub1", "sub2") })
         assertEquals(t0, copy.createdAt)
     }
+
+    /** Top three (spec-top-three.md §3.2): a copy is a new task, so it starts with no pick. */
+    @Test
+    fun `a duplicate starts with no pick`() {
+        val picked = Task(title = "t", urgent = true, important = true, createdAt = t0, updatedAt = t0,
+            focusDate = "2026-07-19", focusRank = 1)
+        val copy = TaskDuplicator.duplicate(picked, now = t0)
+        assertNull(copy.focusDate)
+        assertNull(copy.focusRank)
+    }
 }

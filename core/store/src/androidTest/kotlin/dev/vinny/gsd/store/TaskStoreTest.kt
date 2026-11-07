@@ -216,4 +216,23 @@ class TaskStoreTest {
         assertEquals(20, store.get(numbered.id)?.notifyBefore) // a number written since the push stays
         assertTrue(db.syncQueueDao().pending().isEmpty())
     }
+
+    /** Top three: a pick survives the store, an archive and its restore, and Trash and its restore (spec §7). */
+    @Test
+    fun aPickSurvivesTheStoreTheArchiveAndTrash() = runTest {
+        val picked = store.add(draft("picked").copy(focusDate = "2026-07-19", focusRank = 2))
+        assertEquals("2026-07-19" to 2, store.get(picked.id)?.let { it.focusDate to it.focusRank })
+
+        val archive = ArchiveStore(db, fixed)
+        store.setCompleted(picked.id, completed = true) // only a completed task archives
+        archive.archive(picked.id)
+        assertEquals("2026-07-19", db.archivedTaskDao().byId(picked.id)?.focusDate)
+        archive.restore(picked.id)
+        assertEquals("2026-07-19" to 2, store.get(picked.id)?.let { it.focusDate to it.focusRank })
+
+        store.delete(picked.id)
+        assertEquals(2, db.deletedTaskDao().byId(picked.id)?.focusRank)
+        TrashStore(db, fixed).restore(picked.id)
+        assertEquals("2026-07-19" to 2, store.get(picked.id)?.let { it.focusDate to it.focusRank })
+    }
 }

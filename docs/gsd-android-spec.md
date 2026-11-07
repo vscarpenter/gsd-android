@@ -122,9 +122,11 @@ The PocketBase `tasks` collection schema in §9.1 — snake_case field names, fl
 
 ### 4.4 Import/export JSON
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
+>
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
 
-The export document (§8.16) is a shared interchange format across all clients: a seven-store, versioned envelope — `version` (string `"2.1.0"`), `exportedAt`, `tasks`, `archivedTasks`, `deletedTasks`, `smartViews`, `notificationSettings`, `archiveSettings`, `appPreferences`. Same camelCase Task shape, same lenient-import rules, and the same absent-key-means-untouched semantics across clients.
+The export document (§8.16) is a shared interchange format across all clients: a seven-store, versioned envelope: `version` (string `"2.2.0"` since 2026-11-07, which adds the top three pick; older versions still import), `exportedAt`, `tasks`, `archivedTasks`, `deletedTasks`, `smartViews`, `notificationSettings`, `archiveSettings`, `appPreferences`. Same camelCase Task shape, same lenient-import rules, and the same absent-key-means-untouched semantics across clients.
 
 ### 4.5 Auth providers
 
@@ -474,6 +476,8 @@ All entities must be representable in the Room store, in the JSON import/export 
 
 ### 7.2 Task (the core entity)
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
+>
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
 >
 > Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
@@ -505,6 +509,8 @@ All entities must be representable in the Room store, in the JSON import/export 
 | `timeSpent` | Int? | no | — | total tracked whole minutes, **calculated** from `timeEntries` |
 | `timeEntries` | [TimeEntry] | yes | `[]` | 0–1000 items |
 | `savedAt` | Date? | no | — | non-null keeps the task **outside the matrix** (§8.22). Synced as `saved_at`; kept in backups and in the archive and trash tables |
+| `focusDate` | String? | no | unset | top three: the local `YYYY-MM-DD` this task was picked for. Plain text, never an instant, never parsed through a zone. Synced as `focus_date` |
+| `focusRank` | Int? | no | unset | 1 to 3, set together with `focusDate` or not at all. Synced as `focus_rank`. Both are kept in backups and in the archive and trash tables, and a recurring spawn or a duplicate starts with neither |
 
 **Subtask:** `{ id, title (1–100 chars), completed }`.
 **TimeEntry (rich local form):** `{ id, startedAt, endedAt? (nil while running), notes? (0–200 chars) }`. The wire form is a lossy `{id, startedAt, minutes}` (§9.2).
@@ -579,7 +585,11 @@ A predicate bundle; all present criteria are **ANDed**. camelCase-Codable:
 
 ### 7.10 Room tables
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
+>
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
+
+Room 5 (2026-11-07) adds nullable `focusDate` (TEXT) and `focusRank` (INTEGER) to `tasks`, `archived_tasks`, and `deleted_tasks` (`MIGRATION_4_5`), with no backfill. The stored pull contract stays where it was, so the first sync on this build backfills (§9.4).
 
 Mirror the separation used by both sibling clients (Dexie schema v16 / GRDB v6): **`tasks`**, **`archivedTasks`** (same shape + `archivedAt`, a separate table), **`deletedTasks`** (same shape + `deletedAt`, indexed on `deletedAt` — the 30-day trash, §8.20), **`smartViews`**, **`notificationSettings`**, **`archiveSettings`**, **`appPreferences`**, **`syncQueue`** (§9.5), **`syncMetadata`** (cursor + device identity), **`syncHistory`** (§9.7). Collections (`tags`, `subtasks`, `dependencies`, `timeEntries`) are **JSON TEXT columns** (§7.3 encoding), not child tables — matching Dexie/PocketBase/GRDB shapes. Index `quadrant`, `completed`, `updatedAt`, `dueDate`. Versioned Room migrations from day one; a row with an unrecognized enum degrades gracefully (`recurrence` → `none`) rather than failing the fetch. The schema is at **Room v2** — `MIGRATION_1_2` adds `deleted_tasks`, the first real (non-fresh-install) migration, covered by an instrumented migration test. **Room v3** (`MIGRATION_2_3`, 2026-10-29) adds a nullable `savedAt` to `tasks`, `archived_tasks`, and `deleted_tasks`, and `contractVersion INTEGER NOT NULL DEFAULT 0` to `sync_metadata` (§9.4); an existing cursor therefore reads version 0 and triggers one backfill.
 
@@ -693,6 +703,8 @@ One `CompletionCelebration` owns the haptic and the confetti trigger. Matrix, a 
 
 ### 8.5 Recurrence engine
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
+>
 > Amended 2026-09-20: see `docs/play/2026-09-20-polish-review.md`, finding S5
 > Amended 2026-09-24: see `docs/play/2026-09-20-polish-review.md`, "Also worth a look" (recurrence in UTC)
 
@@ -702,7 +714,7 @@ One `CompletionCelebration` owns the haptic and the confetti trigger. Matrix, a 
 - New `id`, `createdAt`, `updatedAt`; `completed = false`.
 - `parentTaskId` = the completed task's `id` — or, if that task was itself an instance, *its* `parentTaskId` (single-level lineage to the original). Lineage is device-local (§7.2).
 - `dueDate` advanced from the **prior due date**: daily +1 day; weekly +7 days; monthly +1 calendar month with month-end clamping (Jan 31 → Feb 28/29). No due date → the instance has none. The math runs on the device's calendar in its current time zone, as iOS and the web do, so a task due at local midnight stays at local midnight across a daylight-saving change. UTC math made a daily series read a day early after the autumn change.
-- **All subtasks reset to incomplete.** Reminder state reset (`notificationSent = false`; `lastNotificationAt`, `snoozedUntil` cleared).
+- **All subtasks reset to incomplete.** Reminder state reset (`notificationSent = false`; `lastNotificationAt`, `snoozedUntil` cleared). The top three pick is cleared too, because the instance is a new task (spec-top-three.md §3.2). Duplicate clears it the same way.
 - The completed original remains as history; the new instance carries the recurrence forward. Schedule the instance's reminder at spawn time.
 
 ### 8.6 Subtasks
@@ -846,6 +858,8 @@ Completed tasks never appear here (`upcoming` is active-only), so they never car
 
 ### 8.16 Import / export, erase
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
+>
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
 >
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
@@ -860,7 +874,7 @@ Completed tasks never appear here (`upcoming` is active-only), so they never car
 
 | Key | Content |
 |---|---|
-| `version` | the **string** `"2.1.0"` (not an int) |
+| `version` | the **string** `"2.2.0"` (not an int); 2.2.0 adds `focusDate` and `focusRank` to task records, omitted when unset |
 | `exportedAt` | ISO-8601 ms |
 | `tasks` | full camelCase Task records, **plus the derived `quadrant`** (§7.8; import still ignores it), rich `timeEntries`, null optionals omitted |
 | `archivedTasks` | Task records + `archivedAt` (ISO) |
@@ -877,6 +891,7 @@ Via the system file-save flow (`ACTION_CREATE_DOCUMENT`) and the share sheet. Th
 - **Replace** — `tasks`: stamp `updatedAt = now`, enqueue `update` for every imported ID **and `delete` for every existing ID not in the import**, then swap the table atomically. `archivedTasks`/`deletedTasks` (when present): clear then insert. The three singletons (when present): put — replace is the **only** mode that applies incoming settings. They land before the tasks, in the same transaction, so an imported task with no offset resolves to the default this import brings. Merge resolves it to this device's default (D-10).
 - **Merge** — `tasks`: insert alongside existing; colliding IDs get regenerated (collision-checked against existing + imported + already-assigned), with `dependencies` **and `parentTaskId`** remapped through the complete ID map (forward references included); stamp `updatedAt = now`, enqueue `update` per task. `archivedTasks`/`deletedTasks`: insert; **on id collision the existing local row wins** (skip, no remap); an id already present in the imported or local `tasks` is skipped in either tombstone store — an id lives in one store, never both. `smartViews`: upsert by id, never accepting a payload row with `isBuiltIn: true`. The three singletons are **not applied** in merge — merge combines task lists and never adopts another device's configuration.
 - Neither mode enqueues sync operations for `archivedTasks`, `deletedTasks`, `smartViews`, or the singletons — those stores never sync.
+- A task record's `focusDate` and `focusRank` are read apart from the rest of it and kept only as a real date with a rank from 1 to 3 (`TopThree.fromWire`). Any other pair becomes unset and the task is kept, so a bad pick never refuses a task or a backup (spec-top-three.md §7, amended 2026-11-07).
 
 **Smart-view bounds on import.** The guard order above is unchanged; within `smartViews` each row is still decoded leniently, and a row is **skipped and counted in `skipped`** (smart-view skips used to be silent) when it fails to decode, carries `isBuiltIn: true`, or violates any bound in Appendix B — id 1–128, name 1–80 (the *import* bound; the editor still caps new names at 60), icon ≤ 64, `criteria.searchQuery` ≤ 600, `criteria.tags` ≤ 200 entries of 1–30 chars each (the count is deliberately not `MAX_TAGS` — a view filters over the whole vocabulary), `criteria.quadrants` and `criteria.recurrence` ≤ 4 entries. Rows are considered in document order against a **cap of 100** custom views: a row whose id already exists locally (merge mode) or was already accepted from this document **overwrites and consumes no cap room**; a genuinely new id spends one; new ids past the cap are skipped and counted. In replace mode the custom store is cleared first, so the first 100 valid rows land. `appPreferences.pinnedSmartViewIds` is truncated to the first **5** valid ids (each 1–128 chars); the singleton is otherwise applied exactly as before (replace mode only). None of this is ever fatal — an over-cap or malformed smart-view store must not abort the tasks, archive, trash, or settings travelling with it. Unknown keys on a smart-view row are **ignored**, a declared divergence: the web's `smartViewSchema` went `.strict()`, Android stays lenient. Android's `SmartView` has no `description` field, so the web's ≤ 600 bound on it is moot here.
 
@@ -994,6 +1009,8 @@ Sync is **optional and opt-in**. With no account the app is fully functional off
 
 ### 9.1 The `tasks` collection (authoritative wire model)
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
+>
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
 
 snake_case fields. The collection exists; read/write these exact names:
@@ -1008,6 +1025,8 @@ snake_case fields. The collection exists; read/write these exact names:
 | `quadrant` | string | **write** the §7.8 id (`urgent-important` …); **ignore on read** — always recompute from the flags |
 | `due_date`, `completed_at`, `last_notification_at`, `snoozed_until` | string | ISO-8601 ms (`T`/`Z`) or `""` for nil |
 | `saved_at` | string | ISO-8601 ms when Saved (§8.22); `""` returns the task to the matrix and **must be sent to clear it**. Omitted only when push can't read the task's current row (§9.5), so the server keeps its value. Added 2026-10-29 |
+| `focus_date` | string | top three: local `YYYY-MM-DD`, or `""` when unset. Omitted only when push can't read the task's current row (§9.5). Added 2026-11-07 |
+| `focus_rank` | number | 1 to 3, or `0` when unset. The server field is `onlyInt`, so push writes an integer. Pull keeps a pair only as a real date with an integer rank from 1 to 3 (`TopThree.fromWire`) and reads anything else as unset, decoding the raw value so a bad rank can't fail the record. Added 2026-11-07 |
 | `completed` | bool | |
 | `recurrence` | string | `none`/`daily`/`weekly`/`monthly` |
 | `tags` | json [string] | |
@@ -1051,6 +1070,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 ### 9.4 Pull, cursor, and deletion reconciliation
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
+>
 > Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
 >
 > Amended 2026-08-29 — see `docs/2026-08-29-cross-platform-parity-spec.md`
@@ -1061,7 +1082,7 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 - **Endpoint:** `GET /api/collections/tasks/records?page={n}&perPage=200&sort=updated,id&filter=updated >= "{cursor}"` (filter URL-encoded; page through **all** pages until `page ≥ totalPages`; response envelope `{page, perPage, totalItems, totalPages, items}`). No owner filter is sent — the server's API rule scopes rows. The decoded page is `TaskListPage(page, totalPages, totalItems, items, updatedStamps)` — `totalItems` sits **directly after `totalPages`** and defaults to `items.size`, which is what lets the bounded-listing rules below read it on every walk.
 - **Cursor:** the max applied **server `updated`** stamp, stored in the PocketBase space-separated form; first sync uses `"1970-01-01 00:00:00.000Z"`. After a successful sync, advance to `maxApplied − 5 seconds` (the overlap rewind that catches boundary writes). A record whose `updated` is unparseable still applies but doesn't advance the cursor. An owner change clears the cursor (§8.21), and so does a local erase, in the same transaction as the data (§8.16). The cursor means "everything up to here is on this device", so it never outlives the tasks it describes. Nothing else clears it.
-- **Pull contract version** (2026-10-29; web ADR 0019, iOS `docs/2026-10-27-synced-field-backfill.md`). `SyncEngine.PULL_CONTRACT_VERSION` (3, for `saved_at`) is stored as `sync_metadata.contractVersion` beside the cursor. A cursor stamped with an older version was written by a build that dropped a field this build reads, and the rows it already pulled will never come back on their own: their `updated` is behind the cursor, and an equal `client_updated_at` is a no-op. The next pull therefore lists from the epoch once and **merges same-version records** through the mapper (device-local fields survive; not counted as conflicts). A strictly older remote record stays a no-op, except during this pull when the local row has no `savedAt` and the remote has one (or the remote is far-future and the row has a queued write, §9.3): copy just `savedAt` onto the row, keep `updatedAt` and every other field, and queue nothing. The copy runs only when the row can be Saved (`SavedPlacement.canSave`: not completed, no running timer). A completion or a timer an older build wrote after another device Saved the task is the newer edit, so it wins, and the push clears `saved_at` (amended 2026-11-07, sprint question S-WEB-02, matching the web). An older build may have edited that row, and the push would otherwise clear `saved_at` on the server (amended 2026-10-31). Outside the backfill the same shape is a real Return, so the copy never runs there. The cursor never moves backward during that pull, and the version is stamped only after the pull completes; a fresh or cleared cursor stamps it after its first full pull. Push runs after pull in the same run, so nothing is pushed before the backfill lands. Bump the constant whenever a build first reads a new synced field, in step with the web's `PULL_CURSOR_VERSION` and iOS `SyncCursor.contractVersion`.
+- **Pull contract version** (2026-10-29; web ADR 0019, iOS `docs/2026-10-27-synced-field-backfill.md`). `SyncEngine.PULL_CONTRACT_VERSION` (4 since 2026-11-07, for the top three pick; 3 was `saved_at`) is stored as `sync_metadata.contractVersion` beside the cursor. A cursor stamped with an older version was written by a build that dropped a field this build reads, and the rows it already pulled will never come back on their own: their `updated` is behind the cursor, and an equal `client_updated_at` is a no-op. The next pull therefore lists from the epoch once and **merges same-version records** through the mapper (device-local fields survive; not counted as conflicts). A strictly older remote record stays a no-op, except during this pull when the local row has no `savedAt` and the remote has one (or the remote is far-future and the row has a queued write, §9.3): copy just `savedAt` onto the row, keep `updatedAt` and every other field, and queue nothing. The copy runs only when the row can be Saved (`SavedPlacement.canSave`: not completed, no running timer). A completion or a timer an older build wrote after another device Saved the task is the newer edit, so it wins, and the push clears `saved_at` (amended 2026-11-07, sprint question S-WEB-02, matching the web). An older build may have edited that row, and the push would otherwise clear `saved_at` on the server (amended 2026-10-31). Outside the backfill the same shape is a real Return, so the copy never runs there. The cursor never moves backward during that pull, and the version is stamped only after the pull completes; a fresh or cleared cursor stamps it after its first full pull. Push runs after pull in the same run, so nothing is pushed before the backfill lands. Bump the constant whenever a build first reads a new synced field, in step with the web's `PULL_CURSOR_VERSION` and iOS `SyncCursor.contractVersion`. Contract 4 (amended 2026-11-07, spec-top-three.md §6): the stored version alone decides whether a backfill is due, so a missing cursor doesn't exempt a device (C4-1). Each record goes through `TopThree.pullMerge`, which the shared top three corpus pins. On a row this device wins, the backfill copies the pick when the row's is unset and the remote's is set, below contract 4. It copies `savedAt` only below contract 3, because on a contract 3 device a null `savedAt` is a real Return (C4-4). A queued write that holds off a far-future remote counts as this device winning (sprint question S-SPEC-01).
 - **Session fence** (2026-10-29, parity backlog B-14; web #538). A run records its owner when it starts and checks it before every pulled record (resolving a tombstone can remove it, amended 2026-10-31), the cursor save, each push item, and each reconciliation delete. A sign-out or account switch mid-run throws `StaleSyncSession` and ends the run: nothing pulled lands, nothing is deleted or trashed, and no item spends a retry. The check runs just before each write rather than inside its transaction, because the session lives in the token store, not Room. SSE events check the owner on arrival and again before each write (§9.6).
 - **Apply loop:** per record — validate; skip malformed (never abort the pull); apply LWW (§9.3); on upsert preserve device-local fields (§9.2). Count remote-won overwrites as `conflictsResolved`.
 - **Tombstone suppression (archive + trash).** Before the LWW upsert, check whether the record's `task_id` is in `archivedTasks` or `deletedTasks`. If so, compare the remote `client_updated_at` against that row's `archivedAt`/`deletedAt` as millisecond instants: remote **strictly newer** → the remote edit wins — remove the tombstone row and apply the record as a normal active upsert (deliberate cross-device resurrection: the user edited it elsewhere after archiving/deleting here); otherwise (older, equal, either timestamp missing or unparseable) → **drop the record, fail closed** — never resurrect on bad data. Without this guard a remote record for a locally-archived-or-trashed task would resurrect as an active duplicate. This mirrors the web's `isRemoteNewerThanArchive` guard, extended to both tombstone stores; iOS's pull/SSE paths do not yet have it (sibling backlog item, not Android's to fix). The one exception is resurrect on sight (§9.4), which removes a tombstone on purpose for an id the sign-in remembered.
@@ -1081,6 +1102,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 ### 9.5 Push & the sync queue
 
+> Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
+>
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
 >
 > Amended 2026-10-29 — see `docs/2026-10-29-cross-platform-parity-spec.md`
@@ -1096,7 +1119,7 @@ Push algorithm:
 1. **Bulk-fetch the remote index once per push** (list since epoch, through the bounded fail-closed walk of §9.4). A run with nothing queued takes no index, so it lists the whole collection only once, for reconciliation: map `task_id → (recordId, client_updated_at)` — avoids per-item lookups and 429s. If the walk throws `RemoteListingIncomplete`, the push does not proceed on partial data.
 2. Drain pending items oldest-first, each gated by backoff (`retryCount` → wait **5s / 10s / 30s / 60s / 300s**).
 3. **A malformed remote version never authorizes an overwrite.** For a create/update whose task *does* have a record in the remote index, if that record's `client_updated_at` is missing or unparseable (`PbDates.parse` → `null`), the item is **skipped for this drain** — `bumpQueueRetry(…, "Remote task version is missing or malformed", …)`, counting toward the five-failure threshold like any other error — and **no write is issued**. Previously this case fell through to `updateTask`. A missing version may protect or quarantine data; it may not license clobbering it.
-4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it. **An archive's delete is skipped** (marked done, no request) when the remote's `client_updated_at` is newer than the archived payload's `updatedAt`: another device edited the task after this copy last synced, either in an edit a pull missed or one that landed between the pull and the archive, and that edit must survive. After a normal sync the two stamps are equal, so ordinary archives still delete. Archiving also removes the task's older queue rows in the same transaction: the drain skips a row waiting out its backoff, so an older update could otherwise push after the delete and recreate the record. **Any delete is skipped** the same way when the remote's `client_updated_at` is newer than the queue row's `timestamp` (2026-10-29, parity backlog B-42; web `isStaleDelete`): a Trash or manual delete must not remove an edit another device made after the delete was queued. A delete whose remote record has no usable version deletes as before. A create or update takes `savedAt` from the task's **current row**, not the queued payload, because a payload an older build queued has no placement; with no current row it leaves `saved_at` off the record (§9.1). It sends `notify_before` as `payload ?? current row ?? this device's default`. When the payload and the row are both null, as in a payload queued before D-10, the drain also writes that number onto the row through `SyncLocalStore.settleNotifyBefore`: one column, only while it's still null, with no restamp and no queue row, so this device and the server agree (amended 2026-11-07).
+4. Apply the **LWW payload guard** (§9.3); then create (`POST /api/collections/tasks/records`, `id:""`) / update (`PATCH …/{recordId}`) / delete (`DELETE …/{recordId}`, 204). Record a newly-created `recordId` into the live index so a same-drain delete finds it. **An archive's delete is skipped** (marked done, no request) when the remote's `client_updated_at` is newer than the archived payload's `updatedAt`: another device edited the task after this copy last synced, either in an edit a pull missed or one that landed between the pull and the archive, and that edit must survive. After a normal sync the two stamps are equal, so ordinary archives still delete. Archiving also removes the task's older queue rows in the same transaction: the drain skips a row waiting out its backoff, so an older update could otherwise push after the delete and recreate the record. **Any delete is skipped** the same way when the remote's `client_updated_at` is newer than the queue row's `timestamp` (2026-10-29, parity backlog B-42; web `isStaleDelete`): a Trash or manual delete must not remove an edit another device made after the delete was queued. A delete whose remote record has no usable version deletes as before. A create or update takes `savedAt` and the top three pick from the task's **current row**, not the queued payload, because a payload an older build queued has neither. With no current row it leaves `saved_at`, `focus_date`, and `focus_rank` off the record, so the server keeps its values (§9.1, spec-top-three.md C4-6). It sends `notify_before` as `payload ?? current row ?? this device's default`. When the payload and the row are both null, as in a payload queued before D-10, the drain also writes that number onto the row through `SyncLocalStore.settleNotifyBefore`: one column, only while it's still null, with no restamp and no queue row, so this device and the server agree (amended 2026-11-07).
 5. **Throttle ~100 ms between operations.** On HTTP **429, abort the entire push loop** immediately (items stay pending for the next cycle).
 6. Other errors bump `retryCount` + `lastError`; at **5 failures** the item becomes `failed` — kept, surfaced for retry, never dropped. Failed items auto-requeue (reset to pending) on **launch, foreground, network-regained, and manual sync** — deliberately *not* on the periodic cadence or post-mutation pushes, so a poison item can't hammer a rejecting server every two minutes.
 

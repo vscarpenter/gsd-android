@@ -73,6 +73,6 @@ class CrossPlatformBackupTest {
         val second = Interchange.parse(reExported)
         assertEquals(first.envelope, second.envelope)                  // content-stable round trip
         val root = Json.parseToJsonElement(reExported).jsonObject
-        assertEquals("2.1.0", root.getValue("version").jsonPrimitive.content)
+        assertEquals("2.2.0", root.getValue("version").jsonPrimitive.content)
     }
 }

@@ -99,6 +99,7 @@ internal fun TaskEntity.toDeleted(deletedAt: Long): DeletedTaskEntity = DeletedT
     notificationSent = notificationSent, lastNotificationAt = lastNotificationAt,
     snoozedUntil = snoozedUntil, estimatedMinutes = estimatedMinutes,
     timeEntriesJson = timeEntriesJson, deletedAt = deletedAt, savedAt = savedAt,
+    focusDate = focusDate, focusRank = focusRank,
 )
 
 internal fun DeletedTaskEntity.toTask(): Task = TaskEntity(
@@ -110,4 +111,5 @@ internal fun DeletedTaskEntity.toTask(): Task = TaskEntity(
     notificationSent = notificationSent, lastNotificationAt = lastNotificationAt,
     snoozedUntil = snoozedUntil, estimatedMinutes = estimatedMinutes,
     timeEntriesJson = timeEntriesJson, savedAt = savedAt,
+    focusDate = focusDate, focusRank = focusRank,
 ).toTask()

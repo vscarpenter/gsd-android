@@ -36,6 +36,8 @@ object RecurrenceEngine {
             notificationSent = false,
             lastNotificationAt = null,
             snoozedUntil = null,
+            focusDate = null, // the next instance is a new task, with no pick (spec-top-three.md §3.2)
+            focusRank = null,
         )
     }
 }

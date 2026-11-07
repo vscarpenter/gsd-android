@@ -90,6 +90,8 @@ internal class FakeRemote : SyncRemote {
     /** True models a dead session: the server answers the identity check as it would a guest. */
     var rejectIdentity = false
     var listCalls = 0
+    /** Every list, create, and update in order, so a test can check that a pull came before a push. */
+    val calls = mutableListOf<String>()
     /** Runs while the identity check waits on the network: what the user does in that window. */
     var duringIdentityCheck: suspend () -> Unit = {}
 
@@ -100,6 +102,7 @@ internal class FakeRemote : SyncRemote {
 
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage {
         listCalls++
+        calls += "list"
         listResponder?.let { return it(page, updatedCursor) }
         val items = records.entries.sortedBy { it.key }
         return TaskListPage(
@@ -116,6 +119,7 @@ internal class FakeRemote : SyncRemote {
 
     override suspend fun createTask(wire: WireTask): WireTask {
         gate(wire.taskId)
+        calls += "create"
         val recordId = "rec${nextRecordId++}"
         val stored = wire.copy(id = recordId)
         records[recordId] = stored
@@ -124,6 +128,7 @@ internal class FakeRemote : SyncRemote {
 
     override suspend fun updateTask(recordId: String, wire: WireTask): WireTask {
         gate(wire.taskId)
+        calls += "update"
         records[recordId] = wire.copy(id = recordId)
         return records[recordId]!!
     }

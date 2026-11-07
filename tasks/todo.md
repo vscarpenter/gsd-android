@@ -1,5 +1,25 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-07, afternoon): Sprint 2 AND-C4, a local stack
+
+- **Done, on `feat/top-three-contract-4`, not pushed:** pull contract 4 for the top three pick (spec
+  `gsd-taskmanager/tasks/spec-top-three.md` sections 5 to 7). It stacks on AND-D10, AND-SAVED-GUARD, and E-AND's
+  `feat/top-three-rules` with merge commits (sprint question S-AND-01), and gets re-cut from `main` once those and
+  SPEC-1 merge. Spawn and duplicate clear the pick. Room 4 to 5 adds it to all three task tables. Envelope 2.2.0 keeps
+  it and drops an invalid pair without dropping the task. The wire carries it (integer rank, raw decode). The engine
+  decides each pulled record through `TopThree.pullMerge`, keeps the far-future hold-off and the `canSave` guard
+  (S-SPEC-01, S-WEB-02), and pushes the pick from the current row. `web-top-three-2.2.0.json` is copied, md5
+  `6da5aec65096d917c777e7a51a8d925e`.
+- **Gates, on `gsd-e2e`:** `:core:model:test` 233, `:core:sync` 192, `:app:testDebugUnitTest` 98, `:core:store`
+  connected 89, `:app` connected 272, 0 failures; `:app:assembleDebug` green. One real upgrade: a `main` build
+  (`8433a23`) with a shared task, then `adb install -r` of `3af2749`. The task survived, `user_version` reads 5, and
+  the app launched with no fatal exception. Room stays 2.8.4.
+- **Also local:** AND-DUE-V2 on `fix/due-time-corpus-v2` (`3f4e87d`). It conflicts with AND-D10 once, in
+  `ReminderPlanner.fireTime`; both PR drafts say how to resolve it.
+- **Next:** push and PRs wait on Vinny (sprint OWNER-DECISIONS item 23). PR texts are in `sprint/drafts/`.
+- **Not verified:** the real-server runs for AND-D10 and AND-C4. Local PocketBase is parked on Vinny (item 24).
+- **Blockers:** none on this repo beyond those two owner holds.
+
 ## Resuming From Here (2026-11-07): Sprint 2 AND-D10, committed locally
 
 - **Done, on `feat/notify-before-number`, not pushed:** D-10 and B-36 (Sprint 2 AND-D10; contract note

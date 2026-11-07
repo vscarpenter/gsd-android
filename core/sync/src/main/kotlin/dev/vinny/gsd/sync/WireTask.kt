@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * The PocketBase `tasks` record, byte-for-byte per spec §9.1: snake_case
@@ -41,6 +42,10 @@ data class WireTask(
     @SerialName("snoozed_until") val snoozedUntil: String = "",
     /** ISO when Saved, "" to clear (iOS spec §7.1). Null leaves the key off, so the server keeps its value. */
     @SerialName("saved_at") val savedAt: String? = null,
+    /** Top three: local `YYYY-MM-DD`, `""` when unset. Null leaves the key off, so the server keeps its pick (C4-6). */
+    @SerialName("focus_date") val focusDate: String? = null,
+    /** 1 to 3, `0` when unset. Raw, so a fractional or quoted rank reads as no pick rather than failing the record. */
+    @SerialName("focus_rank") val focusRank: JsonPrimitive? = null,
     val completed: Boolean = false,
     val recurrence: String = "none",
     val tags: List<String> = emptyList(),

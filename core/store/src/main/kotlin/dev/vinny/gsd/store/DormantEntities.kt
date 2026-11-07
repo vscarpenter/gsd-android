@@ -42,6 +42,8 @@ data class ArchivedTaskEntity(
     val timeEntriesJson: String,
     val archivedAt: Long,
     val savedAt: Long? = null,
+    val focusDate: String? = null,
+    val focusRank: Int? = null,
 )
 
 @Entity(
@@ -74,6 +76,8 @@ data class DeletedTaskEntity(
     val timeEntriesJson: String,
     val deletedAt: Long,
     val savedAt: Long? = null,
+    val focusDate: String? = null,
+    val focusRank: Int? = null,
 )
 
 @Entity(tableName = "smart_views")

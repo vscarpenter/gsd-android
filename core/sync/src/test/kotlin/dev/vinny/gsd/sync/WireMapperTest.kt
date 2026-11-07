@@ -9,6 +9,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -158,5 +159,45 @@ class WireMapperTest {
         assertEquals(false, pulled.notificationSent)
         assertNull(pulled.lastNotificationAt)
         assertNull(pulled.snoozedUntil)
+    }
+
+    // --- top three (spec-top-three.md §5, §10, C4-6) ---
+
+    private fun encoded(wire: WireTask) = Json.parseToJsonElement(WireJson.encode(wire)).jsonObject
+
+    @Test
+    fun `push writes the pick, and an unset pair as an empty date and rank 0`() {
+        val picked = encoded(WireMapper.push(task().copy(focusDate = "2026-11-07", focusRank = 2), "d", "user-1", defaultReminder = 15))
+        assertEquals("\"2026-11-07\"", picked["focus_date"].toString())
+        assertEquals("2", picked["focus_rank"].toString()) // an integer: the server's field is onlyInt
+        val unset = encoded(WireMapper.push(task(), "d", "user-1", defaultReminder = 15))
+        assertEquals("\"\"", unset["focus_date"].toString())
+        assertEquals("0", unset["focus_rank"].toString())
+    }
+
+    /** C4-6: with no current row, the server keeps its pick and its placement. */
+    @Test
+    fun `push leaves the pick and placement off when it can't read the current row`() {
+        val picked = task().copy(focusDate = "2026-11-07", focusRank = 2)
+        val obj = encoded(WireMapper.push(picked, "d", "user-1", defaultReminder = 15, hasCurrentRow = false))
+        assertFalse("focus_date" in obj || "focus_rank" in obj || "saved_at" in obj)
+    }
+
+    /** Section 3.5: a pulled pair counts only as a real date with an integer rank from 1 to 3. */
+    @Test
+    fun `pull keeps only a real date with a rank from 1 to 3`() {
+        fun pulled(fields: String) = WireMapper.pull(
+            WireJson.decodeOrNull("""{"task_id":"pick-1","client_updated_at":"2026-11-07T12:00:00.000Z",$fields}""")!!,
+            local = null,
+        )!!.let { it.focusDate to it.focusRank }
+        assertEquals("2026-11-07" to 1, pulled(""""focus_date":"2026-11-07","focus_rank":1"""))
+        listOf(
+            """"focus_date":"","focus_rank":0""",
+            """"focus_date":"2026-02-30","focus_rank":1""",
+            """"focus_date":"2026-11-07","focus_rank":1.5""",
+            """"focus_date":"2026-11-07","focus_rank":"1"""",
+            """"focus_date":"2026-11-07","focus_rank":4""",
+            """"title":"from a server without the fields"""",
+        ).forEach { assertEquals(null to null, pulled(it), it) }
     }
 }
