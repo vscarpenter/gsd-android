@@ -45,6 +45,9 @@ data class TaskEntity(
     val estimatedMinutes: Int?,
     val timeEntriesJson: String,
     val savedAt: Long? = null,
+    /** Top three (spec-top-three.md §5): local `YYYY-MM-DD` and rank 1 to 3, set together or not at all. */
+    val focusDate: String? = null,
+    val focusRank: Int? = null,
 )
 
 private val subtaskListSerializer = ListSerializer(Subtask.serializer())
@@ -75,6 +78,8 @@ fun Task.toEntity(): TaskEntity = TaskEntity(
     estimatedMinutes = estimatedMinutes,
     timeEntriesJson = TaskJson.json.encodeToString(timeEntryListSerializer, timeEntries),
     savedAt = savedAt?.toEpochMilli(),
+    focusDate = focusDate,
+    focusRank = focusRank,
 )
 
 fun TaskEntity.toTask(): Task = Task(
@@ -101,6 +106,8 @@ fun TaskEntity.toTask(): Task = Task(
     estimatedMinutes = estimatedMinutes,
     timeEntries = decodeOrEmpty(timeEntriesJson, timeEntryListSerializer),
     savedAt = savedAt?.let(Instant::ofEpochMilli),
+    focusDate = focusDate,
+    focusRank = focusRank,
 )
 
 private fun <T> decodeOrEmpty(

@@ -30,7 +30,7 @@ class SyncOpConverter {
         SyncMetadataEntity::class,
         SyncHistoryEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(SyncOpConverter::class)
@@ -88,9 +88,19 @@ abstract class GsdDatabase : RoomDatabase() {
             }
         }
 
+        /** Top three (spec-top-three.md §5): the pick on all three task tables, nullable, with no backfill. */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (table in listOf("tasks", "archived_tasks", "deleted_tasks")) {
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `focusDate` TEXT")
+                    db.execSQL("ALTER TABLE `$table` ADD COLUMN `focusRank` INTEGER")
+                }
+            }
+        }
+
         fun build(context: Context): GsdDatabase =
             Room.databaseBuilder(context, GsdDatabase::class.java, "gsd.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
 
         /** Hermetic store for tests. */
