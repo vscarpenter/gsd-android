@@ -21,7 +21,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Quadrant
@@ -178,15 +177,14 @@ fun TaskRowWithMenu(
             task = task,
             onToggleComplete = actions.onToggleComplete,
             onClick = actions.onEdit,
-            modifier = cardActions.then(
-                if (positionLabel != null) Modifier.semantics { stateDescription = positionLabel } else Modifier,
-            ),
+            modifier = cardActions,
             badges = badges,
             // Select mode turns the menu off, and a card with no menu draws no button.
             onOpenMenu = if (selected == null) { { menuOpen = true } } else null,
             longPressOpensMenu = longPressOpensMenu,
             selected = selected,
             escalation = escalation,
+            positionLabel = positionLabel,
         )
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             MenuItem(R.string.menu_edit) { menuOpen = false; actions.onEdit() }

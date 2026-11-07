@@ -1,8 +1,5 @@
 package dev.vinny.gsd.matrix
 
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.getOrNull
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -101,11 +98,12 @@ class TodaySectionTest {
     }
 
     @Test
-    fun rowsAreReadAsFirstAndSecond() {
+    fun rowsAreReadAsTheirTitleThenTheirPlace() {
         show(listOf(task("a", "2026-11-04", 1), task("b", "2026-11-04", 2)))
-        rule.onAllNodes(stateIs("first")).assertCountEquals(1)
-        rule.onAllNodes(stateIs("second")).assertCountEquals(1)
-        rule.onAllNodes(stateIs("third")).assertCountEquals(0)
+        // The title is the node TalkBack lands on, so the place follows the title in one phrase
+        rule.onNode(hasContentDescription("Task a, first")).assertIsDisplayed()
+        rule.onNode(hasContentDescription("Task b, second")).assertIsDisplayed()
+        rule.onAllNodes(hasContentDescription("third", substring = true)).assertCountEquals(0)
     }
 
     @Test
@@ -169,9 +167,6 @@ class TodaySectionTest {
         }
     }
 
-    private fun stateIs(label: String) = SemanticsMatcher("state description is $label") {
-        it.config.getOrNull(SemanticsProperties.StateDescription) == label
-    }
 
     @Test
     fun noMoveRowsWhileTheTidyOfferIsUp() {
