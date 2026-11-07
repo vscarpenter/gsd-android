@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -159,13 +160,23 @@ class SyncCoordinatorOwnerChangeTest {
         fail("timed out waiting until $what")
     }
 
+    /**
+     * AND-FLAKE-2. A sync's outcome is waited for by the runs that produce it, not by a 5 s wall clock: under load
+     * (a load average near 58) one run outlasted that budget. The condition is checked again as each run finishes
+     * (`SyncCoordinator.finishedRuns`), and the cap only catches a run that never ends.
+     */
+    private suspend fun awaitRun(coordinator: SyncCoordinator, what: String, condition: suspend () -> Boolean) {
+        withTimeoutOrNull(RUN_HANG_GUARD_MS) { coordinator.finishedRuns.first { condition() } }
+            ?: fail("no finished run reached: $what")
+    }
+
     /** Signed in as user-a with one full sync behind it. */
     private suspend fun signedInAsA(): SyncCoordinator {
         lastOwner = "user-a"
         remote.sessionUser = "user-a"
         val coordinator = coordinator(jwt("user-a"))
         coordinator.start()
-        awaitUntil("the first sync as user-a finishes") { coordinator.lastResult.value != null }
+        awaitRun(coordinator, "the first sync as user-a finishes") { coordinator.lastResult.value != null }
         return coordinator
     }
 
@@ -186,7 +197,7 @@ class SyncCoordinatorOwnerChangeTest {
 
         signOutThenSignInAsB(coordinator, eraseLocalFirst = false)
 
-        awaitUntil("the kept task reaches user-b's account") { "kept-task" in remote.taskIdsOf("user-b") }
+        awaitRun(coordinator, "the kept task reaches user-b's account") { "kept-task" in remote.taskIdsOf("user-b") }
         assertEquals(listOf("kept-task"), local.activeTasks().map { it.id })
         assertEquals(listOf("kept-task"), remote.taskIdsOf("user-a")) // the old account is untouched
     }
@@ -198,11 +209,11 @@ class SyncCoordinatorOwnerChangeTest {
         remote.seed("user-a", recentOnA, updated = clock.instant().minusSeconds(60))
         remote.seed("user-b", oldOnB, updated = Instant.parse("2020-01-01T00:00:00Z"))
         val coordinator = signedInAsA()
-        awaitUntil("user-a's pull advances the cursor") { local.cursor() != null }
+        awaitRun(coordinator, "user-a's pull advances the cursor") { local.cursor() != null }
 
         signOutThenSignInAsB(coordinator, eraseLocalFirst = true)
 
-        awaitUntil("user-b's older task arrives") { local.activeTasks().any { it.id == "old-on-b" } }
+        awaitRun(coordinator, "user-b's older task arrives") { local.activeTasks().any { it.id == "old-on-b" } }
         assertEquals(listOf("old-on-b"), local.activeTasks().map { it.id })
     }
 
@@ -215,9 +226,9 @@ class SyncCoordinatorOwnerChangeTest {
         local.saveCursor(PbDates.formatSpace(clock.instant().minusSeconds(60)))
         remote.sessionUser = "user-b"
 
-        coordinator(jwt("user-b")).start()
+        val restarted = coordinator(jwt("user-b")).also { it.start() }
 
-        awaitUntil("user-b's older task arrives") { local.activeTasks().any { it.id == "old-on-b" } }
+        awaitRun(restarted, "user-b's older task arrives") { local.activeTasks().any { it.id == "old-on-b" } }
         assertEquals("user-b", lastOwner)
     }
 
@@ -277,3 +288,6 @@ class SyncCoordinatorOwnerChangeTest {
         assertNull(prefs.pendingSignIn.first()) // answered, so nothing is pending any more
     }
 }
+
+/** Long enough that only a run that never ends trips it; the wait itself is the run signal (AND-FLAKE-2). */
+private const val RUN_HANG_GUARD_MS = 60_000L
