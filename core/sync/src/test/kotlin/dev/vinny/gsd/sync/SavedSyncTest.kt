@@ -4,6 +4,7 @@ import dev.vinny.gsd.model.FilterCriteria
 import dev.vinny.gsd.model.ReminderPlanner
 import dev.vinny.gsd.model.ReminderSettings
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TimeEntry
 import dev.vinny.gsd.model.TaskJson
 import dev.vinny.gsd.store.SyncOp
 import dev.vinny.gsd.store.SyncQueueEntity
@@ -202,6 +203,36 @@ class SavedSyncTest {
         val row = local.tasks.getValue("save-1")
         assertNull(ReminderPlanner.fireTime(row, settings, now, zone))
         assertFalse(FilterCriteria().matches(row, emptyList(), now, zone))
+    }
+
+    /**
+     * Sprint question S-WEB-02. Another device Saved the task, then an older build completed it at a newer stamp.
+     * A completed task can't be Saved on any client, so the backfill copies no placement, the newer completion
+     * wins, and the push clears `saved_at` on the server.
+     */
+    @Test
+    fun `a task completed on the old build after the Save ends completed, not also Saved`() = runTest {
+        val completed = task("save-1", updatedAt = now).copy(completed = true, completedAt = now)
+        val local = upgradedLocal(completed).apply { queue += queueItem(1, completed) }
+        val remote = serverWith(savedAt)
+
+        engine(remote, local).runSync(false)
+
+        val row = local.tasks.getValue("save-1")
+        assertEquals(true, row.completed)
+        assertNull(row.savedAt)
+        assertEquals(true, remote.records.getValue("r1").completed)
+        assertEquals("", remote.records.getValue("r1").savedAt)
+    }
+
+    @Test
+    fun `the backfill copies no placement onto a row with a running timer`() = runTest {
+        val timing = task("save-1", updatedAt = now).copy(timeEntries = listOf(TimeEntry("entry001", now.minusSeconds(60))))
+        val local = upgradedLocal(timing)
+
+        engine(serverWith(savedAt), local).runSync(false)
+
+        assertEquals(timing, local.tasks["save-1"])
     }
 
     @Test

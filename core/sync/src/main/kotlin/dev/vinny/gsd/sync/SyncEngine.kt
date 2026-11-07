@@ -1,5 +1,6 @@
 package dev.vinny.gsd.sync
 
+import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskJson
 import dev.vinny.gsd.store.SyncOp
@@ -210,9 +211,12 @@ class SyncEngine(
      * An older build dropped `saved_at`, and the local copy is about to win: it's newer, or it has a queued
      * write against a far-future remote. The push would then send an empty placement. Backfill only:
      * outside it, the same shape is a real Return.
+     * A row that can't be Saved, completed or timing, gets no placement: that newer local edit wins, and the push
+     * clears `saved_at` on the server (sprint question S-WEB-02).
      */
     private fun lacksPlacement(existing: Task, incoming: Task, localWriteWins: Boolean): Boolean =
         existing.savedAt == null && incoming.savedAt != null &&
+        SavedPlacement.canSave(existing) &&
             (localWriteWins || incoming.updatedAt.toEpochMilli() < existing.updatedAt.toEpochMilli())
 
     private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> =
