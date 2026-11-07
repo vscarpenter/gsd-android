@@ -52,9 +52,9 @@ class SweepViewModelTest {
         prefsFile.delete()
     }
 
-    /** A fresh task, stamped at the store's own clock, so it has no card. */
+    /** A fresh Do First task with no date, stamped at the store's own clock, so it has no card. */
     private suspend fun add(id: String): Task =
-        store.add(Task(id = id, title = "Task $id", urgent = false, important = true, createdAt = sweepDay, updatedAt = sweepDay))
+        store.add(Task(id = id, title = "Task $id", urgent = true, important = true, createdAt = sweepDay, updatedAt = sweepDay))
 
     /** An old row, stamped at [long_ago], so it's stale and has a card. */
     private suspend fun seedOld(id: String, due: Instant? = null) {
