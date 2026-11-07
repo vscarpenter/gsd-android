@@ -10,6 +10,9 @@ import dev.vinny.gsd.model.EscalationWindow
 import dev.vinny.gsd.model.FeedbackCategory
 import dev.vinny.gsd.model.FeedbackDraft
 import dev.vinny.gsd.model.Sentiment
+import dev.vinny.gsd.model.SweepReminder
+import java.time.DateTimeException
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -41,6 +44,10 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
         val feedbackCategory = stringPreferencesKey("feedbackCategory")
         val feedbackMessage = stringPreferencesKey("feedbackMessage")
         val feedbackVotes = stringPreferencesKey("feedbackVotes")
+        val sweepLastSweptAt = stringPreferencesKey("sweepLastSweptAt")
+        val sweepReminderEnabled = booleanPreferencesKey("sweepReminderEnabled")
+        val sweepReminderWeekday = intPreferencesKey("sweepReminderWeekday")
+        val sweepReminderTime = stringPreferencesKey("sweepReminderTime")
     }
 
     val lastOwnerId: Flow<String?> = dataStore.data.map { it[Keys.lastOwnerId] }
@@ -156,6 +163,44 @@ class GsdPrefs(private val dataStore: DataStore<Preferences>) {
             prefs.remove(Keys.feedbackCategory)
             prefs.remove(Keys.feedbackMessage)
             prefs.remove(Keys.feedbackVotes)
+        }
+    }
+
+    /** When this device last finished a weekly sweep. Per device, outside sync and the backup (spec-weekly-sweep.md §6). */
+    val lastSweptAt: Flow<Instant?> = dataStore.data.map { prefs ->
+        prefs[Keys.sweepLastSweptAt]?.let { raw ->
+            try {
+                Instant.parse(raw)
+            } catch (_: DateTimeException) {
+                null // an unreadable stamp reads as never swept
+            }
+        }
+    }
+
+    suspend fun setLastSweptAt(at: Instant) {
+        dataStore.edit { it[Keys.sweepLastSweptAt] = at.toString() }
+    }
+
+    /** The weekly sweep reminder: off until the user turns it on, and off again if the stored form is unreadable. */
+    val sweepReminder: Flow<SweepReminder> = dataStore.data.map { prefs ->
+        SweepReminder.fromStored(prefs[Keys.sweepReminderEnabled], prefs[Keys.sweepReminderWeekday], prefs[Keys.sweepReminderTime])
+    }
+
+    suspend fun setSweepReminder(reminder: SweepReminder) {
+        dataStore.edit { prefs ->
+            prefs[Keys.sweepReminderEnabled] = reminder.enabled
+            prefs[Keys.sweepReminderWeekday] = reminder.weekday
+            prefs[Keys.sweepReminderTime] = SweepReminder.timeToStored(reminder.time)
+        }
+    }
+
+    /** A local erase clears both sweep values (spec-weekly-sweep.md §6). */
+    suspend fun clearSweepState() {
+        dataStore.edit { prefs ->
+            prefs.remove(Keys.sweepLastSweptAt)
+            prefs.remove(Keys.sweepReminderEnabled)
+            prefs.remove(Keys.sweepReminderWeekday)
+            prefs.remove(Keys.sweepReminderTime)
         }
     }
 }

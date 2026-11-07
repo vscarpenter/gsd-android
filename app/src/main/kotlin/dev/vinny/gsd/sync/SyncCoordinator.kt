@@ -336,6 +336,7 @@ class SyncCoordinator(
             try {
                 dev.vinny.gsd.store.LocalErase.eraseAll(db)
                 prefs.clearFeedbackDraft()
+                prefs.clearSweepState()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
