@@ -259,7 +259,7 @@ class SyncEngine(
                         }
                         // Placement comes from the current row: a payload queued by an older build has none
                         val current = local.taskById(item.taskId)
-                        // D-10: payload ?? current row ?? this device's default, so a pre-upgrade null still sends a number
+                        // D-10: payload ?? current row ?? this device's default, so an older null sends a number
                         val offsetDefault = current?.notifyBefore ?: defaultReminder
                         val wire = if (current != null) {
                             WireMapper.push(payload.copy(savedAt = current.savedAt), deviceId, owner, offsetDefault)

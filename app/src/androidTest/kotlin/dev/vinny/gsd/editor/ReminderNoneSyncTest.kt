@@ -80,7 +80,7 @@ class ReminderNoneSyncTest {
                 createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, dueDate = due, notifyBefore = 45))
         }
         rule.setContent { GsdTheme { TaskEditorSheet(viewModel, NotificationSettingsStore(db, clock), onDismiss = {}) } }
-        viewModel.openExisting(task.id) // after composing: waitUntil needs a composition to wait on
+        viewModel.openExisting(task.id)
         rule.waitUntil { viewModel.draft.value != null }
 
         rule.onNodeWithTag("reminder_row").performScrollTo().performClick()
