@@ -149,4 +149,23 @@ class TodayViewTest {
         assertEquals(false, view.canMoveDown("c"))
         assertNull(view.positionOf("nope"))
     }
+
+    // --- T6: the free slot comes from nextRank, not from the pick count ---
+
+    @Test
+    fun `three picks that leave a rank free still offer a slot`() {
+        // Two devices both picked rank 1, so three picks use only ranks 1 and 2
+        val view = build(pick("a", 1), pick("b", 1), pick("c", 2))
+        assertEquals(3, view.picks.size)
+        assertTrue(view.hasFreeSlot)
+        assertEquals(TodayView.MenuAction.ADD, view.menuActionFor(task("x")))
+        assertEquals(TopThree.nextRank(listOf(pick("a", 1), pick("b", 1), pick("c", 2)), now, zone), 3)
+    }
+
+    @Test
+    fun `a conflict that uses every rank leaves no slot`() {
+        val view = build(pick("a", 1), pick("b", 1), pick("c", 2), pick("d", 3))
+        assertEquals(false, view.hasFreeSlot)
+        assertEquals(TodayView.MenuAction.FULL, view.menuActionFor(task("x")))
+    }
 }

@@ -35,8 +35,8 @@ import java.util.Locale
 
 /**
  * "Today": up to three picks above the matrix (D-13, spec-top-three.md §4). It suggests and offers and
- * never picks; every write waits for a tap. With no picks it is one quiet line. Copy never says missed,
- * unfinished, or failed, and shows no progress meter.
+ * never picks; every write waits for a tap. With no picks it is one quiet line. The copy states facts,
+ * blames no one for a day that passed, and shows no progress meter.
  */
 @Composable
 fun TodaySection(

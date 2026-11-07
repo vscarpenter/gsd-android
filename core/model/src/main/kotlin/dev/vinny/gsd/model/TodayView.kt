@@ -4,7 +4,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-/** Yesterday's (or an earlier day's) unfinished picks, offered and never written (spec-top-three.md §3.4). */
+/** Picks from an earlier day that are still open, offered again and never written (spec-top-three.md §3.4). */
 data class CarryOverOffer(val from: LocalDate, val tasks: List<Task>)
 
 /**
@@ -41,7 +41,8 @@ data class TodayView(
             val byId = tasks.associateBy { it.id }
             val today = TopThree.todaysPicks(tasks, now, zone)
             val picks = today.picks.mapNotNull(byId::get)
-            val hasFreeSlot = picks.size < TopThree.MAX_PICKS
+            // From nextRank, as the Add write does: a conflict can show three picks and still leave a rank free
+            val hasFreeSlot = TopThree.nextRank(tasks, now, zone) != null
             if (!hasFreeSlot) return TodayView(picks, today.needsTidy, false, null, emptyList())
 
             val offer = TopThree.carryOver(tasks, now, zone)
