@@ -1,6 +1,7 @@
 package dev.vinny.gsd.sync
 
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TimeEntry
 import dev.vinny.gsd.store.SyncQueueEntity
 import java.time.Instant
 import kotlinx.coroutines.test.runTest
@@ -44,7 +45,7 @@ private class FakeSseLocal : SyncLocalStore {
     override suspend fun defaultReminderMinutes(): Int = 15
     override suspend fun settleNotifyBefore(id: String, minutes: Int) = Unit
     override suspend fun isArchived(id: String): Boolean = false
-    override suspend fun trashedTask(id: String): Task? = null
+    override suspend fun buriedTask(id: String): Task? = null
 }
 
 class SseTest {
@@ -190,6 +191,32 @@ class SseTest {
         applyRealtimeUpsert(local, wire("task-0001", 1_001L), Instant.ofEpochMilli(1_001L)) { true }
         assertEquals("remote", local.tasks["task-0001"]?.title)
         assertEquals(listOf("task-0001"), local.removeTombstoneCalls)
+    }
+
+    /** S-IOS-02, the realtime half (iOS #94's name): the task comes back merged into its Trash row, as the pull's does. */
+    @Test
+    fun `a trashed task brought back by realtime keeps this device's fields`() = runTest {
+        val entry = TimeEntry("entry001", Instant.ofEpochMilli(100L), Instant.ofEpochMilli(600_100L), notes = "kept here")
+        val trashed = localTask("task-0001", 500L).copy(
+            dueDate = Instant.ofEpochMilli(90_000_000L), notificationSent = true, lastNotificationAt = Instant.ofEpochMilli(800L),
+            snoozedUntil = Instant.ofEpochMilli(5_000L), parentTaskId = "parent-task", timeEntries = listOf(entry),
+        )
+        val local = FakeLocal().apply {
+            tombstones[trashed.id] = 1_000L
+            buried[trashed.id] = trashed
+        }
+        val editedElsewhere = trashed.copy(title = "edited elsewhere", updatedAt = Instant.ofEpochMilli(1_001L))
+        val record = WireMapper.push(editedElsewhere, "other-device", "user-1", defaultReminder = 15)
+
+        applyRealtimeUpsert(local, record, Instant.ofEpochMilli(1_001L)) { true }
+
+        val back = local.tasks.getValue(trashed.id)
+        assertEquals("edited elsewhere", back.title)
+        assertEquals(trashed.timeEntries, back.timeEntries)
+        assertEquals(trashed.parentTaskId, back.parentTaskId)
+        assertEquals(trashed.notificationSent, back.notificationSent)
+        assertEquals(trashed.lastNotificationAt, back.lastNotificationAt)
+        assertEquals(trashed.snoozedUntil, back.snoozedUntil)
     }
 
     @Test

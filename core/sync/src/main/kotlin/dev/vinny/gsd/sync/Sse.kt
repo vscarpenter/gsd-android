@@ -115,7 +115,7 @@ suspend fun resolveTombstone(local: SyncLocalStore, taskId: String, remoteUpdate
  */
 suspend fun applyRealtimeUpsert(local: SyncLocalStore, record: WireTask, now: Instant, sessionHolds: suspend () -> Boolean) {
     val existing = local.taskById(record.taskId)
-    val mapped = WireMapper.pull(record, existing) ?: return
+    val mapped = WireMapper.pull(record, existing ?: local.buriedTask(record.taskId)) ?: return // merges as the pull does
     if (!sessionHolds()) return // resolving a tombstone can remove it, and that's a write
     if (!resolveTombstone(local, mapped.id, mapped.updatedAt, now)) {
         return // archived/trashed locally, remote not strictly newer (parity spec P§4)
