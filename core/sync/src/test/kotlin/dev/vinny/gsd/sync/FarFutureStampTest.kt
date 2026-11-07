@@ -331,6 +331,7 @@ class FarFutureStampTest {
         contractVersion = 0
     }
 
+    /** The `savedAt` version of the cross-client test `a far-future remote with a queued edit keeps the server pick through the backfill` (S-SPEC-01). */
     @Test
     fun `the backfill copies placement from a far-future remote onto a row with a queued edit`() = runTest {
         val (local, edit) = localWithQueuedEdit()
@@ -343,6 +344,21 @@ class FarFutureStampTest {
         assertEquals(PbDates.formatWire(savedAt), remote.records.getValue("r1").savedAt) // the trap: never ""
         assertEquals("my edit", remoteTitle(remote))
         assertEquals(0, result.conflicts)
+    }
+
+    /** Sprint questions S-SPEC-01 and S-WEB-02: the far-future hold-off copies placement under the same can-be-Saved guard. */
+    @Test
+    fun `the backfill copies no placement from a far-future remote onto a completed row with a queued edit`() = runTest {
+        val done = task("my edit", edited).copy(completed = true, completedAt = edited)
+        val local = FakeLocal().apply { tasks["task-1"] = done; queue += queued(done) }
+        local.pendingBackfill()
+        val remote = serverWith(farFuture, savedAt = savedAt)
+
+        engine(remote, local).runSync(false)
+
+        assertEquals(done, local.tasks["task-1"])
+        assertEquals(true, remote.records.getValue("r1").completed)
+        assertEquals("", remote.records.getValue("r1").savedAt) // the newer completion wins on the server too
     }
 
     @Test
