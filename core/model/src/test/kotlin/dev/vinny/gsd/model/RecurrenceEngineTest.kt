@@ -74,6 +74,15 @@ class RecurrenceEngineTest {
         assertEquals(original.id, grandchild.parentTaskId)
     }
 
+    /** Top three (spec-top-three.md §3.2): the next instance is a new task, so it starts with no pick. */
+    @Test
+    fun `a recurring spawn starts with no pick`() {
+        val picked = recurring(now, Recurrence.DAILY).copy(focusDate = "2026-07-19", focusRank = 2)
+        val next = RecurrenceEngine.spawnNext(picked, now, zone)!!
+        assertNull(next.focusDate)
+        assertNull(next.focusRank)
+    }
+
     @Test
     fun `no due date spawns with no due date`() =
         assertNull(RecurrenceEngine.spawnNext(recurring(null, Recurrence.DAILY), now, zone)!!.dueDate)
