@@ -22,7 +22,7 @@ class InterchangeTest {
             createdAt = t0, updatedAt = t0, dependencies = deps, parentTaskId = parent)
 
     @Test
-    fun `export writes the 2_1_0 envelope with all seven stores`() {
+    fun `export writes the 2_2_0 envelope with all seven stores`() {
         val t = task(id = "task-000000000000000001")
         val out = Interchange.export(
             BackupEnvelope(
@@ -37,7 +37,7 @@ class InterchangeTest {
             exportedAt = Instant.parse("2026-08-29T12:00:00.000Z"),
         )
         val root = Json.parseToJsonElement(out).jsonObject
-        assertEquals("2.1.0", root.getValue("version").jsonPrimitive.content) // string, not int
+        assertEquals("2.2.0", root.getValue("version").jsonPrimitive.content) // string, not int
         assertEquals(
             listOf("appPreferences", "archiveSettings", "archivedTasks", "deletedTasks",
                 "exportedAt", "notificationSettings", "smartViews", "tasks", "version"),
@@ -68,7 +68,7 @@ class InterchangeTest {
     @Test
     fun `export envelope has version, sorted keys, and round-trips`() {
         val raw = Interchange.export(BackupEnvelope(tasks = listOf(task(title = "Ship"))), exportedAt = t0)
-        assertTrue("\"version\": \"2.1.0\"" in raw)
+        assertTrue("\"version\": \"2.2.0\"" in raw)
         assertTrue("\"exportedAt\": \"2026-06-15T08:30:00.500Z\"" in raw)
         // sorted keys: completed < createdAt < ... appear in order within a task object
         val completedIdx = raw.indexOf("\"completed\"")

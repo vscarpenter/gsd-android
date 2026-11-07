@@ -10,6 +10,7 @@ import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
@@ -26,11 +27,14 @@ data class BackupImport(val envelope: BackupEnvelope, val version: String, val s
 object Interchange {
     class TooLarge(message: String) : Exception(message)
 
+    /** 2.2.0 adds the top three pick, `focusDate` and `focusRank`, omitted when unset (spec-top-three.md §7). */
+    const val ENVELOPE_VERSION = "2.2.0"
+
     private val pretty = Json { prettyPrint = true; prettyPrintIndent = "  " }
 
     fun export(envelope: BackupEnvelope, exportedAt: Instant): String {
         val root = buildJsonObject {
-            put("version", JsonPrimitive("2.1.0"))
+            put("version", JsonPrimitive(ENVELOPE_VERSION))
             put("exportedAt", JsonPrimitive(iso(exportedAt)))
             put("tasks", JsonArray(envelope.tasks.map { taskRecord(it) }))
             envelope.archivedTasks?.let { rows ->
@@ -107,7 +111,7 @@ object Interchange {
 
         var skipped = 0
         fun decodeTasks(entries: JsonArray): List<Task> = entries.mapNotNull {
-            TaskJson.decodeOrNull(it) ?: run { skipped++; null }
+            importedTask(it) ?: run { skipped++; null }
         }
         fun timestamp(element: JsonElement, key: String): Instant =
             (element as? JsonObject)?.get(key)?.jsonPrimitive?.contentOrNull
@@ -121,11 +125,11 @@ object Interchange {
             envelope = BackupEnvelope(
                 tasks = decodeTasks(taskEntries),
                 archivedTasks = archivedEntries?.mapNotNull { el ->
-                    TaskJson.decodeOrNull(el)?.let { ArchivedTask(it, timestamp(el, "archivedAt")) }
+                    importedTask(el)?.let { ArchivedTask(it, timestamp(el, "archivedAt")) }
                         ?: run { skipped++; null }
                 },
                 deletedTasks = deletedEntries?.mapNotNull { el ->
-                    TaskJson.decodeOrNull(el)?.let { DeletedTask(it, timestamp(el, "deletedAt")) }
+                    importedTask(el)?.let { DeletedTask(it, timestamp(el, "deletedAt")) }
                         ?: run { skipped++; null }
                 },
                 smartViews = root["smartViews"]?.jsonArray?.mapNotNull { el ->
@@ -139,6 +143,20 @@ object Interchange {
             version = version,
             skipped = skipped,
         )
+    }
+
+    /**
+     * A bad pick must not refuse a task (spec-top-three.md §7): the pair is read apart from the rest of the
+     * row, and kept only as a real date with a rank from 1 to 3 ([TopThree.fromWire]). Anything else is unset.
+     */
+    private fun importedTask(element: JsonElement): Task? {
+        val obj = element as? JsonObject ?: return null
+        val task = TaskJson.decodeOrNull(JsonObject(obj - "focusDate" - "focusRank")) ?: return null
+        val focus = TopThree.fromWire(
+            (obj["focusDate"] as? JsonPrimitive)?.takeIf { it.isString }?.content,
+            (obj["focusRank"] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull,
+        )
+        return task.copy(focusDate = focus.focusDate, focusRank = focus.focusRank)
     }
 
     /** A malformed singleton decodes to null — treated as absent, never aborts the import. */
