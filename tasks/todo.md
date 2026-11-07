@@ -8,14 +8,15 @@
   green, `:app` connected 267 after a rerun), artifacts, smoke, and the Console walk are in the local
   `docs/play/submission-checklist.md`. The first connected run aborted because Android Studio closed and killed
   the ADB server; `tasks/lessons.md` has the signature.
-- **Next, owner-side:** push both `release/0.11.0` branches and open their PRs (neither is pushed; the web one
-  is the notes authority and must merge before the next Android copy). Watch the Console for the publish. The
+- **Pushed, PRs open:** #71 here and gsd-taskmanager #675. The web PR is the notes authority: merge it first,
+  then #71. The web gates passed on `c3d5f2e` (4,283 tests, typecheck, lint, build).
+- **Next, owner-side:** merge #675, then #71. Watch the Console for the publish. The
   Pixel release smoke (sign in, sync, a firing reminder) is still open, and the production application
   (`docs/play/production-access-round-3.md`) now has a sixth shipped build to cite.
 - **Assumptions:** 0.11.0 rather than 0.10.3, because What's New and resurrect on sight are features. The web
   branch name matches this repo's, per the workspace rule for paired changes.
 - **Not verified:** nothing ran on a device against the live server.
-- **Blockers:** none on this repo. The push and PR wait for the owner.
+- **Blockers:** none on this repo.
 
 ## Resuming From Here (2026-11-06, evening): everything merged, Dependabot config fixed
 
