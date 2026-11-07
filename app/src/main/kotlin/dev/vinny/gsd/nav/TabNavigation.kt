@@ -29,6 +29,15 @@ fun NavController.navigateToTab(destination: Destination) {
 }
 
 /**
+ * Leaves a finished flow for Matrix, as the weekly sweep's "Back to the matrix" does. Unlike a tab tap, it
+ * saves nothing: the flow is over, and a saved stack brought its old end screen back in place of the tab
+ * the next time the tab was opened.
+ */
+fun NavController.leaveToMatrix() {
+    popBackStack(Destination.MATRIX.route, inclusive = false, saveState = false)
+}
+
+/**
  * The tab whose stack is on screen, for the bar's selected state (review finding 21). A tab switch
  * always pops back to Matrix first, so at most one other tab's root is ever on the stack, and every
  * screen above it belongs to that tab. With none, the screen belongs to Matrix, even one a deep link

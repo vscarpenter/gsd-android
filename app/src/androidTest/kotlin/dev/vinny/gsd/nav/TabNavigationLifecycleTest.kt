@@ -124,6 +124,28 @@ class TabNavigationLifecycleTest {
         assertFalse(archive.cleared, "Browse's stack was dropped")
     }
 
+    /**
+     * A flow that ends on its own button (the weekly sweep's "Back to the matrix") is finished, so it must
+     * not wait in its tab's saved stack. Tapping the tab brought the old end screen back in place of the tab.
+     */
+    @Test
+    fun leavingAFlowToMatrixDoesNotKeepItWithItsTab() {
+        host()
+        rule.runOnUiThread {
+            nav.navigateToTab(Destination.BROWSE)
+            nav.navigate("archive")
+        }
+        rule.waitForIdle()
+
+        rule.runOnUiThread { nav.leaveToMatrix() }
+        rule.waitForIdle()
+        assertTrue(archive.cleared, "the finished flow's view model is still held")
+
+        rule.runOnUiThread { nav.navigateToTab(Destination.BROWSE) }
+        rule.waitForIdle()
+        assertEquals(Destination.BROWSE.route, nav.currentDestination?.route, "the tab shows its own screen")
+    }
+
     private fun host() = rule.setContent {
         nav = rememberNavController()
         NavHost(nav, startDestination = Destination.MATRIX.route) {
