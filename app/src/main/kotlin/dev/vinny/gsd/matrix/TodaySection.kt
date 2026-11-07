@@ -57,7 +57,7 @@ fun TodaySection(
         stringResource(R.string.today_second),
         stringResource(R.string.today_third),
     )
-    Column(modifier = modifier.fillMaxWidth().testTag("today_section"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier = modifier.fillMaxWidth().padding(bottom = 8.dp).testTag("today_section"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             stringResource(R.string.today_title),
             style = GsdType.quadrantTitle,
