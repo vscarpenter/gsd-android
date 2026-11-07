@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * Reschedules every reminder from the store when the system changes something a fire time depends
+ * Reschedules the widget's midnight alarm and every reminder from the store when the system changes something a fire time depends
  * on (spec §11.2): alarms die on reboot and on an update, a granted exact-alarm permission turns
  * inexact alarms exact, and a new time zone or clock moves quiet-hours deferrals.
  */
@@ -25,6 +25,8 @@ class BootReceiver : BroadcastReceiver() {
         val result = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // The widget's midnight alarm first: a reboot or a new time zone clears or moves it
+                dev.vinny.gsd.widget.WidgetMidnight.schedule(context)
                 container.reminderScheduler.resyncAll(
                     container.store.observeTasks().first(),
                     container.notificationSettingsStore.get(),
