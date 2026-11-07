@@ -25,7 +25,6 @@ object Roadmap {
         RoadmapItem("natural-language-dates", "Natural language dates", "Dates like \"next Monday\" or \"in 2 weeks\""),
         RoadmapItem("calendar-sync", "Calendar sync", "Sync tasks with Apple Calendar or Google Calendar"),
         RoadmapItem("task-templates", "Task templates", "Create and reuse templates for common tasks"),
-        RoadmapItem("weekly-review", "Weekly review", "Guided weekly review ritual"),
         RoadmapItem("focus-timer", "Focus timer", "Pomodoro-style focus sessions"),
         RoadmapItem("task-notes", "Task notes", "Detailed notes on tasks"),
         RoadmapItem("shared-lists", "Shared lists", "Collaborate on task lists with others"),
