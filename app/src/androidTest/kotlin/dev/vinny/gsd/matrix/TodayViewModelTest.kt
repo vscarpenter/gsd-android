@@ -60,12 +60,12 @@ class TodayViewModelTest {
 
     @Test
     fun addToTodayWritesTheDateAndTheNextRankAndNothingElse(): Unit = runBlocking {
-        val before = add("a")
+        val before = add("task-a")
 
-        viewModel.addToToday("a")
-        withTimeout(5_000) { while (task("a").focusRank == null) kotlinx.coroutines.delay(20) }
+        viewModel.addToToday("task-a")
+        withTimeout(5_000) { while (task("task-a").focusRank == null) kotlinx.coroutines.delay(20) }
 
-        val after = task("a")
+        val after = task("task-a")
         assertEquals("2026-11-04", after.focusDate)
         assertEquals(1, after.focusRank)
         assertEquals(before.copy(focusDate = "2026-11-04", focusRank = 1, updatedAt = after.updatedAt), after)
@@ -73,57 +73,57 @@ class TodayViewModelTest {
 
     @Test
     fun addToTodayQueuesAPush(): Unit = runBlocking {
-        add("a")
+        add("task-a")
         val queuedBefore = db.syncQueueDao().pending().size
 
-        viewModel.addToToday("a")
-        withTimeout(5_000) { while (task("a").focusRank == null) kotlinx.coroutines.delay(20) }
+        viewModel.addToToday("task-a")
+        withTimeout(5_000) { while (task("task-a").focusRank == null) kotlinx.coroutines.delay(20) }
 
         assertEquals(queuedBefore + 1, db.syncQueueDao().pending().size)
     }
 
     @Test
     fun addToTodayIsRefusedWhenTodayIsFull(): Unit = runBlocking {
-        listOf("a", "b", "c", "d").forEach { add(it) }
-        listOf("a", "b", "c").forEach { viewModel.addToToday(it); withTimeout(5_000) { while (task(it).focusRank == null) kotlinx.coroutines.delay(20) } }
+        listOf("task-a", "task-b", "task-c", "task-d").forEach { add(it) }
+        listOf("task-a", "task-b", "task-c").forEach { viewModel.addToToday(it); withTimeout(5_000) { while (task(it).focusRank == null) kotlinx.coroutines.delay(20) } }
 
-        viewModel.addToToday("d")
+        viewModel.addToToday("task-d")
         kotlinx.coroutines.delay(300)
 
-        assertNull(task("d").focusRank)
+        assertNull(task("task-d").focusRank)
     }
 
     @Test
     fun removeClearsBothFields(): Unit = runBlocking {
-        add("a")
-        viewModel.addToToday("a")
-        withTimeout(5_000) { while (task("a").focusRank == null) kotlinx.coroutines.delay(20) }
+        add("task-a")
+        viewModel.addToToday("task-a")
+        withTimeout(5_000) { while (task("task-a").focusRank == null) kotlinx.coroutines.delay(20) }
 
-        viewModel.removeFromToday("a")
-        withTimeout(5_000) { while (task("a").focusRank != null) kotlinx.coroutines.delay(20) }
+        viewModel.removeFromToday("task-a")
+        withTimeout(5_000) { while (task("task-a").focusRank != null) kotlinx.coroutines.delay(20) }
 
-        assertNull(task("a").focusDate)
+        assertNull(task("task-a").focusDate)
     }
 
     @Test
     fun moveDownSwapsTwoRanks(): Unit = runBlocking {
-        add("a"); add("b")
-        viewModel.addToToday("a")
-        withTimeout(5_000) { while (task("a").focusRank == null) kotlinx.coroutines.delay(20) }
-        viewModel.addToToday("b")
-        withTimeout(5_000) { while (task("b").focusRank == null) kotlinx.coroutines.delay(20) }
+        add("task-a"); add("task-b")
+        viewModel.addToToday("task-a")
+        withTimeout(5_000) { while (task("task-a").focusRank == null) kotlinx.coroutines.delay(20) }
+        viewModel.addToToday("task-b")
+        withTimeout(5_000) { while (task("task-b").focusRank == null) kotlinx.coroutines.delay(20) }
 
-        viewModel.move("a", TopThree.Move.DOWN)
-        withTimeout(5_000) { while (task("a").focusRank != 2) kotlinx.coroutines.delay(20) }
+        viewModel.move("task-a", TopThree.Move.DOWN)
+        withTimeout(5_000) { while (task("task-a").focusRank != 2) kotlinx.coroutines.delay(20) }
 
-        assertEquals(1, task("b").focusRank)
+        assertEquals(1, task("task-b").focusRank)
     }
 
     @Test
     fun theViewFollowsTheStore(): Unit = runBlocking {
-        add("a")
-        viewModel.addToToday("a")
-        withTimeout(5_000) { viewModel.view.first { it?.picks?.map { t -> t.id } == listOf("a") } }
+        add("task-a")
+        viewModel.addToToday("task-a")
+        withTimeout(5_000) { viewModel.view.first { it?.picks?.map { t -> t.id } == listOf("task-a") } }
         settle()
     }
 }
