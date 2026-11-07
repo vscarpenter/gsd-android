@@ -44,6 +44,7 @@ private class FakeSseLocal : SyncLocalStore {
     override suspend fun defaultReminderMinutes(): Int = 15
     override suspend fun settleNotifyBefore(id: String, minutes: Int) = Unit
     override suspend fun isArchived(id: String): Boolean = false
+    override suspend fun trashedTask(id: String): Task? = null
 }
 
 class SseTest {

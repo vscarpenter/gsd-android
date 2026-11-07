@@ -2,6 +2,7 @@ package dev.vinny.gsd.sync
 
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskJson
+import dev.vinny.gsd.model.TimeEntry
 import dev.vinny.gsd.store.SyncOp
 import dev.vinny.gsd.store.SyncQueueEntity
 import java.time.Clock
@@ -29,6 +30,8 @@ internal open class FakeLocal : SyncLocalStore {
     var defaultReminder = 15
     /** Which tombstoned ids are archive rows rather than Trash rows. */
     val archived = mutableSetOf<String>()
+    /** Trash rows by id, for the step to merge a resurrected task into. */
+    val trash = mutableMapOf<String, Task>()
 
     override suspend fun activeTasks(): List<Task> = tasks.values.toList()
     override suspend fun taskById(id: String): Task? = tasks[id]
@@ -80,6 +83,7 @@ internal open class FakeLocal : SyncLocalStore {
         tasks[id]?.takeIf { it.notifyBefore == null }?.let { tasks[id] = it.copy(notifyBefore = minutes) }
     }
     override suspend fun isArchived(id: String): Boolean = id in archived
+    override suspend fun trashedTask(id: String): Task? = trash[id]
 }
 
 // internal (not private): AccountDeleterTest reuses this fake across files in the module.
@@ -746,7 +750,7 @@ class SyncEngineTest {
      * push, stayed active everywhere else. It stays remembered, and the next run brings the task back.
      */
     @Test
-    fun `a remembered id the hold-off skips stays for the next run`() = runTest {
+    fun `a held-off remembered id stays for the next run`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
         val edited = task("trashed-task", title = "edited signed out", updatedAt = now.minusSeconds(120))
@@ -789,6 +793,34 @@ class SyncEngineTest {
         assertTrue(local.removeTombstoneCalls.isEmpty(), "the archive was undone")
         assertNull(local.tasks["archived-task"])
         assertTrue(local.resurrect.isEmpty())
+    }
+
+    /**
+     * SPEC-3 rule 3, shared with web and iOS. The step rebuilt a trashed task from the wire alone, which drops the
+     * time-entry notes (the wire form is lossy) and this device's reminder state, so a reminder already shown here
+     * could fire again. It now merges the server copy into the Trash row, as the web does.
+     */
+    @Test
+    fun `a resurrected task keeps this device's reminder state and time-entry notes`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val entry = TimeEntry("entry001", now.minusSeconds(7_200), now.minusSeconds(3_600), notes = "kept here")
+        val trashed = task("trashed-task", title = "remote", updatedAt = now.minusSeconds(3_600)).copy(
+            dueDate = now.plusSeconds(86_400), notificationSent = true, lastNotificationAt = now.minusSeconds(600),
+            timeEntries = listOf(entry),
+        )
+        remote.records["rec1"] = WireMapper.push(trashed, "other-device", "user-1", defaultReminder = 15)
+        local.tombstones[trashed.id] = now.toEpochMilli()
+        local.trash[trashed.id] = trashed
+        local.resurrect += trashed.id
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        val back = local.tasks.getValue(trashed.id)
+        assertEquals("kept here", back.timeEntries.single().notes)
+        assertEquals(true, back.notificationSent)
+        assertEquals(now.minusSeconds(600), back.lastNotificationAt)
     }
 
     /** SPEC-3 rule 5. Passed before it was written: `BoundedListing` throws first. The PR has the mutation. */

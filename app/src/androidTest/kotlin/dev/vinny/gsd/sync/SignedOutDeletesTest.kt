@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.vinny.gsd.auth.CachedTokenStore
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TimeEntry
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.ArchiveStore
 import dev.vinny.gsd.store.GsdDatabase
@@ -268,6 +269,23 @@ class SignedOutDeletesTest {
         assertTrue(queue.none { it.operation == SyncOp.DELETE }, "a delete outlived the sign-in")
         assertTrue(queue.any { it.taskId == kept.id }, "the import's own write was dropped too")
     }
+
+    /** SPEC-3 rule 3 through Room (`GsdDatabase.trashedTask`): the Trash row's time-entry notes come back with the task. */
+    @Test
+    fun aResurrectedTaskKeepsItsTimeEntryNotes() = runBlocking {
+        val f = signedInFixture()
+        signOutAndDrain(f)
+        val store = TaskStore(db, clock)
+        val entry = TimeEntry("entry001", syncedAt, syncedAt.plusSeconds(600), notes = "kept here")
+        store.change(synced.id) { it.copy(timeEntries = listOf(entry)) }
+        store.delete(synced.id)
+
+        signInAgain(f)
+        awaitState("synced-task active again") { f.local.taskById(synced.id) != null }
+
+        assertEquals("kept here", f.local.taskById(synced.id)?.timeEntries?.single()?.notes)
+    }
+
     /**
      * SPEC-3 §8 item 2 on a real store, through `RoomSyncLocalStore.isArchived`. Here a remembered id gets an
      * archive row only after the sign-in: archiving while signed out removes the task's older queue rows, the

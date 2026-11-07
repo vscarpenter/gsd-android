@@ -94,7 +94,7 @@ class ReplaceEraseTest {
      * erase ends that, as it ends the cursor (S-AND's review of #680, finding 1).
      */
     @Test
-    fun eraseForgetsRememberedDeletes() = runTest {
+    fun erasingLocalDataForgetsEveryRememberedId() = runTest {
         db.syncMetadataDao().upsert(
             SyncMetadataEntity(deviceId = "device-1", deviceName = "Pixel", resurrectTaskIdsJson = """["trashed-task1"]"""),
         )

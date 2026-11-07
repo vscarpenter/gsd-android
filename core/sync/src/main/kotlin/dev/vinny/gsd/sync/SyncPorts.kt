@@ -111,6 +111,10 @@ interface SyncLocalStore {
      */
     suspend fun settleNotifyBefore(id: String, minutes: Int)
 
+    /** The Trash row for [id], or null. A resurrected task merges into it, so this device's reminder state and rich
+     * time entries survive (SPEC-3 rule 3, as web does). */
+    suspend fun trashedTask(id: String): Task?
+
     /** True when [id] is in the archive. A remembered id there keeps its archive (SPEC-3 §8 item 2). */
     suspend fun isArchived(id: String): Boolean
 }
