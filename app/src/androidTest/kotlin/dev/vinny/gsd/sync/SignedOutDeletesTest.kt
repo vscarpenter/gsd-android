@@ -268,4 +268,28 @@ class SignedOutDeletesTest {
         assertTrue(queue.none { it.operation == SyncOp.DELETE }, "a delete outlived the sign-in")
         assertTrue(queue.any { it.taskId == kept.id }, "the import's own write was dropped too")
     }
+    /**
+     * SPEC-3 §8 item 2 on a real store, through `RoomSyncLocalStore.isArchived`. Here a remembered id gets an
+     * archive row only after the sign-in: archiving while signed out removes the task's older queue rows, the
+     * Trash delete included, so nothing would be remembered. The first sign-in's run finds no session (no token), so
+     * the coordinator signs out and the id stays. The user restores and archives the task, signs in again, and that
+     * run keeps the archive.
+     */
+    @Test
+    fun aRememberedTaskArchivedBeforeTheNextRunStaysArchived() = runBlocking {
+        val f = signedInFixture()
+        signOutAndDrain(f)
+        TaskStore(db, clock).delete(synced.id)
+        f.coordinator.confirmOwner(AuthResult(healthyToken, AuthRecord("user-1")), eraseLocalFirst = false)
+        assertEquals(setOf(synced.id), f.local.resurrectOnSight())
+        dev.vinny.gsd.store.TrashStore(db, clock).restore(synced.id)
+        TaskStore(db, clock).setCompleted(synced.id, true)
+        ArchiveStore(db, clock).archive(synced.id)
+
+        signInAgain(f)
+        awaitState("the remembered id forgotten") { f.local.resurrectOnSight().isEmpty() }
+
+        assertTrue(db.archivedTaskDao().byId(synced.id) != null, "the archive was undone")
+        assertEquals(null, f.local.taskById(synced.id))
+    }
 }

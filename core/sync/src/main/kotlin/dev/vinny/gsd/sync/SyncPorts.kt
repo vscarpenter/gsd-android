@@ -110,6 +110,9 @@ interface SyncLocalStore {
      * restamps `updatedAt` nor enqueues: the drain just pushed this number, so the device and the server agree.
      */
     suspend fun settleNotifyBefore(id: String, minutes: Int)
+
+    /** True when [id] is in the archive. A remembered id there keeps its archive (SPEC-3 §8 item 2). */
+    suspend fun isArchived(id: String): Boolean
 }
 
 enum class SyncHealth { OFFLINE, SESSION_EXPIRED, FAILED_ITEMS, STALE_QUEUE, OK }

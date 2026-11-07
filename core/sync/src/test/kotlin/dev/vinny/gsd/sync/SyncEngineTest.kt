@@ -27,6 +27,8 @@ internal open class FakeLocal : SyncLocalStore {
     val trashed = mutableMapOf<String, Long>()
     val resurrect = mutableSetOf<String>()
     var defaultReminder = 15
+    /** Which tombstoned ids are archive rows rather than Trash rows. */
+    val archived = mutableSetOf<String>()
 
     override suspend fun activeTasks(): List<Task> = tasks.values.toList()
     override suspend fun taskById(id: String): Task? = tasks[id]
@@ -77,6 +79,7 @@ internal open class FakeLocal : SyncLocalStore {
     override suspend fun settleNotifyBefore(id: String, minutes: Int) {
         tasks[id]?.takeIf { it.notifyBefore == null }?.let { tasks[id] = it.copy(notifyBefore = minutes) }
     }
+    override suspend fun isArchived(id: String): Boolean = id in archived
 }
 
 // internal (not private): AccountDeleterTest reuses this fake across files in the module.
@@ -763,6 +766,28 @@ class SyncEngineTest {
         engine.runSync(triggeredByUser = false)
 
         assertEquals("edited signed out", local.tasks["trashed-task"]?.title) // out of Trash, as the server has it
+        assertTrue(local.resurrect.isEmpty())
+    }
+
+    /**
+     * SPEC-3 §8 item 2 (owner item 26, reading 2): trashed while signed out, then restored and archived. The id is
+     * remembered for the Trash delete, but the archive is the user's last act, so it stands, as an archive made
+     * while signed out does (rule 6). The id is still forgotten.
+     */
+    @Test
+    fun `a remembered id with an archive row stays archived`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        remote.records["rec1"] = WireMapper.push(task("archived-task", title = "remote", updatedAt = now.minusSeconds(3600)), "other-device", "user-1", defaultReminder = 15)
+        local.tombstones["archived-task"] = now.toEpochMilli()
+        local.archived += "archived-task"
+        local.resurrect += "archived-task"
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertTrue(local.removeTombstoneCalls.isEmpty(), "the archive was undone")
+        assertNull(local.tasks["archived-task"])
         assertTrue(local.resurrect.isEmpty())
     }
 

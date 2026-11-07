@@ -195,6 +195,7 @@ class SyncEngine(
         var pulled = 0
         val heldOff = mutableSetOf<String>()
         listing.filter { it.taskId in remembered }.forEach { wire ->
+            if (local.isArchived(wire.taskId)) return@forEach // the archive was the last act, so it stands (SPEC-3 §8.2)
             val existing = local.taskById(wire.taskId)
             val mapped = WireMapper.pull(wire, existing) ?: return@forEach
             if (RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)) {
