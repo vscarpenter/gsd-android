@@ -124,4 +124,29 @@ class TodayViewTest {
     fun `a task that isn't a pick doesn't move`() {
         assertEquals(emptyList(), TopThree.moveWrites(listOf(pick("a", 1), task("x")), "x", TopThree.Move.UP, now, zone))
     }
+
+    // --- the card menu (§4) ---
+
+    @Test
+    fun `the menu offers add, remove, or a disabled full`() {
+        val open = build(pick("a", 1), task("x"), task("done", completed = true))
+        assertEquals(TodayView.MenuAction.REMOVE, open.menuActionFor(open.picks.first()))
+        assertEquals(TodayView.MenuAction.ADD, open.menuActionFor(task("x")))
+        assertEquals(TodayView.MenuAction.NONE, open.menuActionFor(task("done", completed = true)))
+        assertEquals(TodayView.MenuAction.NONE, open.menuActionFor(task("s").copy(savedAt = t0)))
+
+        val full = build(pick("a", 1), pick("b", 2), pick("c", 3), task("x"))
+        assertEquals(TodayView.MenuAction.FULL, full.menuActionFor(task("x")))
+    }
+
+    @Test
+    fun `a pick knows its place and where it can move`() {
+        val view = build(pick("a", 1), pick("b", 2), pick("c", 3))
+        assertEquals(0, view.positionOf("a"))
+        assertEquals(false, view.canMoveUp("a"))
+        assertEquals(true, view.canMoveDown("a"))
+        assertEquals(true, view.canMoveUp("c"))
+        assertEquals(false, view.canMoveDown("c"))
+        assertNull(view.positionOf("nope"))
+    }
 }

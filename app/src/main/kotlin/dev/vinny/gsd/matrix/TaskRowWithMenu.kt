@@ -21,12 +21,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import dev.vinny.gsd.R
 import dev.vinny.gsd.model.Quadrant
 import dev.vinny.gsd.model.SavedPlacement
 import dev.vinny.gsd.model.ShareText
 import dev.vinny.gsd.model.Task
+import dev.vinny.gsd.model.TodayView
 import dev.vinny.gsd.model.TimeTracking
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
@@ -34,6 +36,20 @@ import java.time.Duration
 import java.time.ZoneId
 
 data class TaskBadges(val blocked: Int, val blocking: Int)
+
+/**
+ * The card menu's top three rows (spec-top-three.md §4). [action] says which of Add, Remove, or the
+ * disabled "Today is full" shows. The move rows appear only for one of today's picks.
+ */
+data class TodayRowMenu(
+    val action: TodayView.MenuAction = TodayView.MenuAction.NONE,
+    val canMoveUp: Boolean = false,
+    val canMoveDown: Boolean = false,
+    val onAdd: () -> Unit = {},
+    val onRemove: () -> Unit = {},
+    val onMoveUp: () -> Unit = {},
+    val onMoveDown: () -> Unit = {},
+)
 
 /** Callbacks for the §8.1 long-press context menu. Defaults are no-ops for tests. */
 data class TaskRowActions(
@@ -47,6 +63,7 @@ data class TaskRowActions(
     val onSave: () -> Unit = {},
     val onMarkUrgent: () -> Unit = {},
     val onDelete: () -> Unit = {},
+    val today: TodayRowMenu = TodayRowMenu(),
 )
 
 /** The full §8.1 menu for one task. Every screen that draws a task row builds its actions here. */
@@ -56,6 +73,7 @@ fun taskRowActions(
     actions: TaskActionsViewModel,
     celebration: CompletionCelebration,
     onEdit: () -> Unit,
+    today: TodayRowMenu = TodayRowMenu(),
 ): TaskRowActions = TaskRowActions(
     onEdit = onEdit,
     onToggleComplete = {
@@ -76,6 +94,7 @@ fun taskRowActions(
     onSave = { actions.moveToSaved(task.id) },
     onMarkUrgent = { actions.markUrgent(task.id) },
     onDelete = { actions.delete(task.id) },
+    today = today,
 )
 
 private val menuSnoozePresets: List<Pair<Duration, Int>> = listOf(
@@ -96,6 +115,8 @@ fun TaskRowWithMenu(
     modifier: Modifier = Modifier,
     selected: Boolean? = null,
     longPressOpensMenu: Boolean = true,
+    /** "first", "second", or "third" for a row in the Today section, read after the title. */
+    positionLabel: String? = null,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var snoozeOpen by remember { mutableStateOf(false) }
@@ -107,12 +128,21 @@ fun TaskRowWithMenu(
     val editLabel = stringResource(R.string.menu_edit)
     val snoozeLabel = stringResource(R.string.action_snooze_hour)
     val deleteLabel = stringResource(R.string.menu_delete)
+    val addToTodayLabel = stringResource(R.string.today_add)
+    val removeFromTodayLabel = stringResource(R.string.today_remove)
+    val today = actions.today
     val cardActions = if (selected == null) {
         Modifier.semantics {
             customActions = listOf(
                 CustomAccessibilityAction(completeLabel) { actions.onToggleComplete(); true },
                 CustomAccessibilityAction(editLabel) { actions.onEdit(); true },
                 CustomAccessibilityAction(snoozeLabel) { actions.onSnooze(QuickSnooze); true },
+            ) + listOfNotNull(
+                when (today.action) {
+                    TodayView.MenuAction.ADD -> CustomAccessibilityAction(addToTodayLabel) { today.onAdd(); true }
+                    TodayView.MenuAction.REMOVE -> CustomAccessibilityAction(removeFromTodayLabel) { today.onRemove(); true }
+                    else -> null
+                },
             ) + listOfNotNull(
                 if (markUrgentLabel != null) CustomAccessibilityAction(markUrgentLabel) { actions.onMarkUrgent(); true } else null,
             ) + listOf(
@@ -127,7 +157,9 @@ fun TaskRowWithMenu(
             task = task,
             onToggleComplete = actions.onToggleComplete,
             onClick = actions.onEdit,
-            modifier = cardActions,
+            modifier = cardActions.then(
+                if (positionLabel != null) Modifier.semantics { stateDescription = positionLabel } else Modifier,
+            ),
             badges = badges,
             // Select mode turns the menu off, and a card with no menu draws no button.
             onOpenMenu = if (selected == null) { { menuOpen = true } } else null,
@@ -140,6 +172,7 @@ fun TaskRowWithMenu(
             MenuItem(if (task.completed) R.string.menu_uncomplete else R.string.menu_complete) {
                 menuOpen = false; actions.onToggleComplete()
             }
+            TodayMenuRows(today) { menuOpen = false }
             MenuItem(
                 if (TimeTracking.runningEntry(task) != null) R.string.menu_stop_timer
                 else R.string.menu_start_timer,
@@ -209,4 +242,23 @@ private fun MenuItem(labelRes: Int, color: Color = Color.Unspecified, submenu: B
             null
         },
     )
+}
+
+/** Add to today, Remove from today, or a disabled "Today is full", then Move up and Move down for a pick. */
+@Composable
+private fun TodayMenuRows(today: TodayRowMenu, close: () -> Unit) {
+    when (today.action) {
+        TodayView.MenuAction.ADD -> MenuItem(R.string.today_add) { close(); today.onAdd() }
+        TodayView.MenuAction.REMOVE -> {
+            MenuItem(R.string.today_remove) { close(); today.onRemove() }
+            if (today.canMoveUp) MenuItem(R.string.today_move_up) { close(); today.onMoveUp() }
+            if (today.canMoveDown) MenuItem(R.string.today_move_down) { close(); today.onMoveDown() }
+        }
+        TodayView.MenuAction.FULL -> DropdownMenuItem(
+            text = { Text(stringResource(R.string.today_full), style = GsdType.body) },
+            onClick = {},
+            enabled = false,
+        )
+        TodayView.MenuAction.NONE -> Unit
+    }
 }

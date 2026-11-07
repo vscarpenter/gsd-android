@@ -123,6 +123,8 @@ class PaletteController {
     val openTaskRequests = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     /** `gsd://quadrant/<id>` and Ctrl+1 to Ctrl+4: the Matrix scrolls to that quadrant (§6.4, §6.6). */
     val quadrantRequests = dev.vinny.gsd.palette.OneShotRequest<dev.vinny.gsd.model.Quadrant>()
+    /** "Pick today's top three" at the end of a sweep: the Matrix opens the Today section's suggestions. */
+    val todaySuggestionsRequests = dev.vinny.gsd.palette.OneShotRequest<Unit>()
     /** §6.4 deep link held until the nav host consumes it — cold-start safe. */
     val pendingRoute = kotlinx.coroutines.flow.MutableStateFlow<dev.vinny.gsd.nav.GsdRoute?>(null)
 
@@ -136,6 +138,10 @@ class PaletteController {
 
     fun requestOpenTask(taskId: String) {
         openTaskRequests.value = taskId
+    }
+
+    fun requestTodaySuggestions() {
+        todaySuggestionsRequests.send(Unit)
     }
 
     fun requestQuadrant(quadrant: dev.vinny.gsd.model.Quadrant) {

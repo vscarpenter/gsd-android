@@ -519,4 +519,25 @@
     <string name="history_total_successful">Successful</string>
     <string name="history_total_sent">Sent</string>
     <string name="history_total_received">Received</string>
+    <!-- Today (top three, D-13). Copy is fixed across web, Apple, and Android. -->
+    <string name="today_title">Today</string>
+    <string name="today_title_cd">Today, %1$d of 3</string>
+    <string name="today_pick_line">Pick up to three for today</string>
+    <string name="today_show_suggestions">Show suggestions</string>
+    <string name="today_hide_suggestions">Hide suggestions</string>
+    <string name="today_nothing_to_suggest">Nothing to suggest right now.</string>
+    <string name="today_add">Add to today</string>
+    <string name="today_add_cd">Add to today: %1$s</string>
+    <string name="today_remove">Remove from today</string>
+    <string name="today_full">Today is full</string>
+    <string name="today_move_up">Move up</string>
+    <string name="today_move_down">Move down</string>
+    <string name="today_from_yesterday">From yesterday</string>
+    <string name="today_from_weekday">From %1$s</string>
+    <string name="today_tidy_prompt">Two devices picked for today. Tidy up?</string>
+    <string name="today_tidy">Tidy</string>
+    <string name="today_not_now">Not now</string>
+    <string name="today_first">first</string>
+    <string name="today_second">second</string>
+    <string name="today_third">third</string>
 </resources>
