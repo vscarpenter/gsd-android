@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.glance.appwidget.updateAll
 import dev.vinny.gsd.GsdApp
 import java.time.Instant
 import kotlin.coroutines.cancellation.CancellationException
@@ -27,6 +28,8 @@ class BootReceiver : BroadcastReceiver() {
             try {
                 // The widget's midnight alarm first: a reboot or a new time zone clears or moves it
                 dev.vinny.gsd.widget.WidgetMidnight.schedule(context)
+                // A new zone or clock can move "today", and the widget picks its list by the local date when it draws
+                dev.vinny.gsd.widget.GsdWidget().updateAll(context)
                 container.reminderScheduler.resyncAll(
                     container.store.observeTasks().first(),
                     container.notificationSettingsStore.get(),
