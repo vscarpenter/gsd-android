@@ -17,6 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -179,5 +180,28 @@ class SweepViewModelTest {
         full.skip()
         assertIs<SweepState.End>(full.awaitEnd())
         assertEquals(false, full.awaitEnd().offerTopThree)
+    }
+
+    @Test
+    fun aFailedWriteLeavesTheCardInPlaceAndReportsIt(): Unit = runBlocking {
+        seedOld("task-a", due = Instant.parse("2026-11-01T06:00:00Z"))
+        seedOld("task-b", due = Instant.parse("2026-11-02T06:00:00Z"))
+        val vm = viewModel()
+        assertEquals("task-a", vm.awaitCard().task.id)
+        val failures = mutableListOf<Unit>()
+        val collector = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) { vm.failures.collect { failures += it } }
+        kotlinx.coroutines.delay(100)
+
+        vm.advanceAfter { false }
+        withTimeout(5_000) { while (failures.isEmpty()) kotlinx.coroutines.delay(20) }
+
+        assertEquals("task-a", (vm.state.value as SweepState.Card).task.id)
+        vm.advanceAfter { throw IllegalStateException("write failed") }
+        withTimeout(5_000) { while (failures.size < 2) kotlinx.coroutines.delay(20) }
+        assertEquals("task-a", (vm.state.value as SweepState.Card).task.id)
+
+        vm.advanceAfter { true }
+        withTimeout(5_000) { vm.state.first { it is SweepState.Card && it.task.id == "task-b" } }
+        collector.cancel()
     }
 }

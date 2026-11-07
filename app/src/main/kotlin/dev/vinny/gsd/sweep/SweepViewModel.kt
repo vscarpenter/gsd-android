@@ -9,10 +9,15 @@ import dev.vinny.gsd.model.TopThree
 import dev.vinny.gsd.model.WeeklySweep
 import dev.vinny.gsd.prefs.GsdPrefs
 import dev.vinny.gsd.store.TaskStore
+import android.util.Log
 import java.time.Clock
 import java.time.Instant
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -92,19 +97,35 @@ class SweepViewModel(
         prefs.setLastSweptAt(now())
     }
 
-    // The writes below are the paths the sweep shares with the rest of the app, not new ones.
+    private val _failures = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
-    fun complete(id: String) = writeThenAdvance { store.setCompleted(id, true) }
+    /** One tick per write that failed, so the screen can say so and stay on the card. */
+    val failures: SharedFlow<Unit> = _failures.asSharedFlow()
 
-    fun setDue(id: String, due: Instant?) = writeThenAdvance { store.change(id) { it.copy(dueDate = due) } }
-
-    fun returnToMatrix(id: String, urgent: Boolean, important: Boolean, due: Instant?) =
-        writeThenAdvance { store.returnToMatrix(id, urgent, important, due) }
-
-    private fun writeThenAdvance(write: suspend () -> Unit) {
+    /**
+     * Runs an action's write and moves on only when it worked (spec decision S12). A write that returns
+     * false or throws leaves the card where it is and reports a failure.
+     */
+    fun advanceAfter(write: suspend () -> Boolean) {
         viewModelScope.launch {
-            write()
-            show(after = index)
+            val worked = try {
+                write()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w("GsdSweep", "sweep action failed: ${error.javaClass.simpleName}")
+                false
+            }
+            if (worked) show(after = index) else _failures.emit(Unit)
         }
     }
+
+    // The writes below are the paths the sweep shares with the rest of the app, not new ones.
+
+    fun complete(id: String) = advanceAfter { store.setCompleted(id, true) != null }
+
+    fun setDue(id: String, due: Instant?) = advanceAfter { store.change(id) { it.copy(dueDate = due) } != null }
+
+    fun returnToMatrix(id: String, urgent: Boolean, important: Boolean, due: Instant?) =
+        advanceAfter { store.returnToMatrix(id, urgent, important, due) != null }
 }

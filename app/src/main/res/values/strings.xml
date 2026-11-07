@@ -563,8 +563,10 @@
     <string name="sweep_done">Done</string>
     <string name="sweep_end_title">That\'s the sweep.</string>
     <string name="sweep_end_pick">Pick today\'s top three</string>
-    <string name="sweep_end_back">Back to matrix</string>
+    <string name="sweep_end_back">Back to the matrix</string>
     <string name="sweep_date_title">New date</string>
+    <string name="sweep_date_save">Save</string>
+    <string name="sweep_action_failed">Couldn\'t update that task.</string>
     <string name="sweep_move_title">Move to quadrant</string>
     <string name="sweep_reminder_label">Weekly sweep reminder</string>
     <string name="sweep_reminder_day">Day</string>

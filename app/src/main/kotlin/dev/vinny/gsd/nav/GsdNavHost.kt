@@ -50,7 +50,12 @@ fun GsdNavHost(
             )
         }
         composable("sweep") {
-            dev.vinny.gsd.sweep.SweepScreen(container = container, onUp = up)
+            dev.vinny.gsd.sweep.SweepScreen(
+                container = container,
+                onUp = up,
+                // Always the matrix, even when the sweep was opened from Settings (spec decision S4)
+                onBackToMatrix = { navController.navigateToRoute("matrix") },
+            )
         }
         composable("saved") {
             dev.vinny.gsd.browse.SavedScreen(container = container, onUp = up)

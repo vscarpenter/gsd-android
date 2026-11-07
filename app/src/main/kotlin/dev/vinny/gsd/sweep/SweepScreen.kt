@@ -45,7 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.vinny.gsd.AppContainer
 import dev.vinny.gsd.R
 import dev.vinny.gsd.browse.ReturnDialog
-import dev.vinny.gsd.browse.ReturnDue
+import dev.vinny.gsd.editor.DueDateSection
 import dev.vinny.gsd.matrix.ScreenTopBar
 import dev.vinny.gsd.matrix.TaskActionsViewModel
 import dev.vinny.gsd.matrix.TaskCard
@@ -70,12 +70,15 @@ import java.time.ZoneId
 fun SweepScreen(
     container: AppContainer,
     onUp: () -> Unit,
+    onBackToMatrix: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel: SweepViewModel = viewModel { SweepViewModel(container.store, container.prefs) }
     val actions: TaskActionsViewModel = viewModel { TaskActionsViewModel(container.store, container.trashStore) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    val failedMessage = stringResource(R.string.sweep_action_failed)
+    LaunchedEffect(viewModel) { viewModel.failures.collect { snackbar.showSnackbar(failedMessage) } }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -87,16 +90,17 @@ fun SweepScreen(
                     onAction = { action -> run(action, current.task, viewModel, actions) },
                     onReturn = viewModel::returnToMatrix,
                     onSetDue = viewModel::setDue,
-                    onMove = { quadrant -> actions.moveToQuadrant(current.task.id, quadrant); viewModel.advance() },
-                    onDone = { viewModel.done(onUp) },
+                    onMove = { quadrant -> viewModel.advanceAfter { actions.moveToQuadrantNow(current.task.id, quadrant) } },
+                    onDone = { viewModel.done(onBackToMatrix) },
                 )
                 is SweepState.End -> SweepEnd(
                     offerTopThree = current.offerTopThree,
                     onPick = {
+                        // The Matrix opens the Today suggestions once it's showing again
                         container.palette.requestTodaySuggestions()
-                        onUp()
+                        onBackToMatrix()
                     },
-                    onBack = onUp,
+                    onBack = onBackToMatrix,
                 )
             }
         }
@@ -107,13 +111,16 @@ fun SweepScreen(
     UndoUrgentEffect(actions, snackbar)
 }
 
-/** Actions that open a dialog are handled by the page. The rest run here, then the sweep moves on. */
+/**
+ * Actions that open a dialog are handled by the page. The rest run here, and the sweep moves on only once
+ * the write worked (spec decision S12), so a failed Mark urgent or Delete leaves the card in place.
+ */
 private fun run(action: SweepAction, task: Task, viewModel: SweepViewModel, actions: TaskActionsViewModel) {
     when (action) {
         SweepAction.COMPLETE -> viewModel.complete(task.id)
-        SweepAction.MARK_URGENT -> { actions.markUrgent(task.id); viewModel.advance() }
-        SweepAction.SAVE_FOR_LATER -> { actions.moveToSaved(task.id); viewModel.advance() }
-        SweepAction.DELETE -> { actions.delete(task.id); viewModel.advance() }
+        SweepAction.MARK_URGENT -> viewModel.advanceAfter { actions.markUrgentNow(task.id) }
+        SweepAction.SAVE_FOR_LATER -> viewModel.advanceAfter { actions.moveToSavedNow(task.id) }
+        SweepAction.DELETE -> viewModel.advanceAfter { actions.deleteNow(task.id) }
         SweepAction.SKIP -> viewModel.skip()
         SweepAction.NEW_DATE, SweepAction.ADD_DATE, SweepAction.MOVE_TO_QUADRANT, SweepAction.RETURN_TO_MATRIX -> Unit
     }
@@ -191,10 +198,9 @@ internal fun SweepCardPage(
     val zone = ZoneId.systemDefault()
     when (dialog) {
         Dialog.DATE -> NewDateDialog(
-            onPick = { due -> dialog = null; onSetDue(task.id, due) },
+            task = task,
+            onSave = { due -> dialog = null; onSetDue(task.id, due) },
             onDismiss = { dialog = null },
-            today = LocalDate.now(zone),
-            zone = zone,
         )
         Dialog.MOVE -> MoveDialog(
             current = task.quadrant,
@@ -215,6 +221,9 @@ internal fun SweepCardPage(
 @Composable
 internal fun SweepEnd(offerTopThree: Boolean, onPick: () -> Unit, onBack: () -> Unit) {
     val gsd = LocalGsdColors.current
+    val heading = remember { FocusRequester() }
+    // At the end, focus moves to the heading, as it does to each new card (spec decision S8)
+    LaunchedEffect(Unit) { heading.requestFocus() }
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
@@ -224,7 +233,7 @@ internal fun SweepEnd(offerTopThree: Boolean, onPick: () -> Unit, onBack: () -> 
             stringResource(R.string.sweep_end_title),
             style = GsdType.quadrantTitle,
             color = gsd.ink,
-            modifier = Modifier.semantics { heading() }.testTag("sweep_end"),
+            modifier = Modifier.focusRequester(heading).focusable().semantics { heading() }.testTag("sweep_end"),
         )
         // Only while today has a free slot. It writes nothing: the Today section's "Add to today" does.
         if (offerTopThree) {
@@ -238,24 +247,26 @@ internal fun SweepEnd(offerTopThree: Boolean, onPick: () -> Unit, onBack: () -> 
     }
 }
 
+/**
+ * New date and Add date use the editor's own date control (spec decision S10): the date picker, All day or a
+ * time of day, and the presets. The result is one ordinary edit, written when the user saves.
+ */
 @Composable
-private fun NewDateDialog(onPick: (Instant?) -> Unit, onDismiss: () -> Unit, today: LocalDate, zone: ZoneId) {
-    val choices = listOf(
-        R.string.due_today to ReturnDue.TODAY,
-        R.string.due_this_week to ReturnDue.THIS_WEEK,
-        R.string.due_next_week to ReturnDue.NEXT_WEEK,
-    )
+private fun NewDateDialog(task: Task, onSave: (Instant?) -> Unit, onDismiss: () -> Unit) {
+    var draft by remember(task.id) { mutableStateOf(task) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.sweep_date_title), style = GsdType.cardTitle) },
         text = {
-            Column {
-                choices.forEach { (label, choice) ->
-                    ChoiceRow(stringResource(label), selected = false) { onPick(choice.resolve(null, today, zone)) }
-                }
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                DueDateSection(draft = draft, onEdit = { change -> draft = change(draft) })
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            TextButton(onClick = { onSave(draft.dueDate) }, modifier = Modifier.testTag("sweep_date_save")) {
+                Text(stringResource(R.string.sweep_date_save))
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) } },
     )
 }
@@ -267,8 +278,9 @@ private fun MoveDialog(current: Quadrant, onPick: (Quadrant) -> Unit, onDismiss:
         title = { Text(stringResource(R.string.sweep_move_title), style = GsdType.cardTitle) },
         text = {
             Column {
-                Quadrant.entries.forEach { quadrant ->
-                    ChoiceRow(quadrant.title, selected = quadrant == current) { onPick(quadrant) }
+                // Not the quadrant it's in already (spec decision S11)
+                (Quadrant.entries - current).forEach { quadrant ->
+                    ChoiceRow(quadrant.title, selected = false) { onPick(quadrant) }
                 }
             }
         },

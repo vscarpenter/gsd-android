@@ -2,6 +2,7 @@ package dev.vinny.gsd.sweep
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -76,7 +77,7 @@ class SweepPagesTest {
         rule.onNodeWithText("That's the sweep.").assertIsDisplayed()
         rule.onNodeWithText("Pick today's top three").performClick()
         assertEquals(1, picked)
-        rule.onNodeWithText("Back to matrix").assertIsDisplayed()
+        rule.onNodeWithText("Back to the matrix").assertIsDisplayed()
     }
 
     @Test
@@ -90,5 +91,29 @@ class SweepPagesTest {
     fun theEndShowsNoTally() {
         showEnd(offer = true)
         rule.onAllNodes(hasText("of ", substring = true)).assertCountEquals(0)
+    }
+
+    @Test
+    fun theEndMovesFocusToItsHeading() {
+        showEnd(offer = true)
+        rule.onNodeWithTag("sweep_end").assertIsFocused()
+    }
+
+    @Test
+    fun moveToQuadrantLeavesOutTheCurrentOne() {
+        showCard(SweepReason.STALE) // the task is in Schedule
+        rule.onNodeWithTag("sweep_move_to_quadrant").performClick()
+        listOf("Do First", "Delegate", "Eliminate").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
+        rule.onAllNodes(hasText("Schedule")).assertCountEquals(0)
+    }
+
+    @Test
+    fun newDateOpensTheEditorsOwnDateControl() {
+        showCard(SweepReason.OVERDUE)
+        rule.onNodeWithTag("sweep_new_date").performClick()
+        // The editor's rows: a date row, the presets, and a Save
+        rule.onNodeWithTag("due_date_row").assertIsDisplayed()
+        rule.onNodeWithText("This week").assertIsDisplayed()
+        rule.onNodeWithTag("sweep_date_save").assertIsDisplayed()
     }
 }
