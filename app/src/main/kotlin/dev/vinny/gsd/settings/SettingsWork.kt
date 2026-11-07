@@ -97,4 +97,5 @@ internal suspend fun eraseEverything(container: AppContainer, context: Context) 
     }
     LocalErase.eraseAll(container.db)
     container.prefs.clearFeedbackDraft()
+    container.prefs.clearSweepState()
 }

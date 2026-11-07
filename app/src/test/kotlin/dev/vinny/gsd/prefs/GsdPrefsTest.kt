@@ -3,6 +3,9 @@ package dev.vinny.gsd.prefs
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import dev.vinny.gsd.model.FeedbackDraft
 import dev.vinny.gsd.model.Sentiment
+import dev.vinny.gsd.model.SweepReminder
+import java.time.Instant
+import java.time.LocalTime
 import java.io.File
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -48,5 +51,31 @@ class GsdPrefsTest {
         prefs.clearPendingSignIn()
 
         assertEquals(null, prefs.pendingSignIn.first())
+    }
+
+    @Test
+    fun `last swept and the sweep reminder round-trip`() = runBlocking {
+        assertEquals(null, prefs.lastSweptAt.first())
+        assertEquals(SweepReminder.OFF, prefs.sweepReminder.first())
+
+        val swept = Instant.parse("2026-11-08T15:00:00Z")
+        val reminder = SweepReminder(true, 1, LocalTime.of(7, 30))
+        prefs.setLastSweptAt(swept)
+        prefs.setSweepReminder(reminder)
+
+        assertEquals(swept, prefs.lastSweptAt.first())
+        assertEquals(reminder, prefs.sweepReminder.first())
+    }
+
+    /** Spec-weekly-sweep §6: a reset must clear both values, as B-16 did for the feedback draft. */
+    @Test
+    fun `clearSweepState clears last swept and the reminder`() = runBlocking {
+        prefs.setLastSweptAt(Instant.parse("2026-11-08T15:00:00Z"))
+        prefs.setSweepReminder(SweepReminder(true, 3, LocalTime.of(18, 0)))
+
+        prefs.clearSweepState()
+
+        assertEquals(null, prefs.lastSweptAt.first())
+        assertEquals(SweepReminder.OFF, prefs.sweepReminder.first())
     }
 }
