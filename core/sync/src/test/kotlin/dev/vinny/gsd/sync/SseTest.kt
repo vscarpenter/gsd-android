@@ -40,7 +40,7 @@ private class FakeSseLocal : SyncLocalStore {
     }
     override suspend fun resurrectOnSight(): Set<String> = emptySet()
     override suspend fun rememberResurrectOnSight(ids: Set<String>) = Unit
-    override suspend fun forgetResurrectOnSight() = Unit
+    override suspend fun forgetResurrectOnSight(ids: Set<String>) = Unit
     override suspend fun defaultReminderMinutes(): Int = 15
     override suspend fun settleNotifyBefore(id: String, minutes: Int) = Unit
 }

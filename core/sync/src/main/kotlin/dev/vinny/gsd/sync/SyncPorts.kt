@@ -94,11 +94,13 @@ interface SyncLocalStore {
 
     /**
      * Ids of deletes made while signed out and dropped at sign-in (spec §8.21). The next run that lists
-     * the account brings each one it finds back over its tombstone, then forgets them all (§9.4).
+     * the account brings each one it finds back over its tombstone, then forgets them, except one the far-future
+     * hold-off skipped (§9.4).
      */
     suspend fun resurrectOnSight(): Set<String>
     suspend fun rememberResurrectOnSight(ids: Set<String>)
-    suspend fun forgetResurrectOnSight()
+    /** Forget [ids] and keep the rest, so an id the step skipped, or one a sign-in added meanwhile, stays. */
+    suspend fun forgetResurrectOnSight(ids: Set<String>)
 
     /** This device's default reminder (D-10): what a null offset resolves to on the wire. */
     suspend fun defaultReminderMinutes(): Int

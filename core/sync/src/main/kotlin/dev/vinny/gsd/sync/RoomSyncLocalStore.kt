@@ -118,8 +118,10 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
         db.syncMetadataDao().upsert(current.copy(resurrectTaskIdsJson = TaskJson.encodeIds(merged)))
     }
 
-    override suspend fun forgetResurrectOnSight() {
-        db.syncMetadataDao().get()?.let { db.syncMetadataDao().upsert(it.copy(resurrectTaskIdsJson = "[]")) }
+    override suspend fun forgetResurrectOnSight(ids: Set<String>) {
+        val current = db.syncMetadataDao().get() ?: return
+        val kept = TaskJson.decodeIds(current.resurrectTaskIdsJson).filterNot { it in ids }
+        db.syncMetadataDao().upsert(current.copy(resurrectTaskIdsJson = TaskJson.encodeIds(kept)))
     }
 
     override suspend fun defaultReminderMinutes(): Int = db.defaultReminderMinutes()
