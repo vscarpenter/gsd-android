@@ -67,6 +67,7 @@ fun SettingsScreen(
     onOpenSyncHistory: () -> Unit = {},
     onOpenFeedback: () -> Unit = {},
     onOpenWhatsNew: () -> Unit = {},
+    onOpenSweep: () -> Unit = {},
 ) {
     val gsd = LocalGsdColors.current
     val scope = rememberCoroutineScope()
@@ -182,8 +183,10 @@ fun SettingsScreen(
                 scope.launch { container.archiveStore.sweep(archiveSettings?.archiveAfterDays ?: 30) }
             }
 
-            NotificationsGroup(container)
+            GroupLabel(R.string.sweep_title)
+            ActionRow(R.string.sweep_start, onClick = onOpenSweep)
 
+            NotificationsGroup(container)
             GroupLabel(R.string.settings_data)
             ActionRow(R.string.settings_export) { exportLauncher.launch("gsd-export.json") }
             ActionRow(R.string.settings_import) { importLauncher.launch(arrayOf("application/json", "text/*")) }

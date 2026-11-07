@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.glance.appwidget.updateAll
 import dev.vinny.gsd.GsdApp
 import java.time.Instant
 import kotlin.coroutines.cancellation.CancellationException
@@ -14,7 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
- * Reschedules every reminder from the store when the system changes something a fire time depends
+ * Reschedules the widget's midnight alarm and every reminder from the store when the system changes something a fire time depends
  * on (spec §11.2): alarms die on reboot and on an update, a granted exact-alarm permission turns
  * inexact alarms exact, and a new time zone or clock moves quiet-hours deferrals.
  */
@@ -25,6 +26,12 @@ class BootReceiver : BroadcastReceiver() {
         val result = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                // The widget's midnight alarm first: a reboot or a new time zone clears or moves it
+                dev.vinny.gsd.widget.WidgetMidnight.schedule(context)
+                // A new zone or clock can move "today", and the widget picks its list by the local date when it draws
+                dev.vinny.gsd.widget.GsdWidget().updateAll(context)
+                // Then the sweep alarm, which has its own action and survives the task resync below
+                container.reminderScheduler.syncSweep(container.prefs.sweepReminder.first(), Instant.now(), java.time.ZoneId.systemDefault())
                 container.reminderScheduler.resyncAll(
                     container.store.observeTasks().first(),
                     container.notificationSettingsStore.get(),

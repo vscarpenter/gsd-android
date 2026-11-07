@@ -91,6 +91,11 @@ fun TaskCard(
     longPressOpensMenu: Boolean = true,
     selected: Boolean? = null,
     escalation: EscalationResult? = null,
+    /**
+     * "first", "second", or "third" for a row in the Today section. It goes on the title, which is the node
+     * TalkBack lands on, so the row is read as its title and then its place.
+     */
+    positionLabel: String? = null,
 ) {
     val gsd = LocalGsdColors.current
     val accent = gsd.accent(task.quadrant)
@@ -137,6 +142,11 @@ fun TaskCard(
                     textDecoration = if (task.completed) TextDecoration.LineThrough else null,
                     maxLines = cardTitleMaxLines(LocalDensity.current.fontScale),
                     overflow = TextOverflow.Ellipsis,
+                    modifier = if (positionLabel != null) {
+                        Modifier.semantics { contentDescription = "${task.title}, $positionLabel" }
+                    } else {
+                        Modifier
+                    },
                 )
                 if (task.description.isNotEmpty()) {
                     Text(

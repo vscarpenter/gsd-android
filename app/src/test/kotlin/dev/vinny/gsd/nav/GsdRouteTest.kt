@@ -20,6 +20,7 @@ class GsdRouteTest {
         assertEquals(GsdRoute.Settings, GsdRoute.parse("gsd://settings"))
         assertEquals(GsdRoute.Archive, GsdRoute.parse("gsd://archive"))
         assertEquals(GsdRoute.Trash, GsdRoute.parse("gsd://trash"))
+        assertEquals(GsdRoute.Sweep, GsdRoute.parse("gsd://sweep"))
     }
 
     /** The palette route serves Ctrl+K and Ctrl+F only (spec 6.6). No link may open it. */

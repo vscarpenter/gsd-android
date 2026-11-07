@@ -44,7 +44,10 @@ import androidx.glance.text.TextStyle
 import dev.vinny.gsd.MainActivity
 import dev.vinny.gsd.R
 import dev.vinny.gsd.prefs.resetOnCorruption
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 private val Context.widgetDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "gsd_widget",
@@ -55,6 +58,7 @@ private val snapshotKey = stringPreferencesKey("today_focus_snapshot")
 suspend fun writeWidgetSnapshot(context: Context, snapshot: WidgetSnapshot) {
     context.widgetDataStore.edit { it[snapshotKey] = WidgetSnapshot.encode(snapshot) }
     GsdWidget().updateAll(context)
+    WidgetMidnight.schedule(context) // each refresh re-arms the midnight redraw
 }
 
 class GsdWidgetReceiver : GlanceAppWidgetReceiver() {
@@ -74,10 +78,15 @@ class GsdWidget : GlanceAppWidget() {
     private val rust = ColorProvider(Color(0xFFB23A2E), Color(0xFFE0705F))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val snapshot = WidgetSnapshot.decode(
-            context.widgetDataStore.data.first()[snapshotKey],
-        )
+        val stored = context.widgetDataStore.data.map { WidgetSnapshot.decode(it[snapshotKey]) }
+        val first = stored.first()
         provideContent {
+            // Collected inside the composition: Glance keeps a session alive for a while, and a snapshot read
+            // once before provideContent would leave the widget on the list it first drew.
+            val snapshot by stored.collectAsState(initial = first)
+            // Compared when drawing: the picks only while their date is the local today
+            val visible = snapshot.visibleItems(java.time.LocalDate.now().toString())
+            val showingPicks = visible.isNotEmpty() && visible === snapshot.focusTasks
             // As many 36dp rows as the height fits; they were about 23dp (finding 28)
             val rows = widgetRows(LocalSize.current.height.value)
             fun deepLink(uri: String) = actionStartActivity(
@@ -106,13 +115,13 @@ class GsdWidget : GlanceAppWidget() {
                     )
                 }
                 Spacer(modifier = GlanceModifier.height(6.dp))
-                if (snapshot.items.isEmpty()) {
+                if (visible.isEmpty()) {
                     Text(
                         context.getString(R.string.widget_all_clear),
                         style = TextStyle(color = ink3, fontSize = 13.sp),
                     )
                 } else {
-                    snapshot.items.take(rows).forEach { item ->
+                    visible.take(rows).forEach { item ->
                         Row(
                             modifier = GlanceModifier
                                 .fillMaxWidth()
@@ -134,7 +143,7 @@ class GsdWidget : GlanceAppWidget() {
                             }
                         }
                     }
-                    val overflow = snapshot.totalActive - minOf(rows, snapshot.items.size)
+                    val overflow = if (showingPicks) 0 else snapshot.totalActive - minOf(rows, snapshot.items.size)
                     if (overflow > 0) {
                         Text(
                             context.getString(R.string.widget_more, overflow),

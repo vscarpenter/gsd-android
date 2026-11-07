@@ -5,7 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -29,6 +33,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import dev.vinny.gsd.ui.reorderMotion
@@ -56,6 +62,7 @@ import dev.vinny.gsd.capture.CaptureViewModel
 import dev.vinny.gsd.editor.TaskEditorSheet
 import dev.vinny.gsd.editor.TaskEditorViewModel
 import dev.vinny.gsd.model.Quadrant
+import dev.vinny.gsd.model.TodayView
 import dev.vinny.gsd.palette.ConsumeWhileResumed
 import dev.vinny.gsd.theme.GsdType
 import dev.vinny.gsd.theme.LocalGsdColors
@@ -71,9 +78,25 @@ fun MatrixScreen(
         viewModel { MatrixViewModel(container.store, container.prefs) }
     val actions: TaskActionsViewModel =
         viewModel { TaskActionsViewModel(container.store, container.trashStore) }
+    val listState = rememberLazyListState()
+    val todayViewModel: TodayViewModel =
+        viewModel { TodayViewModel(container.store, container.prefs) }
     val captureViewModel: CaptureViewModel = viewModel { CaptureViewModel(container.store) }
     val editorViewModel: TaskEditorViewModel = viewModel { TaskEditorViewModel(container.store) }
     val sections by viewModel.sections.collectAsStateWithLifecycle()
+    val todayView by todayViewModel.view.collectAsStateWithLifecycle()
+    val tidyDismissed by todayViewModel.tidyDismissed.collectAsStateWithLifecycle()
+    var suggestionsOpen by rememberSaveable { mutableStateOf(false) }
+    // A sleeping device can miss the midnight timer, so the date is re-read whenever the screen returns
+    LifecycleResumeEffect(Unit) {
+        todayViewModel.refreshNow()
+        onPauseOrDispose {}
+    }
+    // "Pick today's top three" at the end of a sweep opens the suggestions (spec-weekly-sweep.md §7)
+    ConsumeWhileResumed(container.palette.todaySuggestionsRequests) {
+        suggestionsOpen = true
+        listState.scrollToItem(0)
+    }
     val captureState by captureViewModel.state.collectAsStateWithLifecycle()
     val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
     val celebration = rememberCompletionCelebration()
@@ -83,7 +106,6 @@ fun MatrixScreen(
     var paletteVisible by remember { mutableStateOf(false) }
     ConsumeWhileResumed(container.palette.openRequests) { paletteVisible = true }
     ConsumeWhileResumed(container.palette.newTaskRequests) { editorViewModel.openNew(null) }
-    val listState = rememberLazyListState()
     // gsd://quadrant/<id> and Ctrl+1 to Ctrl+4 (§6.4, §6.6). The grid shows all four quadrants at once.
     ConsumeWhileResumed(container.palette.quadrantRequests) { quadrant ->
         if (expanded) return@ConsumeWhileResumed
@@ -150,6 +172,13 @@ fun MatrixScreen(
                 onOpen = { onNavigate("whats-new") },
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
+            val sweepShown by viewModel.sweepEntryShown.collectAsStateWithLifecycle()
+            if (sweepShown && !selectionMode) {
+                SweepEntryLine(
+                    onOpen = { onNavigate("sweep") },
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+            }
             val onToggle: (dev.vinny.gsd.model.Task) -> Unit = { task ->
                 celebration.onToggle(task)
                 actions.toggleCompleted(task.id)
@@ -170,7 +199,23 @@ fun MatrixScreen(
                     actions = actions,
                     celebration = celebration,
                     onEdit = { editorViewModel.openExisting(task.id) },
+                    today = todayView.rowMenu(task, todayViewModel),
                 )
+            }
+            val todayHeader: (@Composable () -> Unit)? = todayView?.takeIf { !selectionMode }?.let { view ->
+                {
+                    TodaySection(
+                        view = view,
+                        suggestionsOpen = suggestionsOpen,
+                        tidyDismissed = tidyDismissed,
+                        today = java.time.LocalDate.now(),
+                        onToggleSuggestions = { suggestionsOpen = !suggestionsOpen },
+                        onAdd = { todayViewModel.addToToday(it.id) },
+                        onTidy = todayViewModel::tidy,
+                        onNotNow = todayViewModel::dismissTidy,
+                        rowActions = rowActions,
+                    )
+                }
             }
             // Shown as soon as select mode is on, so an empty selection still says the mode is on (finding 13)
             if (selectionMode) {
@@ -197,7 +242,12 @@ fun MatrixScreen(
                     if (currentSections == null) {
                         MatrixSkeleton(expanded = true)
                     } else {
+                        Column(Modifier.fillMaxSize()) {
+                            todayHeader?.let { header ->
+                                Box(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) { header() }
+                            }
                         MatrixGrid(
+                            modifier = Modifier.weight(1f),
                             sections = currentSections,
                             onToggleComplete = onToggle,
                             onOpen = editorViewModel::openExisting,
@@ -206,6 +256,7 @@ fun MatrixScreen(
                             rowActions = rowActions,
                             selection = selection.takeIf { selectionMode },
                         )
+                        }
                     }
                 } else {
                     MatrixList(
@@ -216,6 +267,7 @@ fun MatrixScreen(
                         rowActions = rowActions,
                         selection = selection.takeIf { selectionMode },
                         listState = listState,
+                        header = todayHeader,
                     )
                 }
             }
@@ -306,6 +358,8 @@ fun MatrixList(
     rowActions: ((dev.vinny.gsd.model.Task) -> TaskRowActions)? = null,
     selection: Set<String>? = null,
     listState: LazyListState = rememberLazyListState(),
+    /** The Today section, above the first quadrant. */
+    header: (@Composable () -> Unit)? = null,
 ) {
     if (sections == null) {
         MatrixSkeleton(modifier = modifier)
@@ -318,6 +372,7 @@ fun MatrixList(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        header?.let { item(key = "today") { it() } }
         sections.forEach { section ->
             // Headers and prompts move with the rows, so the whole board slides as a task changes place
             item(key = "header-${section.quadrant.id}") {
@@ -361,6 +416,27 @@ fun MatrixList(
                 }
             }
         }
+    }
+}
+
+/** A quiet line, not a banner: it states what's there and asks nothing (spec-weekly-sweep.md §7). */
+@Composable
+private fun SweepEntryLine(onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val gsd = LocalGsdColors.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onOpen)
+            .testTag("sweep_entry"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(stringResource(R.string.sweep_entry), style = GsdType.subhead, color = gsd.tint, modifier = Modifier.weight(1f))
+        Icon(
+            Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+            contentDescription = null,
+            tint = gsd.ink3,
+        )
     }
 }
 
@@ -431,3 +507,13 @@ private fun EmptyQuadrantPrompt(quadrant: Quadrant, modifier: Modifier = Modifie
         Text(stringResource(emptyCopy.getValue(quadrant)), style = GsdType.subhead, color = gsd.ink2)
     }
 }
+
+/** The Today rows of a card's menu, wired to [vm]. */
+private fun TodayView?.rowMenu(task: dev.vinny.gsd.model.Task, vm: TodayViewModel): TodayRowMenu =
+    todayRowMenu(
+        view = this,
+        task = task,
+        onAdd = { vm.addToToday(task.id) },
+        onRemove = { vm.removeFromToday(task.id) },
+        onMove = { vm.move(task.id, it) },
+    )

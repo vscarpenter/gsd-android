@@ -22,6 +22,7 @@ sealed interface GsdRoute {
     data object Settings : GsdRoute
     data object Archive : GsdRoute
     data object Trash : GsdRoute
+    data object Sweep : GsdRoute
 
     companion object {
         fun parse(uri: String): GsdRoute? {
@@ -38,6 +39,7 @@ sealed interface GsdRoute {
                 "settings" -> Settings
                 "archive" -> Archive
                 "trash" -> Trash
+                "sweep" -> Sweep
                 else -> null
             }
         }
