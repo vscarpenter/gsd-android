@@ -116,7 +116,15 @@ class SweepPagesTest {
         showCard(SweepReason.STALE) // the task is in Schedule
         rule.onNodeWithTag("sweep_move_to_quadrant").performClick()
         listOf("Do First", "Delegate", "Eliminate").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
-        rule.onAllNodes(hasText("Schedule")).assertCountEquals(0)
+        // The card behind the dialog names its quadrant, so only the dialog's choices count here
+        rule.onAllNodes(hasText("Schedule").and(hasAnyAncestor(isDialog()))).assertCountEquals(0)
+    }
+
+    /** Spec section 7: out of its quadrant's column, the card says which quadrant it's in, not by color alone. */
+    @Test
+    fun theCardNamesItsQuadrant() {
+        showCard(SweepReason.STALE) // the task is in Schedule
+        rule.onNodeWithText("Schedule").assertIsDisplayed()
     }
 
     /** Ruling sweep N3: New date sets a date. Clearing one belongs to the editor, so the sweep's control has no None. */

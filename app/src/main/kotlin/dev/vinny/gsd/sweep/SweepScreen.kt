@@ -160,6 +160,13 @@ internal fun SweepCardPage(
         Box(modifier = Modifier.focusRequester(focus).focusable()) {
             TaskCard(task = task, onToggleComplete = null, onClick = {})
         }
+        // Out of its quadrant's column, the card's accent alone would say where it is (spec §7: the card shows it)
+        Text(
+            task.quadrant.title,
+            style = GsdType.metadata,
+            color = gsd.accentInk(task.quadrant),
+            modifier = Modifier.testTag("sweep_quadrant"),
+        )
         Text(
             stringResource(reasonLine(card.reason)),
             style = GsdType.subhead,
