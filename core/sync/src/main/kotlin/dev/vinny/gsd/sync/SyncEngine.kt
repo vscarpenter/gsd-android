@@ -10,6 +10,7 @@ import dev.vinny.gsd.store.SyncOp
 import dev.vinny.gsd.store.SyncQueueEntity
 import java.time.Clock
 import java.time.Instant
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -53,6 +54,9 @@ class SyncEngine(
     private val local: SyncLocalStore,
     private val clock: Clock,
     private val throttleMs: Long = 100,
+    /** A resurrect-on-sight step that failed but didn't fail the run (§9.4). The engine has no logger, so the app logs it. */
+    private val onResurrectFailed: (Exception) -> Unit = {},
+    // Last, so a trailing lambda at a call site stays the owner
     private val ownerId: suspend () -> String? = { null },
 ) {
     companion object {
@@ -82,7 +86,7 @@ class SyncEngine(
             val pullOutcome = pull(owner)
             pulled = pullOutcome.first
             conflicts = pullOutcome.second
-            pulled += resurrectOnSight(owner)
+            pulled += resurrectOnSightOrReport(owner)
 
             val pushOutcome = push(owner)
             pushed = pushOutcome.first
@@ -219,6 +223,22 @@ class SyncEngine(
         fence(owner)
         local.forgetResurrectOnSight(remembered - kept)
         return pulled
+    }
+
+    /**
+     * The push runs after the step, so a step that threw used to skip it, and a listing that kept failing blocked
+     * every upload while any id was remembered. Now only a session problem ends the run: a session that ended, or a
+     * dead one the identity check found, which the push would otherwise spend retries on. Anything else is reported
+     * and forgets nothing, and the run goes on to push, as web does (AND-RESURRECT-2).
+     */
+    private suspend fun resurrectOnSightOrReport(owner: String): Int = try {
+        resurrectOnSight(owner)
+    } catch (failure: Exception) {
+        val endsTheRun = failure is CancellationException || failure is StaleSyncSession ||
+            failure is PocketBaseApi.Unauthorized
+        if (endsTheRun) throw failure
+        onResurrectFailed(failure)
+        0
     }
 
     /**

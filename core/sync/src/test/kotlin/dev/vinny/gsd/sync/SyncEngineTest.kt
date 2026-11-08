@@ -101,6 +101,8 @@ internal class FakeRemote : SyncRemote {
     val calls = mutableListOf<String>()
     /** Runs while the identity check waits on the network: what the user does in that window. */
     var duringIdentityCheck: suspend () -> Unit = {}
+    /** How many listings from the epoch claim one more record than they send, as a listing that changed mid-walk. */
+    var incompleteEpochListings = 0
 
     override suspend fun confirmIdentity(ownerId: String) {
         if (rejectIdentity) throw PocketBaseApi.Unauthorized(401)
@@ -112,8 +114,10 @@ internal class FakeRemote : SyncRemote {
         calls += "list"
         listResponder?.let { return it(page, updatedCursor) }
         val items = records.entries.sortedBy { it.key }
+        val incomplete = updatedCursor == "1970-01-01 00:00:00.000Z" && incompleteEpochListings > 0
+        if (incomplete) incompleteEpochListings--
         return TaskListPage(
-            page = 1, totalPages = 1,
+            page = 1, totalPages = 1, totalItems = items.size + if (incomplete) 1 else 0,
             items = items.map { it.value.copy(id = it.key) },
             updatedStamps = items.map { PbDates.formatSpace(PbDates.parse(it.value.clientUpdatedAt) ?: Instant.EPOCH) },
         )
@@ -946,6 +950,75 @@ class SyncEngineTest {
         assertNull(local.tasks[trashed.id], "the task left Trash")
         assertEquals(now.minusSeconds(60).toEpochMilli(), local.tombstones[trashed.id])
         assertEquals(setOf(trashed.id), local.resurrect)
+    }
+
+    /**
+     * AND-RESURRECT-2 (A2), as on web. The step runs between the pull and the push, so a step that threw ended the run
+     * and skipped the push, and a listing that kept failing blocked every upload while any id was remembered. Now a
+     * failed step forgets nothing, is reported, and the run goes on to push.
+     */
+    @Test
+    fun `a step that fails forgets nothing and leaves the sync successful`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        local.savedCursor = "2026-07-19 11:00:00.000Z" // so the step's listing is the first from the epoch
+        local.tombstones["trashed-task"] = now.toEpochMilli()
+        local.resurrect += "trashed-task"
+        val edited = task("edited-task", title = "edited here")
+        local.tasks[edited.id] = edited
+        local.queue += queueItem(1, edited)
+        remote.incompleteEpochListings = 1
+        val reported = mutableListOf<Exception>()
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" }, onResurrectFailed = { reported += it })
+
+        val result = engine.runSync(triggeredByUser = false)
+
+        assertEquals("success", result.status)
+        assertEquals(1, result.pushed)
+        assertEquals(listOf("edited here"), remote.records.values.map { it.title })
+        assertEquals(setOf("trashed-task"), local.resurrect)
+        assertEquals(now.toEpochMilli(), local.tombstones["trashed-task"])
+        assertTrue(reported.single() is RemoteListingIncomplete)
+    }
+
+    /** A2's limit: a dead session the step's identity check finds still ends the run, so the push spends no retry. */
+    @Test
+    fun `a dead session found by the step pushes nothing`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote().apply { rejectIdentity = true }
+        local.tombstones["trashed-task"] = now.toEpochMilli()
+        local.resurrect += "trashed-task"
+        val edited = task("edited-task", title = "edited here")
+        local.tasks[edited.id] = edited
+        local.queue += queueItem(1, edited)
+        val reported = mutableListOf<Exception>()
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" }, onResurrectFailed = { reported += it })
+
+        val result = engine.runSync(triggeredByUser = false)
+
+        assertTrue(result.notSignedIn)
+        assertEquals(0, local.queue.single().retryCount)
+        assertTrue(remote.records.isEmpty())
+        assertTrue(reported.isEmpty())
+    }
+
+    /** A2's other limit: a session that ends during the step stops the run, and isn't reported as a step failure. */
+    @Test
+    fun `a session that ends during the step stops the run`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        var owner = "user-1"
+        remote.duringIdentityCheck = { owner = "user-2" }
+        local.tombstones["trashed-task"] = now.toEpochMilli()
+        local.resurrect += "trashed-task"
+        val reported = mutableListOf<Exception>()
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { owner }, onResurrectFailed = { reported += it })
+
+        val result = engine.runSync(triggeredByUser = false)
+
+        assertEquals("error", result.status)
+        assertEquals(setOf("trashed-task"), local.resurrect)
+        assertTrue(reported.isEmpty())
     }
 
     /**
