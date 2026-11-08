@@ -96,6 +96,8 @@ internal class FakeRemote : SyncRemote {
     var nextRecordId = 1
     /** True models a dead session: the server answers the identity check as it would a guest. */
     var rejectIdentity = false
+    /** True models a token the server confirms for another account, as `PocketBaseApi.confirmIdentity` reports it. */
+    var otherAccount = false
     var listCalls = 0
     /** Every list, create, and update in order, so a test can check that a pull came before a push. */
     val calls = mutableListOf<String>()
@@ -106,6 +108,7 @@ internal class FakeRemote : SyncRemote {
 
     override suspend fun confirmIdentity(ownerId: String) {
         if (rejectIdentity) throw PocketBaseApi.Unauthorized(401)
+        if (otherAccount) throw IdentityMismatch()
         duringIdentityCheck()
     }
 
@@ -981,7 +984,31 @@ class SyncEngineTest {
         assertTrue(reported.single() is RemoteListingIncomplete)
     }
 
-    /** A2's limit: a dead session the step's identity check finds still ends the run, so the push spends no retry. */
+    /**
+     * A2's first limit (the Lead's review of iOS #97, matching its test). Android pulls, runs the step, then pushes,
+     * and only reconciliation checks identity again, after the push. So a step that confirmed another account must
+     * stop the run, or the push writes this device's edits to an account it just failed to confirm.
+     */
+    @Test
+    fun `a step whose identity check fails stops the run before the push`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote().apply { otherAccount = true }
+        local.tombstones["trashed-task"] = now.toEpochMilli()
+        local.resurrect += "trashed-task"
+        val edited = task("edited-task", title = "edited here")
+        local.tasks[edited.id] = edited
+        local.queue += queueItem(1, edited)
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        val result = engine.runSync(triggeredByUser = false)
+
+        assertEquals("error", result.status)
+        assertEquals(0, result.pushed)
+        assertTrue(remote.records.isEmpty(), "the push wrote to an unconfirmed account")
+        assertEquals(setOf("trashed-task"), local.resurrect)
+    }
+
+    /** A2's second limit: a dead session the step's identity check finds still ends the run, so the push spends no retry. */
     @Test
     fun `a dead session found by the step pushes nothing`() = runTest {
         val local = FakeLocal()

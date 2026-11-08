@@ -227,15 +227,16 @@ class SyncEngine(
 
     /**
      * The push runs after the step, so a step that threw used to skip it, and a listing that kept failing blocked
-     * every upload while any id was remembered. Now only a session problem ends the run: a session that ended, or a
-     * dead one the identity check found, which the push would otherwise spend retries on. Anything else is reported
-     * and forgets nothing, and the run goes on to push, as web does (AND-RESURRECT-2).
+     * every upload while any id was remembered. Now only a session problem ends the run: a session that ended, a
+     * token the identity check confirmed for another account, which the push would write to, or a dead one, which the
+     * push would spend retries on. Only reconciliation checks identity again, after the push. Anything else is
+     * reported and forgets nothing, and the run goes on to push, as web does (AND-RESURRECT-2).
      */
     private suspend fun resurrectOnSightOrReport(owner: String): Int = try {
         resurrectOnSight(owner)
     } catch (failure: Exception) {
         val endsTheRun = failure is CancellationException || failure is StaleSyncSession ||
-            failure is PocketBaseApi.Unauthorized
+            failure is IdentityMismatch || failure is PocketBaseApi.Unauthorized
         if (endsTheRun) throw failure
         onResurrectFailed(failure)
         0
