@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -78,8 +79,8 @@ fun SweepScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val offerTopThree by viewModel.offerTopThree.collectAsStateWithLifecycle(initialValue = false)
     val snackbar = remember { SnackbarHostState() }
-    val failedMessage = stringResource(R.string.sweep_action_failed)
-    LaunchedEffect(viewModel) { viewModel.failures.collect { snackbar.showSnackbar(failedMessage) } }
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) { viewModel.failures.collect { snackbar.showSnackbar(context.getString(it.message)) } }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -135,7 +136,7 @@ internal fun SweepCardPage(
     card: SweepState.Card,
     onAction: (SweepAction) -> Unit,
     onReturn: (String, Boolean, Boolean, Instant?) -> Unit,
-    onSetDue: (String, Instant?) -> Unit,
+    onSetDue: (String, Instant) -> Unit,
     onMove: (Quadrant) -> Unit,
     onDone: () -> Unit,
 ) {
@@ -159,6 +160,13 @@ internal fun SweepCardPage(
         Box(modifier = Modifier.focusRequester(focus).focusable()) {
             TaskCard(task = task, onToggleComplete = null, onClick = {})
         }
+        // Out of its quadrant's column, the card's accent alone would say where it is (spec §7: the card shows it)
+        Text(
+            task.quadrant.title,
+            style = GsdType.metadata,
+            color = gsd.accentInk(task.quadrant),
+            modifier = Modifier.testTag("sweep_quadrant"),
+        )
         Text(
             stringResource(reasonLine(card.reason)),
             style = GsdType.subhead,
@@ -178,15 +186,7 @@ internal fun SweepCardPage(
                     },
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("sweep_${action.name.lowercase()}"),
                 ) {
-                    Text(
-                        stringResource(actionLabel(action)),
-                        style = GsdType.body,
-                        color = when (action) {
-                            SweepAction.DELETE -> gsd.alert
-                            SweepAction.SKIP -> gsd.ink2
-                            else -> gsd.tint
-                        },
-                    )
+                    SweepActionLabel(action, task)
                 }
             }
         }
@@ -216,6 +216,31 @@ internal fun SweepCardPage(
             onDismiss = { dialog = null },
         )
         null -> Unit
+    }
+}
+
+/** An action's label. Mark urgent adds F1's hint under it, as the matrix's menu does (spec-weekly-sweep.md §5). */
+@Composable
+private fun SweepActionLabel(action: SweepAction, task: Task) {
+    val gsd = LocalGsdColors.current
+    val label = stringResource(actionLabel(action))
+    val color = when (action) {
+        SweepAction.DELETE -> gsd.alert
+        SweepAction.SKIP -> gsd.ink2
+        else -> gsd.tint
+    }
+    if (action != SweepAction.MARK_URGENT) {
+        Text(label, style = GsdType.body, color = color)
+        return
+    }
+    Column {
+        Text(label, style = GsdType.body, color = color)
+        // Where it lands: "Moves to Do First", or "Moves to Delegate" for a task that isn't important
+        Text(
+            stringResource(R.string.escalation_moves_to, task.copy(urgent = true).quadrant.title),
+            style = GsdType.metadata,
+            color = gsd.ink3,
+        )
     }
 }
 
@@ -250,21 +275,27 @@ internal fun SweepEnd(offerTopThree: Boolean, onPick: () -> Unit, onBack: () -> 
 
 /**
  * New date and Add date use the editor's own date control (spec decision S10): the date picker, All day or a
- * time of day, and the presets. The result is one ordinary edit, written when the user saves.
+ * time of day, and the presets. The result is one ordinary edit, written when the user saves. There's no None,
+ * so Save waits for a date: clearing one stays the editor's job (sweep N3).
  */
 @Composable
-private fun NewDateDialog(task: Task, onSave: (Instant?) -> Unit, onDismiss: () -> Unit) {
+private fun NewDateDialog(task: Task, onSave: (Instant) -> Unit, onDismiss: () -> Unit) {
     var draft by remember(task.id) { mutableStateOf(task) }
+    val due = draft.dueDate
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.sweep_date_title), style = GsdType.cardTitle) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                DueDateSection(draft = draft, onEdit = { change -> draft = change(draft) })
+                DueDateSection(draft = draft, onEdit = { change -> draft = change(draft) }, offerNone = false)
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(draft.dueDate) }, modifier = Modifier.testTag("sweep_date_save")) {
+            TextButton(
+                onClick = { due?.let(onSave) },
+                enabled = due != null,
+                modifier = Modifier.testTag("sweep_date_save"),
+            ) {
                 Text(stringResource(R.string.sweep_date_save))
             }
         },

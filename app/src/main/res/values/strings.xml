@@ -567,6 +567,9 @@
     <string name="sweep_date_title">New date</string>
     <string name="sweep_date_save">Save</string>
     <string name="sweep_action_failed">Couldn\'t update that task.</string>
+    <!-- Web's base strings for these two (sprint ruling sweep N1, as S9 ruled for iOS) -->
+    <string name="sweep_return_failed">Couldn\'t return this item to the matrix</string>
+    <string name="sweep_date_failed">Couldn\'t change the due date</string>
     <string name="sweep_move_title">Move to quadrant</string>
     <string name="sweep_reminder_label">Weekly sweep reminder</string>
     <string name="sweep_reminder_day">Day</string>

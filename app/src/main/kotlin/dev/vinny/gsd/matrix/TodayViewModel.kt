@@ -9,9 +9,12 @@ import dev.vinny.gsd.store.TaskStore
 import java.time.Clock
 import java.time.Duration
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -34,6 +37,11 @@ class TodayViewModel(
         combine(store.observeTasks(), prefs.escalationWindow, now) { tasks, window, instant ->
             TodayView.build(tasks, instant, window, clock.zone)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _refusals = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    /** One event per Add to today that found the day full, so the screen can say "Today is full". */
+    val refusals: SharedFlow<Unit> = _refusals.asSharedFlow()
 
     private val _tidyDismissed = MutableStateFlow(false)
 
@@ -63,7 +71,12 @@ class TodayViewModel(
     fun addToToday(id: String) {
         viewModelScope.launch {
             val tasks = store.observeTasks().first()
-            val pick = TopThree.addWrite(tasks, clock.instant(), clock.zone) ?: return@launch
+            // The add hides when the day is full, so only a race lands here, and it says so (web T15)
+            val pick = TopThree.addWrite(tasks, clock.instant(), clock.zone)
+            if (pick == null) {
+                _refusals.emit(Unit)
+                return@launch
+            }
             store.change(id, refuseSaved = true) { it.copy(focusDate = pick.focusDate, focusRank = pick.focusRank) }
         }
     }

@@ -101,6 +101,8 @@ fun MatrixScreen(
     val editorDraft by editorViewModel.draft.collectAsStateWithLifecycle()
     val celebration = rememberCompletionCelebration()
     val snackbarHost = remember { SnackbarHostState() }
+    val todayFull = stringResource(R.string.today_full)
+    LaunchedEffect(todayViewModel) { todayViewModel.refusals.collect { snackbarHost.showSnackbar(todayFull) } }
     val showCompleted by container.prefs.showCompleted.collectAsStateWithLifecycle(initialValue = true)
     val scope = rememberCoroutineScope()
     var paletteVisible by remember { mutableStateOf(false) }

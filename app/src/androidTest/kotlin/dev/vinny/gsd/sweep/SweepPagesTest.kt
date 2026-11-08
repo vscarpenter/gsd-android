@@ -1,9 +1,14 @@
 package dev.vinny.gsd.sweep
 
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -15,6 +20,7 @@ import java.time.Instant
 import org.junit.Rule
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 
 /** The sweep's copy and shape (spec-weekly-sweep.md §7): position only, facts only, and the end. */
 class SweepPagesTest {
@@ -24,11 +30,18 @@ class SweepPagesTest {
     private val t0 = Instant.parse("2026-10-01T00:00:00Z")
     private val task = Task(id = "task-sweep-1", title = "Renew passport", urgent = false, important = true, createdAt = t0, updatedAt = t0)
 
-    private fun showCard(reason: SweepReason, position: Int = 3, total: Int = 12, onDone: () -> Unit = {}) = rule.setContent {
+    private fun showCard(
+        reason: SweepReason,
+        position: Int = 3,
+        total: Int = 12,
+        task: Task = this.task,
+        onSetDue: (String, Instant) -> Unit = { _, _ -> },
+        onDone: () -> Unit = {},
+    ) = rule.setContent {
         GsdTheme {
             SweepCardPage(
                 card = SweepState.Card(task, reason, position, total),
-                onAction = {}, onReturn = { _, _, _, _ -> }, onSetDue = { _, _ -> }, onMove = {}, onDone = onDone,
+                onAction = {}, onReturn = { _, _, _, _ -> }, onSetDue = onSetDue, onMove = {}, onDone = onDone,
             )
         }
     }
@@ -104,7 +117,51 @@ class SweepPagesTest {
         showCard(SweepReason.STALE) // the task is in Schedule
         rule.onNodeWithTag("sweep_move_to_quadrant").performClick()
         listOf("Do First", "Delegate", "Eliminate").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
-        rule.onAllNodes(hasText("Schedule")).assertCountEquals(0)
+        // The card behind the dialog names its quadrant, so only the dialog's choices count here
+        rule.onAllNodes(hasText("Schedule").and(hasAnyAncestor(isDialog()))).assertCountEquals(0)
+    }
+
+    /** Spec section 5: Mark urgent carries F1's hint, the line the matrix's menu shows under it. */
+    @Test
+    fun markUrgentSaysWhereTheTaskLands() {
+        showCard(SweepReason.OVERDUE) // important, not urgent
+        rule.onNodeWithTag("sweep_mark_urgent").assert(hasText("Mark urgent")).assert(hasText("Moves to Do First"))
+    }
+
+    @Test
+    fun markUrgentOnAnUnimportantTaskSaysItMovesToDelegate() {
+        showCard(SweepReason.OVERDUE, task = task.copy(important = false))
+        rule.onNodeWithTag("sweep_mark_urgent").assert(hasText("Moves to Delegate"))
+    }
+
+    /** Spec section 7: out of its quadrant's column, the card says which quadrant it's in, not by color alone. */
+    @Test
+    fun theCardNamesItsQuadrant() {
+        showCard(SweepReason.STALE) // the task is in Schedule
+        rule.onNodeWithText("Schedule").assertIsDisplayed()
+    }
+
+    /** Ruling sweep N3: New date sets a date. Clearing one belongs to the editor, so the sweep's control has no None. */
+    @Test
+    fun theSweepsDateControlOffersNoNone() {
+        showCard(SweepReason.OVERDUE, task = task.copy(dueDate = t0))
+        rule.onNodeWithTag("sweep_new_date").performClick()
+        rule.onNodeWithText("This week").assertIsDisplayed()
+        rule.onAllNodes(hasText("None").and(hasAnyAncestor(isDialog()))).assertCountEquals(0)
+    }
+
+    /** With no None, an undated task's Save waits for a date, so Add date never writes an empty one. */
+    @Test
+    fun addDateSavesOnlyOnceADateIsPicked() {
+        var saved: Instant? = null
+        showCard(SweepReason.UNDATED_SCHEDULE, onSetDue = { _, due -> saved = due })
+        rule.onNodeWithTag("sweep_add_date").performClick()
+        rule.onNodeWithTag("sweep_date_save").assertIsNotEnabled()
+
+        rule.onNode(hasText("Today").and(hasAnyAncestor(isDialog()))).performClick()
+        rule.onNodeWithTag("sweep_date_save").assertIsEnabled().performClick()
+
+        assertNotNull(saved)
     }
 
     @Test
