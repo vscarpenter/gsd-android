@@ -15,7 +15,7 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "dev.vinny.gsd"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "dev.vinny.gsd"
         minSdk = 31
