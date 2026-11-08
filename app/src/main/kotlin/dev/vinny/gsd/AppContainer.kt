@@ -84,7 +84,10 @@ class AppContainer(context: Context) {
     val syncLocal: dev.vinny.gsd.sync.RoomSyncLocalStore = dev.vinny.gsd.sync.RoomSyncLocalStore(db)
 
     val syncEngine: dev.vinny.gsd.sync.SyncEngine =
-        dev.vinny.gsd.sync.SyncEngine(api, syncLocal, clock, ownerId = { authManager.currentUserId() })
+        dev.vinny.gsd.sync.SyncEngine(
+            api, syncLocal, clock, ownerId = { authManager.currentUserId() },
+            onResurrectFailed = { Log.w("GsdSync", "resurrect on sight failed: ${it.javaClass.simpleName}") },
+        )
 
     val sseClient: dev.vinny.gsd.sync.SseClient =
         dev.vinny.gsd.sync.SseClient(BACKEND_URL, { tokenStore.cachedToken() })
