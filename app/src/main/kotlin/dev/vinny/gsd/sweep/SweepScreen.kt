@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -78,8 +79,8 @@ fun SweepScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val offerTopThree by viewModel.offerTopThree.collectAsStateWithLifecycle(initialValue = false)
     val snackbar = remember { SnackbarHostState() }
-    val failedMessage = stringResource(R.string.sweep_action_failed)
-    LaunchedEffect(viewModel) { viewModel.failures.collect { snackbar.showSnackbar(failedMessage) } }
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) { viewModel.failures.collect { snackbar.showSnackbar(context.getString(it.message)) } }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {

@@ -1,5 +1,6 @@
 package dev.vinny.gsd.sweep
 
+import android.content.Context
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -16,6 +17,9 @@ import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -189,7 +193,7 @@ class SweepViewModelTest {
         seedOld("task-b", due = Instant.parse("2026-11-02T06:00:00Z"))
         val vm = viewModel()
         assertEquals("task-a", vm.awaitCard().task.id)
-        val failures = mutableListOf<Unit>()
+        val failures = mutableListOf<SweepFailure>()
         val collector = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Default) { vm.failures.collect { failures += it } }
         kotlinx.coroutines.delay(100)
 
@@ -204,6 +208,43 @@ class SweepViewModelTest {
         vm.advanceAfter { true }
         withTimeout(5_000) { vm.state.first { it is SweepState.Card && it.task.id == "task-b" } }
         collector.cancel()
+    }
+
+    /** The words the screen shows for the next failure [act] causes. Subscribes before acting, since nothing replays. */
+    private suspend fun SweepViewModel.failureMessage(act: SweepViewModel.() -> Unit): String = coroutineScope {
+        val failure = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { failures.first() } }
+        act()
+        ApplicationProvider.getApplicationContext<Context>().getString(failure.await().message)
+    }
+
+    /** Ruling sweep N1, web's base strings: a failed New date says the date didn't change. */
+    @Test
+    fun aFailedNewDateSaysTheDueDateDidNotChange(): Unit = runBlocking {
+        seedOld("task-a", due = Instant.parse("2026-11-01T06:00:00Z"))
+        val vm = viewModel()
+        vm.awaitCard()
+
+        assertEquals("Couldn't change the due date", vm.failureMessage { setDue("task-missing", sweepDay) })
+    }
+
+    @Test
+    fun aFailedReturnSaysTheTaskDidNotReturn(): Unit = runBlocking {
+        seedOld("task-a", due = Instant.parse("2026-11-01T06:00:00Z"))
+        val vm = viewModel()
+        vm.awaitCard()
+
+        assertEquals("Couldn't return this item to the matrix",
+            vm.failureMessage { returnToMatrix("task-missing", urgent = true, important = true, due = null) })
+    }
+
+    /** The other actions keep the general line: web and iOS still differ there (sweep N1). */
+    @Test
+    fun otherFailedActionsKeepTheGeneralMessage(): Unit = runBlocking {
+        seedOld("task-a", due = Instant.parse("2026-11-01T06:00:00Z"))
+        val vm = viewModel()
+        vm.awaitCard()
+
+        assertEquals("Couldn't update that task.", vm.failureMessage { complete("task-missing") })
     }
 
     /** The end can stay on screen while picks change elsewhere, so the offer reads today's slot as it is now. */

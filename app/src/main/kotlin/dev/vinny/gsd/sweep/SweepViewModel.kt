@@ -1,7 +1,9 @@
 package dev.vinny.gsd.sweep
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.vinny.gsd.R
 import dev.vinny.gsd.model.SweepReason
 import dev.vinny.gsd.model.SweepSession
 import dev.vinny.gsd.model.Task
@@ -32,6 +34,13 @@ sealed interface SweepState {
     data class Card(val task: Task, val reason: SweepReason, val position: Int, val total: Int) : SweepState
 
     data object End : SweepState
+}
+
+/** What the screen says when a sweep write fails. Return and New date use web's words (sweep N1). */
+enum class SweepFailure(@StringRes val message: Int) {
+    UPDATE(R.string.sweep_action_failed),
+    RETURN(R.string.sweep_return_failed),
+    NEW_DATE(R.string.sweep_date_failed),
 }
 
 /**
@@ -107,16 +116,16 @@ class SweepViewModel(
         prefs.setLastSweptAt(now())
     }
 
-    private val _failures = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val _failures = MutableSharedFlow<SweepFailure>(extraBufferCapacity = 1)
 
-    /** One tick per write that failed, so the screen can say so and stay on the card. */
-    val failures: SharedFlow<Unit> = _failures.asSharedFlow()
+    /** One event per write that failed, so the screen can say what failed and stay on the card. */
+    val failures: SharedFlow<SweepFailure> = _failures.asSharedFlow()
 
     /**
      * Runs an action's write and moves on only when it worked (spec decision S12). A write that returns
-     * false or throws leaves the card where it is and reports a failure.
+     * false or throws leaves the card where it is and reports [failure].
      */
-    fun advanceAfter(write: suspend () -> Boolean) {
+    fun advanceAfter(failure: SweepFailure = SweepFailure.UPDATE, write: suspend () -> Boolean) {
         viewModelScope.launch {
             val worked = try {
                 write()
@@ -126,7 +135,7 @@ class SweepViewModel(
                 Log.w("GsdSweep", "sweep action failed: ${error.javaClass.simpleName}")
                 false
             }
-            if (worked) show(after = index) else _failures.emit(Unit)
+            if (worked) show(after = index) else _failures.emit(failure)
         }
     }
 
@@ -135,8 +144,9 @@ class SweepViewModel(
     fun complete(id: String) = advanceAfter { store.setCompleted(id, true) != null }
 
     /** New date always sets one: clearing a date belongs to the editor (sweep N3). */
-    fun setDue(id: String, due: Instant) = advanceAfter { store.change(id) { it.copy(dueDate = due) } != null }
+    fun setDue(id: String, due: Instant) =
+        advanceAfter(SweepFailure.NEW_DATE) { store.change(id) { it.copy(dueDate = due) } != null }
 
     fun returnToMatrix(id: String, urgent: Boolean, important: Boolean, due: Instant?) =
-        advanceAfter { store.returnToMatrix(id, urgent, important, due) != null }
+        advanceAfter(SweepFailure.RETURN) { store.returnToMatrix(id, urgent, important, due) != null }
 }
