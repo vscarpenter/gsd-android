@@ -82,11 +82,12 @@ import java.time.format.DateTimeFormatter
 /**
  * Due date (spec §8.3, §8.10): a date row that opens the Material date picker, a time row that opens
  * the time picker, and the four presets. Every due date used to land at local midnight, because the
- * presets were the only way in (review finding 6). A date with no time is "All day".
+ * presets were the only way in (review finding 6). A date with no time is "All day". The weekly sweep's
+ * New date passes [offerNone] false: it only ever sets a date, and clearing one stays the editor's job.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
+internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit, offerNone: Boolean = true) {
     val context = LocalContext.current
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
@@ -112,8 +113,8 @@ internal fun DueDateSection(draft: Task, onEdit: ((Task) -> Task) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            listOf(
-                DuePreset.NONE to R.string.due_none,
+            listOfNotNull(
+                (DuePreset.NONE to R.string.due_none).takeIf { offerNone },
                 DuePreset.TODAY to R.string.due_today,
                 DuePreset.THIS_WEEK to R.string.due_this_week,
                 DuePreset.NEXT_WEEK to R.string.due_next_week,

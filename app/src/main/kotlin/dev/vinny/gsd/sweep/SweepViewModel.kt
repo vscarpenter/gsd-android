@@ -134,7 +134,8 @@ class SweepViewModel(
 
     fun complete(id: String) = advanceAfter { store.setCompleted(id, true) != null }
 
-    fun setDue(id: String, due: Instant?) = advanceAfter { store.change(id) { it.copy(dueDate = due) } != null }
+    /** New date always sets one: clearing a date belongs to the editor (sweep N3). */
+    fun setDue(id: String, due: Instant) = advanceAfter { store.change(id) { it.copy(dueDate = due) } != null }
 
     fun returnToMatrix(id: String, urgent: Boolean, important: Boolean, due: Instant?) =
         advanceAfter { store.returnToMatrix(id, urgent, important, due) != null }

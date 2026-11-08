@@ -58,6 +58,17 @@ class TaskEditorDepthTest {
         assertNotNull(edited?.dueDate)
     }
 
+    /** The sweep's date control leaves None out (ruling sweep N3), but clearing a date stays the editor's job. */
+    @Test
+    fun theEditorsNoneChipClearsTheDueDate() {
+        val base = draft().copy(dueDate = t0)
+        var edited: Task? = null
+        editor(base) { edited = it(base) }
+        rule.onNodeWithText("None").performScrollTo().performClick()
+        assertNotNull(edited)
+        assertEquals(null, edited?.dueDate)
+    }
+
     @Test
     fun repeatSelectionUpdatesRecurrence() {
         val base = draft()

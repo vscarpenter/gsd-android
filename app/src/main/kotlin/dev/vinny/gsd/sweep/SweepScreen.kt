@@ -135,7 +135,7 @@ internal fun SweepCardPage(
     card: SweepState.Card,
     onAction: (SweepAction) -> Unit,
     onReturn: (String, Boolean, Boolean, Instant?) -> Unit,
-    onSetDue: (String, Instant?) -> Unit,
+    onSetDue: (String, Instant) -> Unit,
     onMove: (Quadrant) -> Unit,
     onDone: () -> Unit,
 ) {
@@ -250,21 +250,27 @@ internal fun SweepEnd(offerTopThree: Boolean, onPick: () -> Unit, onBack: () -> 
 
 /**
  * New date and Add date use the editor's own date control (spec decision S10): the date picker, All day or a
- * time of day, and the presets. The result is one ordinary edit, written when the user saves.
+ * time of day, and the presets. The result is one ordinary edit, written when the user saves. There's no None,
+ * so Save waits for a date: clearing one stays the editor's job (sweep N3).
  */
 @Composable
-private fun NewDateDialog(task: Task, onSave: (Instant?) -> Unit, onDismiss: () -> Unit) {
+private fun NewDateDialog(task: Task, onSave: (Instant) -> Unit, onDismiss: () -> Unit) {
     var draft by remember(task.id) { mutableStateOf(task) }
+    val due = draft.dueDate
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.sweep_date_title), style = GsdType.cardTitle) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                DueDateSection(draft = draft, onEdit = { change -> draft = change(draft) })
+                DueDateSection(draft = draft, onEdit = { change -> draft = change(draft) }, offerNone = false)
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(draft.dueDate) }, modifier = Modifier.testTag("sweep_date_save")) {
+            TextButton(
+                onClick = { due?.let(onSave) },
+                enabled = due != null,
+                modifier = Modifier.testTag("sweep_date_save"),
+            ) {
                 Text(stringResource(R.string.sweep_date_save))
             }
         },
