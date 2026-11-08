@@ -904,6 +904,51 @@ class SyncEngineTest {
     }
 
     /**
+     * AND-RESURRECT-2 (A1), as web's `waitsForThisDevice`. A delete queued after the id was remembered is the user's
+     * latest act. The step brought the task back anyway, the push then sent the delete, and reconciliation dropped
+     * the active copy with no Trash entry. Now the task stays in Trash and the id waits for the next listing.
+     */
+    @Test
+    fun `a remembered id with a pending delete stays in Trash and is kept`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val trashed = task("trashed-task", title = "trashed again", updatedAt = now.minusSeconds(3_600))
+        remote.records["rec1"] = WireMapper.push(trashed, "other-device", "user-1", defaultReminder = 15)
+        local.tombstones[trashed.id] = now.minusSeconds(60).toEpochMilli()
+        local.buried[trashed.id] = trashed
+        local.resurrect += trashed.id
+        local.queue += queueItem(1, trashed, op = SyncOp.DELETE).copy(payloadJson = null) // a Trash delete
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertNull(local.tasks[trashed.id], "the task left Trash")
+        assertEquals(now.minusSeconds(60).toEpochMilli(), local.tombstones[trashed.id])
+        assertEquals(setOf(trashed.id), local.resurrect)
+        assertTrue(remote.records.isEmpty(), "the delete didn't reach the server")
+    }
+
+    /** A1 for a failed delete: Android re-arms failed rows on launch and manual sync (§9.5), so it still pushes later. */
+    @Test
+    fun `a remembered id with a failed delete stays in Trash and is kept`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val trashed = task("trashed-task", title = "trashed again", updatedAt = now.minusSeconds(3_600))
+        remote.records["rec1"] = WireMapper.push(trashed, "other-device", "user-1", defaultReminder = 15)
+        local.tombstones[trashed.id] = now.minusSeconds(60).toEpochMilli()
+        local.buried[trashed.id] = trashed
+        local.resurrect += trashed.id
+        local.queue += queueItem(1, trashed, op = SyncOp.DELETE, retryCount = 5, status = "failed").copy(payloadJson = null)
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertNull(local.tasks[trashed.id], "the task left Trash")
+        assertEquals(now.minusSeconds(60).toEpochMilli(), local.tombstones[trashed.id])
+        assertEquals(setOf(trashed.id), local.resurrect)
+    }
+
+    /**
      * SPEC-3 §6. Only sign-in drops a queued delete (`SyncCoordinator.confirmOwner`), and it isn't keyed on the cursor,
      * so a first sync that fails leaves a delete made after sign-in queued, and the next run sends it. Passed before it
      * was written; the PR has the mutation.

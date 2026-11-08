@@ -31,3 +31,11 @@ object RemoteStamp {
  */
 internal suspend fun SyncLocalStore.hasQueuedWrite(taskId: String): Boolean =
     (pendingQueue() + failedQueue()).any { it.taskId == taskId && it.operation != SyncOp.DELETE }
+
+/**
+ * A queued delete, pending or failed. Sign-in drops every queued delete (§8.21), so one here was made since: the
+ * user's latest act. A failed row counts, because a later revive pushes it (web counts pending rows only, since web
+ * never re-arms a failed row).
+ */
+internal suspend fun SyncLocalStore.hasQueuedDelete(taskId: String): Boolean =
+    (pendingQueue() + failedQueue()).any { it.taskId == taskId && it.operation == SyncOp.DELETE }

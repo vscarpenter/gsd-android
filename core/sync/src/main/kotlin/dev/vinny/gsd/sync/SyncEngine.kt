@@ -183,9 +183,10 @@ class SyncEngine(
      * pull cannot bring those tasks back: the local tombstone is newer than the server copy, and a kept
      * cursor would not even list it. So one listing of the account, with the owner confirmed as for
      * reconciliation, brings back every remembered id it finds and then forgets them (§9.4). A task with no
-     * server copy keeps its Trash row, the only copy there is. One exception: an id the far-future hold-off skips
-     * stays remembered. This run's push heals that record, and the next run brings the task back (SPEC-3 rule 4).
-     * Returns how many came back.
+     * server copy keeps its Trash row, the only copy there is. Two ids stay remembered for the next run. One the
+     * far-future hold-off skips: this run's push heals that record, and the next run brings the task back (SPEC-3
+     * rule 4). One with a delete queued since it was remembered: that delete is the user's latest act, so the task
+     * stays in Trash while the push sends it (AND-RESURRECT-2). Returns how many came back.
      */
     private suspend fun resurrectOnSight(owner: String): Int {
         val remembered = local.resurrectOnSight()
@@ -194,14 +195,18 @@ class SyncEngine(
         remote.confirmIdentity(owner) // a guest listing is empty, and would forget every id (§9.4)
         val now = clock.instant()
         var pulled = 0
-        val heldOff = mutableSetOf<String>()
+        val kept = mutableSetOf<String>()
         listing.filter { it.taskId in remembered }.forEach { wire ->
             if (local.isArchived(wire.taskId)) return@forEach // the archive was the last act, so it stands (SPEC-3 §8.2)
+            if (local.hasQueuedDelete(wire.taskId)) {
+                kept += wire.taskId
+                return@forEach
+            }
             val existing = local.taskById(wire.taskId)
             // A trashed task merges into its Trash row, so the rich time entries and this device's reminder state survive
             val mapped = WireMapper.pull(wire, existing ?: local.buriedTask(wire.taskId)) ?: return@forEach
             if (RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)) {
-                heldOff += mapped.id
+                kept += mapped.id
                 return@forEach
             }
             val incoming = mapped.copy(updatedAt = RemoteStamp.capped(mapped.updatedAt, now))
@@ -212,7 +217,7 @@ class SyncEngine(
             pulled++
         }
         fence(owner)
-        local.forgetResurrectOnSight(remembered - heldOff)
+        local.forgetResurrectOnSight(remembered - kept)
         return pulled
     }
 
