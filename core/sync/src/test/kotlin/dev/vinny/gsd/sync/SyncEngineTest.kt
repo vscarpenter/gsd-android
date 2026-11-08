@@ -2,6 +2,7 @@ package dev.vinny.gsd.sync
 
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.model.TaskJson
+import dev.vinny.gsd.model.TimeEntry
 import dev.vinny.gsd.store.SyncOp
 import dev.vinny.gsd.store.SyncQueueEntity
 import java.time.Clock
@@ -27,6 +28,10 @@ internal open class FakeLocal : SyncLocalStore {
     val trashed = mutableMapOf<String, Long>()
     val resurrect = mutableSetOf<String>()
     var defaultReminder = 15
+    /** Which tombstoned ids are archive rows rather than Trash rows. */
+    val archived = mutableSetOf<String>()
+    /** Trash rows by id, for the step to merge a resurrected task into. */
+    val trash = mutableMapOf<String, Task>()
 
     override suspend fun activeTasks(): List<Task> = tasks.values.toList()
     override suspend fun taskById(id: String): Task? = tasks[id]
@@ -72,11 +77,13 @@ internal open class FakeLocal : SyncLocalStore {
     }
     override suspend fun resurrectOnSight(): Set<String> = resurrect.toSet()
     override suspend fun rememberResurrectOnSight(ids: Set<String>) { resurrect += ids }
-    override suspend fun forgetResurrectOnSight() { resurrect.clear() }
+    override suspend fun forgetResurrectOnSight(ids: Set<String>) { resurrect -= ids }
     override suspend fun defaultReminderMinutes(): Int = defaultReminder
     override suspend fun settleNotifyBefore(id: String, minutes: Int) {
         tasks[id]?.takeIf { it.notifyBefore == null }?.let { tasks[id] = it.copy(notifyBefore = minutes) }
     }
+    override suspend fun isArchived(id: String): Boolean = id in archived
+    override suspend fun trashedTask(id: String): Task? = trash[id]
 }
 
 // internal (not private): AccountDeleterTest reuses this fake across files in the module.
@@ -703,19 +710,22 @@ class SyncEngineTest {
         assertEquals(now.toEpochMilli(), local.tombstones["t1"])
     }
 
-    /** Restored from Trash and edited before the sign-in: last-write-wins still decides. */
+    /**
+     * Restored from Trash and edited before the sign-in: last-write-wins still decides. The id was `t1` until
+     * 2026-11-07, which `WireMapper.pull` rejects as too short, so the record never reached the rule this pins.
+     */
     @Test
     fun `a remembered id active again with a newer local edit keeps the local copy`() = runTest {
         val local = FakeLocal()
         val remote = FakeRemote()
-        remote.records["rec1"] = WireMapper.push(task("t1", title = "remote", updatedAt = now.minusSeconds(3600)), "other-device", "user-1", defaultReminder = 15)
-        local.tasks["t1"] = task("t1", title = "local", updatedAt = now)
-        local.resurrect += "t1"
+        remote.records["rec1"] = WireMapper.push(task("restored-task", title = "remote", updatedAt = now.minusSeconds(3600)), "other-device", "user-1", defaultReminder = 15)
+        local.tasks["restored-task"] = task("restored-task", title = "local", updatedAt = now)
+        local.resurrect += "restored-task"
         val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
 
         engine.runSync(triggeredByUser = false)
 
-        assertEquals("local", local.tasks["t1"]?.title)
+        assertEquals("local", local.tasks["restored-task"]?.title)
         assertTrue(local.resurrect.isEmpty())
     }
 
@@ -731,6 +741,151 @@ class SyncEngineTest {
         engine.runSync(triggeredByUser = false)
 
         assertEquals(2, remote.listCalls) // the pull and the reconciliation index
+    }
+
+    /**
+     * SPEC-3 rule 4, as amended from S-AND's review of #680 (finding 2). Signed out, the user edited a task and then
+     * trashed it, so its UPDATE outlived the sign-in that dropped the DELETE. The server stamp is far-future, so the
+     * hold-off skips the id. Forgetting it stranded the Trash row here while the server copy, healed by this run's
+     * push, stayed active everywhere else. It stays remembered, and the next run brings the task back.
+     */
+    @Test
+    fun `a held-off remembered id stays for the next run`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val edited = task("trashed-task", title = "edited signed out", updatedAt = now.minusSeconds(120))
+        remote.records["rec1"] = WireMapper.push(
+            task("trashed-task", title = "fast clock", updatedAt = Instant.parse("2099-01-01T00:00:00.000Z")), "other-device", "user-1", defaultReminder = 15,
+        )
+        local.tombstones["trashed-task"] = now.minusSeconds(60).toEpochMilli() // trashed after the edit
+        local.queue += queueItem(1, edited)
+        local.resurrect += "trashed-task"
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertEquals(setOf("trashed-task"), local.resurrect) // skipped, so not forgotten
+        assertEquals("edited signed out", remote.records.getValue("rec1").title) // the push healed the record
+
+        engine.runSync(triggeredByUser = false)
+
+        assertEquals("edited signed out", local.tasks["trashed-task"]?.title) // out of Trash, as the server has it
+        assertTrue(local.resurrect.isEmpty())
+    }
+
+    /**
+     * SPEC-3 §8 item 2 (owner item 26, reading 2): trashed while signed out, then restored and archived. The id is
+     * remembered for the Trash delete, but the archive is the user's last act, so it stands, as an archive made
+     * while signed out does (rule 6). The id is still forgotten.
+     */
+    @Test
+    fun `a remembered id with an archive row stays archived`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        remote.records["rec1"] = WireMapper.push(task("archived-task", title = "remote", updatedAt = now.minusSeconds(3600)), "other-device", "user-1", defaultReminder = 15)
+        local.tombstones["archived-task"] = now.toEpochMilli()
+        local.archived += "archived-task"
+        local.resurrect += "archived-task"
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertTrue(local.removeTombstoneCalls.isEmpty(), "the archive was undone")
+        assertNull(local.tasks["archived-task"])
+        assertTrue(local.resurrect.isEmpty())
+    }
+
+    /**
+     * SPEC-3 rule 3, shared with web and iOS. The step rebuilt a trashed task from the wire alone, which drops the
+     * time-entry notes (the wire form is lossy) and this device's reminder state, so a reminder already shown here
+     * could fire again. It now merges the server copy into the Trash row, as the web does.
+     */
+    @Test
+    fun `a resurrected task keeps this device's reminder state and time-entry notes`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        val entry = TimeEntry("entry001", now.minusSeconds(7_200), now.minusSeconds(3_600), notes = "kept here")
+        val trashed = task("trashed-task", title = "remote", updatedAt = now.minusSeconds(3_600)).copy(
+            dueDate = now.plusSeconds(86_400), notificationSent = true, lastNotificationAt = now.minusSeconds(600),
+            timeEntries = listOf(entry),
+        )
+        remote.records["rec1"] = WireMapper.push(trashed, "other-device", "user-1", defaultReminder = 15)
+        local.tombstones[trashed.id] = now.toEpochMilli()
+        local.trash[trashed.id] = trashed
+        local.resurrect += trashed.id
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        val back = local.tasks.getValue(trashed.id)
+        assertEquals("kept here", back.timeEntries.single().notes)
+        assertEquals(true, back.notificationSent)
+        assertEquals(now.minusSeconds(600), back.lastNotificationAt)
+    }
+
+    /** SPEC-3 rule 5. Passed before it was written: `BoundedListing` throws first. The PR has the mutation. */
+    @Test
+    fun `an incomplete listing forgets no remembered delete`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        local.savedCursor = "2026-07-19 11:00:00.000Z" // so only the step lists from the epoch
+        local.tombstones["t1"] = now.toEpochMilli()
+        local.resurrect += "t1"
+        remote.listResponder = { _, cursor ->
+            if (cursor == "1970-01-01 00:00:00.000Z") {
+                val item = WireMapper.push(task("t1"), "other-device", "user-1", defaultReminder = 15).copy(id = "rec1")
+                TaskListPage(page = 1, totalPages = 1, totalItems = 2, items = listOf(item), updatedStamps = listOf(PbDates.formatSpace(now)))
+            } else {
+                TaskListPage(page = 1, totalPages = 1, items = emptyList(), updatedStamps = emptyList())
+            }
+        }
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        val result = engine.runSync(triggeredByUser = false)
+
+        assertEquals("error", result.status)
+        assertEquals(setOf("t1"), local.resurrect)
+        assertEquals(now.toEpochMilli(), local.tombstones["t1"])
+    }
+
+    /**
+     * SPEC-3 §6. Only sign-in drops a queued delete (`SyncCoordinator.confirmOwner`), and it isn't keyed on the cursor,
+     * so a first sync that fails leaves a delete made after sign-in queued, and the next run sends it. Passed before it
+     * was written; the PR has the mutation.
+     */
+    @Test
+    fun `a failed first sync doesn't drop a delete made while signed in`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        remote.records["rec1"] = WireMapper.push(task("t1"), "other-device", "user-1", defaultReminder = 15)
+        local.queue += SyncQueueEntity.tombstone("t1", now).copy(id = 1)
+        remote.listResponder = { _, _ -> throw PocketBaseApi.HttpError(500, "boom") }
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        assertEquals("error", engine.runSync(triggeredByUser = false).status)
+        assertEquals(listOf(SyncOp.DELETE), local.queue.map { it.operation })
+        assertTrue(local.resurrect.isEmpty())
+
+        remote.listResponder = null
+        engine.runSync(triggeredByUser = false)
+
+        assertTrue(remote.records.isEmpty())
+    }
+
+    /** SPEC-3 rule 7. Passed before it was written; the PR has the mutation. */
+    @Test
+    fun `a delete made while signed in still deletes on the server`() = runTest {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        remote.records["rec1"] = WireMapper.push(task("t1"), "other-device", "user-1", defaultReminder = 15)
+        local.queue += SyncQueueEntity.tombstone("t1", now).copy(id = 1)
+        val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
+
+        engine.runSync(triggeredByUser = false)
+
+        assertTrue(remote.records.isEmpty())
+        assertTrue(local.queue.isEmpty())
+        assertTrue(local.resurrect.isEmpty())
     }
 
     /**

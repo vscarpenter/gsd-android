@@ -12,6 +12,7 @@ import dev.vinny.gsd.store.defaultReminderMinutes
 import dev.vinny.gsd.store.deleteFromRemote
 import dev.vinny.gsd.store.toEntity
 import dev.vinny.gsd.store.toTask
+import dev.vinny.gsd.store.trashedTask
 import java.time.Instant
 import java.util.UUID
 
@@ -118,11 +119,17 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
         db.syncMetadataDao().upsert(current.copy(resurrectTaskIdsJson = TaskJson.encodeIds(merged)))
     }
 
-    override suspend fun forgetResurrectOnSight() {
-        db.syncMetadataDao().get()?.let { db.syncMetadataDao().upsert(it.copy(resurrectTaskIdsJson = "[]")) }
+    override suspend fun forgetResurrectOnSight(ids: Set<String>) {
+        val current = db.syncMetadataDao().get() ?: return
+        val kept = TaskJson.decodeIds(current.resurrectTaskIdsJson).filterNot { it in ids }
+        db.syncMetadataDao().upsert(current.copy(resurrectTaskIdsJson = TaskJson.encodeIds(kept)))
     }
 
     override suspend fun defaultReminderMinutes(): Int = db.defaultReminderMinutes()
 
     override suspend fun settleNotifyBefore(id: String, minutes: Int) = db.taskDao().settleNotifyBefore(id, minutes)
+
+    override suspend fun isArchived(id: String): Boolean = db.archivedTaskDao().byId(id) != null
+
+    override suspend fun trashedTask(id: String): Task? = db.trashedTask(id)
 }
