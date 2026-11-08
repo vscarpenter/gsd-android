@@ -10,7 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.test.core.app.ApplicationProvider
+import dev.vinny.gsd.ComposeDatabaseRule
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.TaskStore
@@ -19,10 +19,10 @@ import dev.vinny.gsd.theme.GsdTheme
 import java.time.Clock
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import kotlin.test.assertNull
 
 /**
@@ -30,8 +30,12 @@ import kotlin.test.assertNull
  * cancelled effect never cleared the record, so the same Undo offer came back on the next visit.
  */
 class UndoDeleteEffectTest {
+    private val database = ComposeDatabaseRule()
+    private val rule = createComposeRule()
+
+    /** The database closes only after the Compose rule disposes the content (AND-TEARDOWN-RACE). */
     @get:Rule
-    val rule = createComposeRule()
+    val rules: RuleChain = RuleChain.outerRule(database).around(rule)
 
     private val t0 = Instant.parse("2026-07-19T12:00:00.000Z")
     private lateinit var db: GsdDatabase
@@ -41,13 +45,10 @@ class UndoDeleteEffectTest {
 
     @Before
     fun setUp() {
-        db = GsdDatabase.buildInMemory(ApplicationProvider.getApplicationContext())
+        db = database.db
         store = TaskStore(db, Clock.systemUTC())
-        actions = TaskActionsViewModel(store, TrashStore(db, Clock.systemUTC()))
+        actions = database.track(TaskActionsViewModel(store, TrashStore(db, Clock.systemUTC())))
     }
-
-    @After
-    fun tearDown() = db.close()
 
     @Test
     fun anUndoOfferEndsWhenItsScreenLeaves() {
