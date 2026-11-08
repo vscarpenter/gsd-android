@@ -1,5 +1,6 @@
 package dev.vinny.gsd.sweep
 
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -118,6 +119,19 @@ class SweepPagesTest {
         listOf("Do First", "Delegate", "Eliminate").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
         // The card behind the dialog names its quadrant, so only the dialog's choices count here
         rule.onAllNodes(hasText("Schedule").and(hasAnyAncestor(isDialog()))).assertCountEquals(0)
+    }
+
+    /** Spec section 5: Mark urgent carries F1's hint, the line the matrix's menu shows under it. */
+    @Test
+    fun markUrgentSaysWhereTheTaskLands() {
+        showCard(SweepReason.OVERDUE) // important, not urgent
+        rule.onNodeWithTag("sweep_mark_urgent").assert(hasText("Mark urgent")).assert(hasText("Moves to Do First"))
+    }
+
+    @Test
+    fun markUrgentOnAnUnimportantTaskSaysItMovesToDelegate() {
+        showCard(SweepReason.OVERDUE, task = task.copy(important = false))
+        rule.onNodeWithTag("sweep_mark_urgent").assert(hasText("Moves to Delegate"))
     }
 
     /** Spec section 7: out of its quadrant's column, the card says which quadrant it's in, not by color alone. */

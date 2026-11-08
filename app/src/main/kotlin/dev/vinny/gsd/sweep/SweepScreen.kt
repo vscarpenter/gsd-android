@@ -186,15 +186,7 @@ internal fun SweepCardPage(
                     },
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp).testTag("sweep_${action.name.lowercase()}"),
                 ) {
-                    Text(
-                        stringResource(actionLabel(action)),
-                        style = GsdType.body,
-                        color = when (action) {
-                            SweepAction.DELETE -> gsd.alert
-                            SweepAction.SKIP -> gsd.ink2
-                            else -> gsd.tint
-                        },
-                    )
+                    SweepActionLabel(action, task)
                 }
             }
         }
@@ -224,6 +216,31 @@ internal fun SweepCardPage(
             onDismiss = { dialog = null },
         )
         null -> Unit
+    }
+}
+
+/** An action's label. Mark urgent adds F1's hint under it, as the matrix's menu does (spec-weekly-sweep.md §5). */
+@Composable
+private fun SweepActionLabel(action: SweepAction, task: Task) {
+    val gsd = LocalGsdColors.current
+    val label = stringResource(actionLabel(action))
+    val color = when (action) {
+        SweepAction.DELETE -> gsd.alert
+        SweepAction.SKIP -> gsd.ink2
+        else -> gsd.tint
+    }
+    if (action != SweepAction.MARK_URGENT) {
+        Text(label, style = GsdType.body, color = color)
+        return
+    }
+    Column {
+        Text(label, style = GsdType.body, color = color)
+        // Where it lands: "Moves to Do First", or "Moves to Delegate" for a task that isn't important
+        Text(
+            stringResource(R.string.escalation_moves_to, task.copy(urgent = true).quadrant.title),
+            style = GsdType.metadata,
+            color = gsd.ink3,
+        )
     }
 }
 
