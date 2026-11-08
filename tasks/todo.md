@@ -1,5 +1,30 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-08): Sprint 2 AND-PARITY-POLISH, branch `fix/parity-polish`
+
+Standard tier: five bounded copy and UI fixes, no synced field or contract. The Lead's rulings are in
+`sprint/findings/consistency-punch-list.md` (Android section). Each behavior went red first in a connected test.
+
+- [x] Sweep Mark urgent carries the matrix's hint: "Moves to Do First", or "Moves to Delegate" for an unimportant
+  task (web `sweep-card.tsx`, `spec-weekly-sweep.md` section 5). `SweepPagesTest`.
+- [x] The sweep card names its quadrant in text (spec section 7, "Card"). `SweepPagesTest`; the Move test's
+  "no Schedule" check now looks inside the dialog only.
+- [x] A failed New date says "Couldn't change the due date" and a failed Return says "Couldn't return this item to
+  the matrix"; other actions keep "Couldn't update that task." `SweepViewModelTest`.
+- [x] The sweep's date control has no None, and Save waits for a date, so the sweep can't clear a date
+  (`DueDateSection(offerNone = false)`, `setDue` takes a non-null `Instant`). `SweepPagesTest`, plus a
+  `TaskEditorDepthTest` pin that the editor keeps its None (flipping the default fails it alone).
+- [x] A refused Add to today says "Today is full" (web T15). `TodayViewModelTest`, then the matrix snackbar.
+- [x] Gate on the tip, from a clean install on `gsd-e2e`, 16:12Z to 16:17Z: `:core:model:test` 275,
+  `:core:sync` 209, `:app` unit 111, `:app:assembleDebug` green, connected `:core:store` 90 and `:app` 341
+  (`main` has 331; this adds 10), 0 failures. Each commit compiles alone (`git rebase -x`).
+- [x] Emulator check on the real app (seeded through its own `TaskStore`, opened by `gsd://sweep`): the card names
+  Schedule and Eliminate; Mark urgent reads "Moves to Do First" and "Moves to Delegate"; New date offers Today,
+  This week, and Next week; Add date's Save is disabled (`enabled=false` on the button node) until a date is picked.
+- **Next:** push and open the PR (owner item 23), body in `sprint/drafts/S-AND-AND-PARITY-POLISH-pr.md`; tell the
+  Lead. Then AND-C4's real-server run once web #707 merges.
+- **Blockers:** none.
+
 ## Resuming From Here (2026-11-07, afternoon): Sprint 2 AND-C4, a local stack
 
 - **Done, on `feat/top-three-contract-4`, not pushed:** pull contract 4 for the top three pick (spec
