@@ -6,16 +6,16 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import androidx.test.core.app.ApplicationProvider
+import dev.vinny.gsd.ComposeDatabaseRule
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.NotificationSettingsStore
 import dev.vinny.gsd.store.TaskStore
 import dev.vinny.gsd.theme.GsdTheme
 import java.time.Clock
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
@@ -24,8 +24,12 @@ import kotlin.test.assertNull
  * away with no prompt. Cancel and Save now sit in a pinned header, and leaving an edited draft asks.
  */
 class EditorDiscardTest {
+    private val database = ComposeDatabaseRule()
+    private val rule = createComposeRule()
+
+    /** The database closes only after the Compose rule disposes the content (AND-TEARDOWN-RACE). */
     @get:Rule
-    val rule = createComposeRule()
+    val rules: RuleChain = RuleChain.outerRule(database).around(rule)
 
     private lateinit var db: GsdDatabase
     private lateinit var viewModel: TaskEditorViewModel
@@ -33,14 +37,11 @@ class EditorDiscardTest {
 
     @Before
     fun setUp() {
-        db = GsdDatabase.buildInMemory(ApplicationProvider.getApplicationContext())
-        viewModel = TaskEditorViewModel(TaskStore(db, Clock.systemUTC()))
+        db = database.db
+        viewModel = database.track(TaskEditorViewModel(TaskStore(db, Clock.systemUTC())))
         reminders = NotificationSettingsStore(db, Clock.systemUTC())
         viewModel.openNew(null)
     }
-
-    @After
-    fun tearDown() = db.close()
 
     @Test
     fun cancelWithAnEditAsksBeforeDiscarding() {

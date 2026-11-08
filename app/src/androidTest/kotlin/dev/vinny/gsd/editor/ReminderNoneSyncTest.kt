@@ -9,7 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.test.core.app.ApplicationProvider
+import dev.vinny.gsd.ComposeDatabaseRule
 import dev.vinny.gsd.model.Task
 import dev.vinny.gsd.store.GsdDatabase
 import dev.vinny.gsd.store.NotificationSettingsStore
@@ -25,10 +25,10 @@ import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import kotlin.test.assertEquals
 
 /** Keeps what the engine pushes. Nothing is listed, so the pull is a no-op and the push creates the record. */
@@ -54,8 +54,12 @@ private class ReminderRecordingRemote : SyncRemote {
  * server as 0. None now writes `notificationEnabled = false` and keeps the number, and both sync.
  */
 class ReminderNoneSyncTest {
+    private val database = ComposeDatabaseRule()
+    private val rule = createComposeRule()
+
+    /** The database closes only after the Compose rule disposes the content (AND-TEARDOWN-RACE). */
     @get:Rule
-    val rule = createComposeRule()
+    val rules: RuleChain = RuleChain.outerRule(database).around(rule)
 
     private val clock = Clock.systemUTC()
     private lateinit var db: GsdDatabase
@@ -64,13 +68,10 @@ class ReminderNoneSyncTest {
 
     @Before
     fun setUp() {
-        db = GsdDatabase.buildInMemory(ApplicationProvider.getApplicationContext())
+        db = database.db
         store = TaskStore(db, clock)
-        viewModel = TaskEditorViewModel(store)
+        viewModel = database.track(TaskEditorViewModel(store))
     }
-
-    @After
-    fun tearDown() = db.close()
 
     @Test
     fun noneTurnsTheReminderOffAndSyncs() {
