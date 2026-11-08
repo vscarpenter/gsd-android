@@ -1,0 +1,33 @@
+name: Android CI
+
+# The JVM gate and the debug build on every pull request, Dependabot's included, so a bump that breaks the build gets
+# a red check. #69 merged while :app:assembleDebug failed, because nothing here ran Gradle (ANDROID-CI-BUILD).
+# connectedAndroidTest stays a local gate: it needs the gsd-e2e emulator.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A newer push cancels the run on the same ref. CI is a pure gate with no side effects.
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "17" # every module's jvmToolchain
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - name: JVM tests and debug build
+        run: ./gradlew :core:model:test testDebugUnitTest :app:assembleDebug
