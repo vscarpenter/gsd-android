@@ -133,6 +133,13 @@ class PocketBaseApiTest {
         assertFailsWith<PocketBaseApi.Unauthorized> { api.confirmIdentity("user-1") }
     }
 
+    /** A 403 is a dead session too, so the resurrect step stops the run on it, as iOS #97 does (AND-RESURRECT-2). */
+    @Test
+    fun `confirmIdentity is unauthorized when the server forbids the session`(): Unit = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(403))
+        assertFailsWith<PocketBaseApi.Unauthorized> { api.confirmIdentity("user-1") }
+    }
+
     @Test
     fun `confirmIdentity rejects a session that belongs to another account`(): Unit = runBlocking {
         server.enqueue(MockResponse().setBody("""{"token":"fresh-jwt","record":{"id":"someone-else","email":"x@example.com"}}"""))
