@@ -2,6 +2,7 @@ package dev.vinny.gsd.matrix
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +37,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +50,8 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -180,12 +182,8 @@ fun TaskCard(
             }
             // A card with no menu shows no button. A long press and the button open the same menu (§8.1).
             if (onOpenMenu != null && selected == null) {
-                IconButton(onClick = onOpenMenu) {
-                    Icon(
-                        Icons.Outlined.MoreHoriz,
-                        contentDescription = stringResource(R.string.cd_task_options),
-                        tint = gsd.ink3,
-                    )
+                CardIconButton(label = stringResource(R.string.cd_task_options), onClick = onOpenMenu) {
+                    Icon(Icons.Outlined.MoreHoriz, contentDescription = null, tint = gsd.ink3)
                 }
             }
             // Trash and Archive cannot complete a task, so they pass no callback and get no disc.
@@ -367,15 +365,11 @@ private fun CompletionDisc(task: Task, onToggleComplete: () -> Unit) {
     val description = stringResource(
         if (task.completed) R.string.cd_mark_incomplete else R.string.cd_mark_complete,
     )
-    IconButton(
-        onClick = onToggleComplete,
-        modifier = Modifier
-            .size(48.dp)
-            .semantics { contentDescription = description },
-    ) {
+    CardIconButton(label = description, onClick = onToggleComplete) {
         if (task.completed) {
+            // Drawn, not clipped or bordered: those add a shape node that splits the button's name off it
             Box(
-                modifier = Modifier.size(28.dp).clip(CircleShape).background(accent),
+                modifier = Modifier.size(28.dp).drawBehind { drawCircle(accent) },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -386,11 +380,28 @@ private fun CompletionDisc(task: Task, onToggleComplete: () -> Unit) {
                 )
             }
         } else {
+            val ring = gsd.ink3
             Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .border(2.dp, gsd.ink3, CircleShape),
+                modifier = Modifier.size(28.dp).drawBehind {
+                    drawCircle(ring, radius = size.minDimension / 2 - 1.dp.toPx(), style = Stroke(width = 2.dp.toPx()))
+                },
             )
         }
     }
+}
+
+/**
+ * A 48 dp icon button whose name sits on the node that takes the click. With Material's IconButton the
+ * label landed on a sibling node, so TalkBack focused the empty clickable one and read just "Button".
+ */
+@Composable
+private fun CardIconButton(label: String, onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(onClickLabel = null, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) { content() }
 }
