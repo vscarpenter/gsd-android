@@ -141,7 +141,8 @@ class SyncEngine(
         BoundedListing.collect(cursor, remote::listTasks) { result ->
             result.items.forEachIndexed { index, wire ->
                 val existing = local.taskById(wire.taskId)
-                val mapped = WireMapper.pull(wire, existing) ?: return@forEachIndexed
+                // A task coming back over its tombstone merges into that row, so this device's fields survive (§9.4)
+                val mapped = WireMapper.pull(wire, existing ?: local.buriedTask(wire.taskId)) ?: return@forEachIndexed
                 fence(owner) // resolving a tombstone can remove it, and that's a write to this account's data
                 if (!resolveTombstone(local, mapped.id, mapped.updatedAt, now)) {
                     return@forEachIndexed // archived/trashed locally, remote not strictly newer (parity spec P§4)
@@ -198,7 +199,7 @@ class SyncEngine(
             if (local.isArchived(wire.taskId)) return@forEach // the archive was the last act, so it stands (SPEC-3 §8.2)
             val existing = local.taskById(wire.taskId)
             // A trashed task merges into its Trash row, so the rich time entries and this device's reminder state survive
-            val mapped = WireMapper.pull(wire, existing ?: local.trashedTask(wire.taskId)) ?: return@forEach
+            val mapped = WireMapper.pull(wire, existing ?: local.buriedTask(wire.taskId)) ?: return@forEach
             if (RemoteStamp.isPastCeiling(mapped.updatedAt, now) && local.hasQueuedWrite(mapped.id)) {
                 heldOff += mapped.id
                 return@forEach

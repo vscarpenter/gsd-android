@@ -286,7 +286,7 @@ class SignedOutDeletesTest {
         assertEquals(setOf("earlier-task", synced.id), f.local.resurrectOnSight())
     }
 
-    /** SPEC-3 rule 3 through Room (`GsdDatabase.trashedTask`): the Trash row's time-entry notes come back with the task. */
+    /** SPEC-3 rule 3 through Room (`GsdDatabase.buriedTask`): the Trash row's time-entry notes come back with the task. */
     @Test
     fun aResurrectedTaskKeepsItsTimeEntryNotes() = runBlocking {
         val f = signedInFixture()

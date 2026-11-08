@@ -75,8 +75,9 @@ class TrashStore(private val db: GsdDatabase, private val clock: Clock) {
     }
 }
 
-/** The task as its Trash row holds it, rich time entries and device-local reminder state included. */
-suspend fun GsdDatabase.trashedTask(id: String): Task? = deletedTaskDao().byId(id)?.toTask()
+/** The task as its archive or Trash row holds it, rich time entries and device-local reminder state included. */
+suspend fun GsdDatabase.buriedTask(id: String): Task? =
+    archivedTaskDao().byId(id)?.toTask() ?: deletedTaskDao().byId(id)?.toTask()
 
 /**
  * ABANDON verdict (S§8.3): a task whose only queue rows have exhausted retries

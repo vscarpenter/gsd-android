@@ -30,8 +30,8 @@ internal open class FakeLocal : SyncLocalStore {
     var defaultReminder = 15
     /** Which tombstoned ids are archive rows rather than Trash rows. */
     val archived = mutableSetOf<String>()
-    /** Trash rows by id, for the step to merge a resurrected task into. */
-    val trash = mutableMapOf<String, Task>()
+    /** Archive and Trash rows by id, for a task that comes back over its tombstone to merge into. */
+    val buried = mutableMapOf<String, Task>()
 
     override suspend fun activeTasks(): List<Task> = tasks.values.toList()
     override suspend fun taskById(id: String): Task? = tasks[id]
@@ -83,7 +83,7 @@ internal open class FakeLocal : SyncLocalStore {
         tasks[id]?.takeIf { it.notifyBefore == null }?.let { tasks[id] = it.copy(notifyBefore = minutes) }
     }
     override suspend fun isArchived(id: String): Boolean = id in archived
-    override suspend fun trashedTask(id: String): Task? = trash[id]
+    override suspend fun buriedTask(id: String): Task? = buried[id]
 }
 
 // internal (not private): AccountDeleterTest reuses this fake across files in the module.
@@ -811,7 +811,7 @@ class SyncEngineTest {
         )
         remote.records["rec1"] = WireMapper.push(trashed, "other-device", "user-1", defaultReminder = 15)
         local.tombstones[trashed.id] = now.toEpochMilli()
-        local.trash[trashed.id] = trashed
+        local.buried[trashed.id] = trashed
         local.resurrect += trashed.id
         val engine = SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" })
 
@@ -821,6 +821,61 @@ class SyncEngineTest {
         assertEquals("kept here", back.timeEntries.single().notes)
         assertEquals(true, back.notificationSent)
         assertEquals(now.minusSeconds(600), back.lastNotificationAt)
+    }
+
+    /** A task holding every field this device keeps for itself (§9.2), buried here before the edit elsewhere. */
+    private val richTask = task("buried-task", title = "before", updatedAt = now.minusSeconds(7_200)).copy(
+        dueDate = now.plusSeconds(86_400), notificationSent = true, lastNotificationAt = now.minusSeconds(600),
+        snoozedUntil = now.plusSeconds(3_600), parentTaskId = "parent-task",
+        timeEntries = listOf(TimeEntry("entry001", now.minusSeconds(7_200), now.minusSeconds(3_600), notes = "kept here")),
+    )
+
+    /** One run whose listing holds [edited], a newer server copy of the buried [richTask]. */
+    private suspend fun pullBack(archived: Boolean, edited: Task = richTask.copy(title = "edited elsewhere")): Task {
+        val local = FakeLocal()
+        val remote = FakeRemote()
+        remote.records["rec1"] = WireMapper.push(edited.copy(updatedAt = now.minusSeconds(60)), "other-device", "user-1", defaultReminder = 15)
+        local.tombstones[richTask.id] = now.minusSeconds(3_600).toEpochMilli()
+        if (archived) local.archived += richTask.id
+        local.buried[richTask.id] = richTask
+        SyncEngine(remote, local, clock, throttleMs = 0, ownerId = { "user-1" }).runSync(triggeredByUser = false)
+        return local.tasks.getValue(richTask.id)
+    }
+
+    private fun assertDeviceFieldsKept(back: Task) {
+        assertEquals("edited elsewhere", back.title)
+        assertEquals(richTask.timeEntries, back.timeEntries)
+        assertEquals(richTask.parentTaskId, back.parentTaskId)
+        assertEquals(richTask.notificationSent, back.notificationSent)
+        assertEquals(richTask.lastNotificationAt, back.lastNotificationAt)
+        assertEquals(richTask.snoozedUntil, back.snoozedUntil)
+    }
+
+    /**
+     * S-IOS-02 (Lead, 2026-11-07), with iOS #94's test names. A server copy edited after this device archived or
+     * trashed the task brings it back (§9.4). The pull rebuilt it from the wire alone, so it lost the time-entry
+     * notes, the parent link, and this device's reminder state, and a reminder already shown here could fire again.
+     */
+    @Test
+    fun `an archived task pulled back keeps this device's fields`() = runTest {
+        assertDeviceFieldsKept(pullBack(archived = true))
+    }
+
+    @Test
+    fun `a trashed task pulled back keeps this device's fields`() = runTest {
+        assertDeviceFieldsKept(pullBack(archived = false))
+    }
+
+    /** B-55 still applies through the buried row: a moved due date is a new reminder. */
+    @Test
+    fun `a trashed task pulled back with a moved due date resets its reminder state`() = runTest {
+        val back = pullBack(archived = false, edited = richTask.copy(title = "edited elsewhere", dueDate = now.plusSeconds(172_800)))
+
+        assertEquals(richTask.timeEntries, back.timeEntries)
+        assertEquals(richTask.parentTaskId, back.parentTaskId)
+        assertEquals(false, back.notificationSent)
+        assertNull(back.lastNotificationAt)
+        assertNull(back.snoozedUntil)
     }
 
     /** SPEC-3 rule 5. Passed before it was written: `BoundedListing` throws first. The PR has the mutation. */
