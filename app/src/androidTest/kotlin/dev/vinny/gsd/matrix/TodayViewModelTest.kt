@@ -15,7 +15,9 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -91,6 +93,23 @@ class TodayViewModelTest {
         kotlinx.coroutines.delay(300)
 
         assertNull(task("task-d").focusRank)
+    }
+
+    /** Web T15: a refused add says "Today is full" rather than nothing. The add hides when full, so it's a race. */
+    @Test
+    fun aRefusedAddReportsThatTodayIsFullAndAnAcceptedOneDoesNot(): Unit = runBlocking {
+        val refusals = mutableListOf<Unit>()
+        val collector = launch(start = CoroutineStart.UNDISPATCHED) { viewModel.refusals.collect { refusals += it } }
+        listOf("task-a", "task-b", "task-c", "task-d").forEach { add(it) }
+        listOf("task-a", "task-b", "task-c").forEach { viewModel.addToToday(it); withTimeout(5_000) { while (task(it).focusRank == null) kotlinx.coroutines.delay(20) } }
+        assertEquals(0, refusals.size, "an accepted add reported a full day")
+
+        viewModel.addToToday("task-d")
+        withTimeout(5_000) { while (refusals.isEmpty()) kotlinx.coroutines.delay(20) }
+
+        assertEquals(1, refusals.size)
+        assertNull(task("task-d").focusRank)
+        collector.cancel()
     }
 
     @Test
