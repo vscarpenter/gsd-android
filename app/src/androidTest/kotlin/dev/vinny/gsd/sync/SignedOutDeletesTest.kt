@@ -270,6 +270,22 @@ class SignedOutDeletesTest {
         assertTrue(queue.any { it.taskId == kept.id }, "the import's own write was dropped too")
     }
 
+    /**
+     * SPEC-3 rule 2, as iOS tests it: the list survives sign-out, and a sign-in adds to it. An id an earlier
+     * sign-in remembered, whose run never listed the account, is still there beside the new one.
+     */
+    @Test
+    fun signInKeepsTheRememberedIds() = runBlocking {
+        val f = signedInFixture()
+        signOutAndDrain(f)
+        f.local.rememberResurrectOnSight(setOf("earlier-task"))
+        TaskStore(db, clock).delete(synced.id) // a Trash delete made signed out
+
+        f.coordinator.confirmOwner(AuthResult(healthyToken, AuthRecord("user-1")), eraseLocalFirst = false)
+
+        assertEquals(setOf("earlier-task", synced.id), f.local.resurrectOnSight())
+    }
+
     /** SPEC-3 rule 3 through Room (`GsdDatabase.trashedTask`): the Trash row's time-entry notes come back with the task. */
     @Test
     fun aResurrectedTaskKeepsItsTimeEntryNotes() = runBlocking {
