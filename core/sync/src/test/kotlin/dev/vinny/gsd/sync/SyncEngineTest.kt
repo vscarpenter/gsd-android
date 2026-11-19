@@ -1872,6 +1872,23 @@ class SyncEngineTest {
         assertTrue("task-1" in local.tasks, "the live task was removed")
     }
 
+    @Test
+    fun `with a skewed clock an update and a Trash delete in one push leave the task live`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, skewed)
+        val edit = guardedTask("edit", skewed)
+        guardedQueue(local, 1, edit)
+        local.tasks.remove(edit.id) // moved to Trash: a tombstone row with no payload
+        local.queue += SyncQueueEntity(id = 2, taskId = edit.id, operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null)
+        local.trashed[edit.id] = guardedNow.toEpochMilli()
+        local.tombstones[edit.id] = guardedNow.toEpochMilli()
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(1, remote.records.size, "the server copy was deleted")
+        assertTrue(edit.id in local.tasks, "the live task was removed")
+    }
+
     // AC15: only this device's own id marks a bump as its own.
     @Test
     fun `a listed record with no device id at one millisecond past the archived version keeps the delete stale`() = runTest {
