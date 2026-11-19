@@ -334,8 +334,9 @@ class SyncEngine(
                         // neither (C4-6)
                         val current = local.taskById(item.taskId)
                         if (remoteEntry == null && current == null) {
-                            // F4: the delete already landed and this device no longer holds the task (archived,
-                            // Trash, or gone), so a create from this snapshot would bring it back
+                            // F4: the server lists no record and this device no longer holds the task (archived,
+                            // Trash, or gone), either because its delete landed or because it never uploaded, so a
+                            // create from this snapshot would bring back a task the user removed
                             local.markQueueItemDone(item.id)
                             continue
                         }
