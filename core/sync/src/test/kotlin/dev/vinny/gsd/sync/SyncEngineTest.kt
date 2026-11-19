@@ -332,11 +332,17 @@ class SyncEngineTest {
             Case("payload-null", payload = null, row = 45, rowGone = false, wire = 45, after = 45),
             Case("both-null", payload = null, row = null, rowGone = false, wire = 30, after = 30),
             Case("row-null", payload = 20, row = null, rowGone = false, wire = 20, after = null),
-            Case("row-gone", payload = null, row = null, rowGone = true, wire = null, after = null) // F4: nothing is created for a task this device no longer holds,
+            Case("row-gone", payload = null, row = null, rowGone = true, wire = 30, after = null),
         )
         cases.forEachIndexed { index, case ->
             val payload = task(case.id, updatedAt = now.minusSeconds(60)).copy(notifyBefore = case.payload)
             if (!case.rowGone) local.tasks[case.id] = payload.copy(notifyBefore = case.row)
+            else {
+                // no live row but a listed record, so the update goes out with this device's default; the tombstone
+                // keeps the pull from importing the record (F4 owns what happens to an unlisted task)
+                remote.records["rec-${case.id}"] = WireMapper.push(payload.copy(updatedAt = now.minusSeconds(120)), "other", "user-1", defaultReminder = 15)
+                local.tombstones[case.id] = now.toEpochMilli()
+            }
             local.queue += queueItem(index + 1L, payload)
         }
 
@@ -394,6 +400,28 @@ class SyncEngineTest {
         assertEquals(0, local.queue.single().retryCount)
         assertTrue(remote.records.isEmpty())
         assertTrue("create" !in remote.calls && "update" !in remote.calls)
+    }
+
+    // F4 drops a row for a task this device no longer holds, but only once the server has named this account: a
+    // refused session lists as a guest, so an unlisted task proves nothing.
+    @Test
+    fun `a refused token keeps a queued update for a task with no live row`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { rejectIdentity = true }
+        local.queue += queueItem(1, task("no-row"))
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+        assertEquals(0, local.queue.single().retryCount)
+        assertTrue("create" !in remote.calls)
+    }
+
+    @Test
+    fun `another account's token keeps a queued update for a task with no live row`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { otherAccount = true }
+        local.queue += queueItem(1, task("no-row"))
+        val result = engine(remote, local).runSync(false)
+        assertEquals("error", result.status)
+        assertEquals(0, local.queue.single().retryCount)
+        assertTrue("create" !in remote.calls)
     }
 
     @Test

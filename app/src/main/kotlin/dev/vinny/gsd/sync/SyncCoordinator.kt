@@ -256,8 +256,8 @@ class SyncCoordinator(
         if (eraseLocalFirst) dev.vinny.gsd.store.LocalErase.eraseAll(db)
         // The store queues every mutation whatever the sign-in state, since the queue is also how a first
         // sign-in uploads local tasks. These rows would otherwise delete on the server after this sign-in,
-        // a Replace import's included. Creates and edits still upload. A Trash or Replace delete's task
-        // comes back when the account lists it (spec §9.4); an archive's delete carries the archived task
+        // a Replace import's included. Creates and edits still upload, for tasks still active (a task
+        // trashed or replaced away while signed out is not). A Trash or Replace delete's task comes back when the account lists it (spec §9.4); an archive's delete carries the archived task
         // and the archive stands.
         val queue = db.syncQueueDao().pending() + db.syncQueueDao().failed()
         local.rememberResurrectOnSight(
