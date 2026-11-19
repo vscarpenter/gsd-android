@@ -64,6 +64,10 @@ private class RecordingRemote(private val token: () -> String?) : SyncRemote {
         records[wire.taskId] = wire.copy(id = recordId)
         return records[wire.taskId]!!
     }
+    override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) = Unit
+
+    override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) = Unit
+
     override suspend fun deleteTask(recordId: String) {
         val taskId = records.entries.first { it.value.id == recordId }.key
         deletedTaskIds += taskId

@@ -57,6 +57,10 @@ private class SessionRemote(private val token: () -> String?, private val task: 
     }
     override suspend fun createTask(wire: WireTask): WireTask = wire
     override suspend fun updateTask(recordId: String, wire: WireTask): WireTask = wire
+    override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) = Unit
+
+    override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) = Unit
+
     override suspend fun deleteTask(recordId: String) = Unit
     override suspend fun confirmIdentity(ownerId: String) {
         if (guest()) throw PocketBaseApi.Unauthorized(401)

@@ -151,6 +151,14 @@ internal class FakeRemote : SyncRemote {
         return records[recordId]!!
     }
 
+    override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) {
+        calls += "update-guarded"
+    }
+
+    override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) {
+        calls += "delete-guarded"
+    }
+
     override suspend fun deleteTask(recordId: String) {
         gate(records[recordId]?.taskId ?: "")
         calls += "delete"

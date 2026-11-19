@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
@@ -53,6 +54,7 @@ class PocketBaseApi(
     private val client: OkHttpClient = OkHttpClient(),
 ) : SyncRemote, AccountRemote {
     class RateLimited : Exception("HTTP 429")
+    class VersionConflict : Exception("HTTP 412")
     class Unauthorized(code: Int) : Exception("HTTP $code")
     class HttpError(val code: Int, body: String) : Exception("HTTP $code: ${body.take(200)}")
 
@@ -71,6 +73,7 @@ class PocketBaseApi(
             when {
                 response.isSuccessful -> body
                 response.code == 429 -> throw RateLimited()
+                response.code == 412 -> throw VersionConflict()
                 response.code == 401 || response.code == 403 -> throw Unauthorized(response.code)
                 else -> throw HttpError(response.code, body)
             }
@@ -115,6 +118,29 @@ class PocketBaseApi(
         )
         return WireJson.decodeOrNull(raw) ?: wire
     }
+
+    override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) {
+        // the server rejects keys off its allow-list, so the record id and autodates stay out of data
+        val data = Json.parseToJsonElement(WireJson.encode(wire)).jsonObject
+            .filterKeys { it !in NON_WRITABLE_KEYS }
+        val body = buildJsonObject {
+            put("expected_version", expectedVersion)
+            put("data", JsonObject(data))
+        }
+        execute(
+            request(guardedPath(recordId)).patch(body.toString().toRequestBody(jsonType)).build(),
+        )
+    }
+
+    override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) {
+        val body = buildJsonObject { put("expected_version", expectedVersion) }
+        execute(
+            request(guardedPath(recordId)).delete(body.toString().toRequestBody(jsonType)).build(),
+        )
+    }
+
+    private fun guardedPath(recordId: String) =
+        "/api/gsd/tasks/${URLEncoder.encode(recordId, "UTF-8").replace("+", "%20")}"
 
     override suspend fun deleteTask(recordId: String) {
         execute(request("/api/collections/tasks/records/$recordId").delete().build())
@@ -174,5 +200,9 @@ class PocketBaseApi(
 
     override suspend fun deleteUser(userId: String) {
         execute(request("/api/collections/users/records/$userId").delete().build())
+    }
+
+    private companion object {
+        val NON_WRITABLE_KEYS = setOf("id", "created", "updated")
     }
 }

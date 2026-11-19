@@ -8,6 +8,8 @@ interface SyncRemote {
     suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage
     suspend fun createTask(wire: WireTask): WireTask
     suspend fun updateTask(recordId: String, wire: WireTask): WireTask
+    suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask)
+    suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String)
     suspend fun deleteTask(recordId: String)
 
     /**
