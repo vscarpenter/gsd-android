@@ -229,7 +229,7 @@ class SyncEngine(
      * The push runs after the step, so a step that threw used to skip it, and a listing that kept failing blocked
      * every upload while any id was remembered. Now only a session problem ends the run: a session that ended, a
      * token the identity check confirmed for another account, which the push would write to, or a dead one, which the
-     * push would spend retries on. Only reconciliation checks identity again, after the push. Anything else is
+     * push would spend retries on. The push and reconciliation check identity again themselves. Anything else is
      * reported and forgets nothing, and the run goes on to push, as web does (AND-RESURRECT-2).
      */
     private suspend fun resurrectOnSightOrReport(owner: String): Int = try {
@@ -273,9 +273,14 @@ class SyncEngine(
         savedAt = if (SavedPlacement.canSave(this)) merged.savedAt else savedAt,
     )
 
-    private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> =
+    /** [version] is the listed `client_updated_at` as the server wrote it: the guarded route compares it byte for byte. */
+    private data class RemoteEntry(val recordId: String, val version: String, val stamp: Instant?)
+
+    private suspend fun fetchRemoteIndex(): MutableMap<String, RemoteEntry> =
         BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks)
-            .associateTo(mutableMapOf()) { wire -> wire.taskId to (wire.id to PbDates.parse(wire.clientUpdatedAt)) }
+            .associateTo(mutableMapOf()) { wire ->
+                wire.taskId to RemoteEntry(wire.id, wire.clientUpdatedAt, PbDates.parse(wire.clientUpdatedAt))
+            }
 
     /** Returns pushed count to permanently-failed-this-drain count. */
     private suspend fun push(owner: String): Pair<Int, Int> {
@@ -287,6 +292,7 @@ class SyncEngine(
         val index = fetchRemoteIndex()
         var pushed = 0
         var failures = 0
+        var identityConfirmed = false
         val now = clock.instant()
         for (item in pending) {
             fence(owner) // outside the item's try: a session that ended must not spend this item's retries
@@ -294,6 +300,13 @@ class SyncEngine(
                 val waitMs = backoffMs[(item.retryCount - 1).coerceAtMost(backoffMs.lastIndex)]
                 val lastAttempt = item.lastAttemptAt ?: 0L
                 if (now.toEpochMilli() < lastAttempt + waitMs) continue // backoff gate
+            }
+            // A refused token lists as a guest, so an unlisted task proves nothing until the server names this
+            // account. Once per push, outside the item's try: a refusal ends the push and charges no row.
+            if (index[item.taskId] == null && !identityConfirmed) {
+                remote.confirmIdentity(owner)
+                identityConfirmed = true
+                fence(owner) // the call waited on the network: a sign-out or account switch in that window ends the push
             }
             try {
                 when (item.operation) {
@@ -306,11 +319,11 @@ class SyncEngine(
                             continue
                         }
                         val remoteEntry = index[item.taskId]
-                        if (remoteEntry != null && remoteEntry.second == null) {
+                        if (remoteEntry != null && remoteEntry.stamp == null) {
                             // a missing or malformed remote version may protect, never authorize overwrite (S§8.2)
                             throw MalformedRemoteVersion()
                         }
-                        val remoteStamp = remoteEntry?.second
+                        val remoteStamp = remoteEntry?.stamp
                         if (remoteStamp != null && RemoteStamp.isNewer(remoteStamp, payload.updatedAt.toEpochMilli(), now)) {
                             local.markQueueItemDone(item.id) // LWW payload guard: pull delivers remote (spec §9.3)
                             continue
@@ -326,10 +339,14 @@ class SyncEngine(
                             WireMapper.push(payload, deviceId, owner, offsetDefault, hasCurrentRow = false)
                         }
                         if (remoteEntry != null) {
-                            remote.updateTask(remoteEntry.first, wire)
+                            val sent = RemoteStamp.guardedVersion(wire.clientUpdatedAt, remoteEntry.version)
+                            remote.updateTaskGuarded(remoteEntry.recordId, remoteEntry.version, wire.copy(clientUpdatedAt = sent))
+                            index[item.taskId] = RemoteEntry(remoteEntry.recordId, sent, PbDates.parse(sent))
                         } else {
                             val created = remote.createTask(wire)
-                            index[item.taskId] = created.id to PbDates.parse(created.clientUpdatedAt)
+                            index[item.taskId] = RemoteEntry(
+                                created.id, created.clientUpdatedAt, PbDates.parse(created.clientUpdatedAt),
+                            )
                         }
                         if (payload.notifyBefore == null && current != null && current.notifyBefore == null) {
                             local.settleNotifyBefore(item.taskId, defaultReminder) // the row now matches the server
@@ -338,12 +355,17 @@ class SyncEngine(
                         pushed++
                     }
                     SyncOp.DELETE -> {
-                        val remoteStamp = index[item.taskId]?.second
+                        val listed = index[item.taskId]
+                        val remoteStamp = listed?.stamp
                         if (remoteEditedAfterArchive(item, remoteStamp, now) || remoteEditedAfterQueued(item, remoteStamp, now)) {
                             local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-42, B-47)
                             continue
                         }
-                        index[item.taskId]?.let { remote.deleteTask(it.first) }
+                        if (listed != null) {
+                            // the staleness guards can't run without a parseable stamp, so the delete is charged and not sent, as on web
+                            if (remoteStamp == null) throw MalformedRemoteVersion()
+                            remote.deleteTaskGuarded(listed.recordId, listed.version)
+                        }
                         index.remove(item.taskId)
                         local.markQueueItemDone(item.id)
                         pushed++
@@ -352,6 +374,10 @@ class SyncEngine(
                 if (throttleMs > 0) delay(throttleMs)
             } catch (rateLimit: PocketBaseApi.RateLimited) {
                 return pushed to failures // abort the whole push loop; items stay pending (spec §9.5)
+            } catch (_: PocketBaseApi.VersionConflict) {
+                continue // another device wrote since the listing: the row stays queued, uncharged, and the next sync's LWW decides
+            } catch (refused: PocketBaseApi.Unauthorized) {
+                throw refused // a dead session ends the push and charges no row; runSync reports notSignedIn
             } catch (failure: Exception) {
                 val newCount = item.retryCount + 1
                 val nowFailed = newCount >= 5
@@ -375,8 +401,8 @@ class SyncEngine(
      * An archive's delete carries the task as it was archived (spec §9.5). A remote newer than that
      * version means another device edited the task after this copy last synced: a pull missed the
      * edit, or it landed between the pull and the archive. Archiving the stale copy must not delete it
-     * (parity backlog B-47). A delete with no payload (trash) and a remote with no usable version keep
-     * the plain delete.
+     * (parity backlog B-47). A delete with no payload (trash) skips this check. A listed remote with no
+     * usable version is charged and not sent, because the staleness guards can't run without a stamp.
      */
     private fun remoteEditedAfterArchive(item: SyncQueueEntity, remoteStamp: Instant?, now: Instant): Boolean {
         if (remoteStamp == null) return false

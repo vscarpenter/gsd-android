@@ -22,6 +22,14 @@ object RemoteStamp {
     /** Whether a remote may overrule a queued write or a tombstone. A far-future stamp is never newer. */
     fun isNewer(remote: Instant, thanMs: Long, now: Instant): Boolean =
         !isPastCeiling(remote, now) && remote.toEpochMilli() > thanMs
+
+    /**
+     * The guarded route 400s a write whose `client_updated_at` equals the stored one, so an update that would
+     * send the listed stamp back sends one millisecond more (ADR 0021). The comparison is on strings:
+     * only a byte-equal [outgoing] bumps, and a non-canonical [expected] for the same instant is sent as it is.
+     */
+    fun guardedVersion(outgoing: String, expected: String): String =
+        if (outgoing == expected) PbDates.formatWire(PbDates.parse(expected)!!.plusMillis(1)) else outgoing
 }
 
 /**

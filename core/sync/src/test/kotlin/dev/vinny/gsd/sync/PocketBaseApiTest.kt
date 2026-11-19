@@ -1,6 +1,9 @@
 package dev.vinny.gsd.sync
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -69,19 +72,61 @@ class PocketBaseApiTest {
     }
 
     @Test
-    fun `update patches by record id and delete expects 204`() = runBlocking {
-        server.enqueue(MockResponse().setBody("""{"id":"rec1","task_id":"t1","client_updated_at":"2026-06-10T12:00:00.000Z"}"""))
-        api.updateTask("rec1", WireTask(taskId = "t1"))
-        val patch = server.takeRequest()
-        assertEquals("PATCH", patch.method)
-        // an empty id in the PATCH body reads as a primary-key change → 400 validation_pk_change
-        assertTrue("\"id\":\"rec1\"" in patch.body.readUtf8().replace(" ", ""))
-
+    fun `delete expects 204`() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(204))
         api.deleteTask("rec1")
         val recorded = server.takeRequest()
         assertEquals("DELETE", recorded.method)
         assertTrue(recorded.path!!.endsWith("/rec1"))
+    }
+
+    private val guardedAllowList = setOf(
+        "owner", "task_id", "title", "description", "urgent", "important", "quadrant", "due_date",
+        "completed", "completed_at", "recurrence", "tags", "subtasks", "dependencies",
+        "notification_enabled", "notification_sent", "notify_before", "last_notification_at",
+        "estimated_minutes", "time_spent", "time_entries", "snoozed_until", "saved_at", "focus_date",
+        "focus_rank", "client_updated_at", "client_created_at", "device_id",
+    )
+
+    @Test
+    fun `guarded update PATCHes the task route with the version and no id, created, or updated`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(204))
+        api.updateTaskGuarded("rec1", "v1", WireTask(id = "rec1", taskId = "t1", created = "c", updated = "u"))
+        val patch = server.takeRequest()
+        assertEquals("/api/gsd/tasks/rec1", patch.path)
+        assertEquals("PATCH", patch.method)
+        val body = Json.parseToJsonElement(patch.body.readUtf8()).jsonObject
+        assertEquals("v1", body["expected_version"]!!.jsonPrimitive.content)
+        val data = body["data"]!!.jsonObject
+        assertEquals("t1", data["task_id"]!!.jsonPrimitive.content)
+        assertTrue(data.keys.all { it in guardedAllowList }, "off-list keys: ${data.keys - guardedAllowList}")
+    }
+
+    @Test
+    fun `guarded delete sends only the version`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(204))
+        api.deleteTaskGuarded("rec1", "v1")
+        val delete = server.takeRequest()
+        assertEquals("/api/gsd/tasks/rec1", delete.path)
+        assertEquals("DELETE", delete.method)
+        val body = Json.parseToJsonElement(delete.body.readUtf8()).jsonObject
+        assertEquals(setOf("expected_version"), body.keys)
+        assertEquals("v1", body["expected_version"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a 412 throws VersionConflict`(): Unit = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(412))
+        assertFailsWith<PocketBaseApi.VersionConflict> { api.updateTaskGuarded("rec1", "v1", WireTask(taskId = "t1")) }
+        server.enqueue(MockResponse().setResponseCode(412))
+        assertFailsWith<PocketBaseApi.VersionConflict> { api.deleteTaskGuarded("rec1", "v1") }
+    }
+
+    @Test
+    fun `a guarded update accepts an empty 204`() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(204))
+        api.updateTaskGuarded("rec1", "v1", WireTask(taskId = "t1"))
+        assertEquals(1, server.requestCount)
     }
 
     @Test

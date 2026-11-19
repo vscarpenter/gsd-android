@@ -1,5 +1,27 @@
 # GSD Android — progress
 
+## Resuming From Here (2026-11-19): native sync ports, two phases on stacked branches
+
+Non-trivial, spec and plan `plans/2026-11-19-native-sync-ports.md` (Part 1 binds; D1 to D7). Web gsd-taskmanager #717
+and ADR 0021 are the source. Not pushed.
+
+- [x] Phase A, `fix/confirm-before-absence`, `6ea9ff1`: the push confirms identity once before it acts on an absence
+  (an unlisted create, update, or delete). A refusal or another account ends the push and charges no row.
+- [x] Phase B, `fix/guarded-task-writes` (stacked on A): updates and deletes go through `/api/gsd/tasks/{id}` with
+  `expected_version`. A 412 stays queued and uncharged (D2). An equal stamp sends one millisecond more (D5). A listed
+  delete with no parseable version is charged and not sent, as on web. Commits `3db635f`, `df2f77e`, `77424d0`, then
+  the final-review fixes (session fence after the push's identity call, test teeth, FakeRemote's single version,
+  accurate comments and spec).
+- [x] Real server, local PocketBase with web's hooks, Phase A red on `fabf6f5` and green on `6ea9ff1`, Phase B red on
+  `6ea9ff1` and green on `77424d0`: `plans/2026-11-19-native-sync-ports-real-server.md`. Nothing touched `api.vinny.io`.
+- **Out of scope, found while in here (both Android only, neither fixed):**
+  - A `CancellationException` inside the item's try is charged a retry (the push's `catch (failure: Exception)` in
+    `SyncEngine.kt`), so a cancelled sync can spend one of a row's five tries.
+  - `requeueFailed` (`SyncQueueDao.kt`) sets `status` back to `pending` and keeps `retryCount`, so a re-armed row
+    fails again on its very next failure.
+- **Next:** push both branches and open the PRs (owner item), then tell the Lead.
+- **Blockers:** none.
+
 ## Resuming From Here (2026-11-08): Sprint 2 AND-PARITY-POLISH, branch `fix/parity-polish`
 
 Standard tier: five bounded copy and UI fixes, no synced field or contract. The Lead's rulings are in
