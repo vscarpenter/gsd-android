@@ -377,7 +377,9 @@ class SyncEngine(
                         val remoteStamp = listed?.stamp
                         val ownWrite = listed != null &&
                             (writtenThisPush[item.taskId] == listed.version || isOwnBump(item, listed, deviceId))
-                        if (!ownWrite && (remoteEditedAfterArchive(item, remoteStamp, now) || remoteEditedAfterQueued(item, remoteStamp, now))) {
+                        // An own write relaxes the archived-version check only. The queued-after check always applies: with a
+                        // skewed writer clock the pull reads this delete as stale and keeps the task live, and the push must agree.
+                        if ((!ownWrite && remoteEditedAfterArchive(item, remoteStamp, now)) || remoteEditedAfterQueued(item, remoteStamp, now)) {
                             local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-42, B-47)
                             continue
                         }

@@ -1807,4 +1807,57 @@ class SyncEngineTest {
         assertEquals(listOf("create"), remote.calls.filter { it == "create" })
         assertEquals(1, result.pushed)
     }
+
+    // AC14: a writer whose clock runs ahead. The pull reads the archive as older than the listed stamp and brings the task
+    // back, so the push must read the delete as stale too, or the server copy goes and reconcile removes the live task.
+    private val skewed = "2026-11-19T18:02:00.000Z" // two minutes past guardedNow, inside the clock-skew ceiling
+
+    @Test
+    fun `with a skewed clock an update and an archive delete in one push leave the task live`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, skewed)
+        val edit = guardedTask("edit", skewed)
+        guardedQueue(local, 1, edit)
+        local.tasks.remove(edit.id)
+        local.queue += archiveDelete(2, edit)
+        local.tombstones[edit.id] = guardedNow.toEpochMilli()
+        local.archived += edit.id
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(1, remote.records.size, "the server copy was deleted")
+        assertTrue(edit.id in local.tasks, "the live task was removed")
+    }
+
+    @Test
+    fun `with a skewed clock an archive made while the bumped update was in flight leaves the task live`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, skewed)
+        guardedQueue(local, 1, guardedTask("edit", skewed))
+        remote.afterGuardedUpdate = { archive(local, 2) } // the delete carries the stamp the update was queued with
+        guardedEngine(remote, local).runSync(false)
+        remote.afterGuardedUpdate = {}
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(1, remote.records.size, "the server copy was deleted")
+        assertTrue("task-1" in local.tasks, "the live task was removed")
+    }
+
+    // AC15: only this device's own id marks a bump as its own.
+    @Test
+    fun `a listed record with no device id at one millisecond past the archived version keeps the delete stale`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "2026-11-19T17:00:00.001Z")
+        remote.records["rec1"] = remote.records.getValue("rec1").copy(deviceId = "")
+        val archived = guardedTask("done", v0)
+        local.queue += archiveDelete(1, archived)
+        local.tombstones[archived.id] = guardedNow.toEpochMilli()
+        local.archived += archived.id
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals("server", remote.records["rec1"]?.title)
+        assertTrue("deleteGuarded" !in remote.calls)
+    }
 }
