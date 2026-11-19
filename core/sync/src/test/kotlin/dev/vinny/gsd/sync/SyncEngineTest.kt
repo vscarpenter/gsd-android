@@ -82,6 +82,11 @@ internal open class FakeLocal : SyncLocalStore {
     override suspend fun settleNotifyBefore(id: String, minutes: Int) {
         tasks[id]?.takeIf { it.notifyBefore == null }?.let { tasks[id] = it.copy(notifyBefore = minutes) }
     }
+    override suspend fun restampIfUnchanged(id: String, fromMs: Long, toMs: Long): Boolean {
+        val row = tasks[id]?.takeIf { it.updatedAt.toEpochMilli() == fromMs } ?: return false
+        tasks[id] = row.copy(updatedAt = Instant.ofEpochMilli(toMs))
+        return true
+    }
     override suspend fun isArchived(id: String): Boolean = id in archived
     override suspend fun buriedTask(id: String): Task? = buried[id]
 }
@@ -107,6 +112,8 @@ internal class FakeRemote : SyncRemote {
     var duringIdentityCheck: suspend () -> Unit = {}
     /** How many listings from the epoch claim one more record than they send, as a listing that changed mid-walk. */
     var incompleteEpochListings = 0
+    /** Runs after a guarded update lands, as the user signing out while the PATCH was in flight. */
+    var afterGuardedUpdate: suspend () -> Unit = {}
 
     override suspend fun confirmIdentity(ownerId: String) {
         calls += "confirmIdentity"
@@ -170,6 +177,7 @@ internal class FakeRemote : SyncRemote {
         if (wire.clientUpdatedAt == expectedVersion) throw PocketBaseApi.HttpError(400, "")
         records[recordId] = wire.copy(id = recordId)
         versions[recordId] = wire.clientUpdatedAt
+        afterGuardedUpdate()
     }
 
     override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) {
@@ -1528,5 +1536,114 @@ class SyncEngineTest {
         engine.runSync(false)
 
         assertEquals(listOf(1L), local.queue.map { it.id })
+    }
+
+    // A bumped write (equal stamp plus 1 ms) leaves the server ahead of the row, so the row is restamped (F1)
+    // and a delete in the same push recognizes the version this push wrote (F2).
+    private val v0Bumped = Instant.parse("2026-11-19T17:00:00.001Z")
+
+    private fun archiveDelete(id: Long, archived: Task) = SyncQueueEntity(
+        id = id, taskId = archived.id, operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(),
+        payloadJson = TaskJson.encode(archived),
+    )
+
+    @Test
+    fun `a bumped update restamps the local row and queues nothing`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        guardedQueue(local, 1, guardedTask("edit", v0))
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(v0Bumped, local.tasks["task-1"]?.updatedAt)
+        assertEquals("edit", local.tasks["task-1"]?.title)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `an archive queued after a bumped update deletes the server copy`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        guardedQueue(local, 1, guardedTask("edit", v0))
+        guardedEngine(remote, local).runSync(false)
+        val archived = local.tasks.remove("task-1")!!
+        local.queue += archiveDelete(2, archived)
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertTrue(remote.records.isEmpty(), "the delete was dropped as a newer remote edit")
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a bumped update and an archive delete of one task both land in one push`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val edit = guardedTask("edit", v0)
+        guardedQueue(local, 1, edit)
+        local.tasks.remove(edit.id)
+        local.queue += archiveDelete(2, edit)
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals(listOf("update", "deleteGuarded"), remote.calls.filter { it == "update" || it == "deleteGuarded" })
+        assertTrue(remote.records.isEmpty(), "the delete was dropped as a newer remote edit")
+        assertEquals(2, result.pushed)
+    }
+
+    @Test
+    fun `a local edit made after the update was queued is not overwritten by the restamp`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        guardedQueue(local, 1, guardedTask("edit", v0))
+        val newer = guardedTask("edited again", "2026-11-19T17:45:00.000Z")
+        local.tasks[newer.id] = newer
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(newer, local.tasks["task-1"])
+    }
+
+    @Test
+    fun `a session that ends during the update leaves the local row untouched`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        var owner: String? = "user-1"
+        remote.afterGuardedUpdate = { owner = null }
+        listed(remote, v0)
+        val edit = guardedTask("edit", v0)
+        guardedQueue(local, 1, edit)
+        val engine = SyncEngine(remote, local, Clock.fixed(guardedNow, ZoneOffset.UTC), throttleMs = 0, ownerId = { owner })
+
+        engine.runSync(false)
+
+        assertEquals(listOf("update"), remote.calls.filter { it == "update" })
+        assertEquals(edit, local.tasks["task-1"])
+    }
+
+    @Test
+    fun `an update that was not bumped leaves the local row's stamp alone`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val edit = guardedTask("edit", "2026-11-19T17:30:00.000Z")
+        guardedQueue(local, 1, edit)
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(edit.updatedAt, local.tasks["task-1"]?.updatedAt)
+    }
+
+    @Test
+    fun `the next sync after a bumped write pulls nothing and reports no conflict`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        guardedQueue(local, 1, guardedTask("edit", v0))
+        val engine = guardedEngine(remote, local)
+        engine.runSync(false)
+
+        val next = engine.runSync(false)
+
+        assertEquals(0, next.pulled)
+        assertEquals(0, next.conflicts)
+        assertEquals("edit", local.tasks["task-1"]?.title)
     }
 }

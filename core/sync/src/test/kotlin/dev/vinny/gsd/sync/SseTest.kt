@@ -44,6 +44,7 @@ private class FakeSseLocal : SyncLocalStore {
     override suspend fun forgetResurrectOnSight(ids: Set<String>) = Unit
     override suspend fun defaultReminderMinutes(): Int = 15
     override suspend fun settleNotifyBefore(id: String, minutes: Int) = Unit
+    override suspend fun restampIfUnchanged(id: String, fromMs: Long, toMs: Long): Boolean = false
     override suspend fun isArchived(id: String): Boolean = false
     override suspend fun buriedTask(id: String): Task? = null
 }

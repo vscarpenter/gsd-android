@@ -27,6 +27,10 @@ interface TaskDao {
     @Query("UPDATE tasks SET notifyBefore = :minutes WHERE id = :id AND notifyBefore IS NULL")
     suspend fun settleNotifyBefore(id: String, minutes: Int)
 
+    /** The push's restamp after a bumped write: one column, and only while the row still holds [fromMs]. Returns rows changed. */
+    @Query("UPDATE tasks SET updatedAt = :toMs WHERE id = :id AND updatedAt = :fromMs")
+    suspend fun restampIfUnchanged(id: String, fromMs: Long, toMs: Long): Int
+
     @Query("DELETE FROM tasks WHERE id = :id")
     suspend fun deleteById(id: String)
 

@@ -217,6 +217,24 @@ class TaskStoreTest {
         assertTrue(db.syncQueueDao().pending().isEmpty())
     }
 
+    /** The push's restamp after a bumped write: one conditional column write, no queue row. */
+    @Test
+    fun restampingMovesOnlyARowThatStillHoldsTheOldStamp() = runTest {
+        val held = draft("held").copy(createdAt = fixed.instant(), updatedAt = fixed.instant())
+        val edited = draft("edited").copy(createdAt = fixed.instant(), updatedAt = fixed.instant().plusSeconds(60))
+        db.taskDao().upsert(held.toEntity())
+        db.taskDao().upsert(edited.toEntity())
+        val from = fixed.instant().toEpochMilli()
+
+        assertEquals(1, db.taskDao().restampIfUnchanged(held.id, from, from + 1))
+        assertEquals(0, db.taskDao().restampIfUnchanged(edited.id, from, from + 1))
+
+        assertEquals(from + 1, store.get(held.id)?.updatedAt?.toEpochMilli())
+        assertEquals(edited.updatedAt.toEpochMilli(), store.get(edited.id)?.updatedAt?.toEpochMilli())
+        assertEquals(held.title, store.get(held.id)?.title)
+        assertTrue(db.syncQueueDao().pending().isEmpty())
+    }
+
     /** Top three: a pick survives the store, an archive and its restore, and Trash and its restore (spec §7). */
     @Test
     fun aPickSurvivesTheStoreTheArchiveAndTrash() = runTest {

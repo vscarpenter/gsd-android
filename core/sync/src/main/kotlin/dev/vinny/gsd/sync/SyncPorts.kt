@@ -114,6 +114,14 @@ interface SyncLocalStore {
     suspend fun settleNotifyBefore(id: String, minutes: Int)
 
     /**
+     * Moves the row's `updatedAt` from [fromMs] to [toMs] and returns whether a row changed. The push calls it after a
+     * write that sent a stamp one millisecond past the queued one, so the row holds what the server holds. One
+     * column, conditional on the row still holding [fromMs] (a newer local edit is never overwritten), and no
+     * queue row: the server already has this version.
+     */
+    suspend fun restampIfUnchanged(id: String, fromMs: Long, toMs: Long): Boolean
+
+    /**
      * The archive or Trash row for [id], or null. A task that comes back over its tombstone merges into it, so this
      * device's reminder state, parent link, and rich time entries survive (§9.2, §9.4: SPEC-3 rule 3, S-IOS-02).
      */
