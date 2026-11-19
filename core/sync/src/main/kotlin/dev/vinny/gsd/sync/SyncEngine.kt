@@ -293,6 +293,8 @@ class SyncEngine(
         var pushed = 0
         var failures = 0
         var identityConfirmed = false
+        // taskId -> the version this push wrote, so a later delete in the same push knows the listed version is its own
+        val writtenThisPush = mutableMapOf<String, String>()
         val now = clock.instant()
         for (item in pending) {
             fence(owner) // outside the item's try: a session that ended must not spend this item's retries
@@ -342,11 +344,21 @@ class SyncEngine(
                             val sent = RemoteStamp.guardedVersion(wire.clientUpdatedAt, remoteEntry.version)
                             remote.updateTaskGuarded(remoteEntry.recordId, remoteEntry.version, wire.copy(clientUpdatedAt = sent))
                             index[item.taskId] = RemoteEntry(remoteEntry.recordId, sent, PbDates.parse(sent))
+                            writtenThisPush[item.taskId] = sent
+                            if (sent != wire.clientUpdatedAt) {
+                                // The server holds the bumped stamp, so the row takes it too: an archive queued next
+                                // carries the row's stamp, and a stale one would read as a newer remote edit.
+                                fence(owner)
+                                local.restampIfUnchanged(
+                                    item.taskId, payload.updatedAt.toEpochMilli(), PbDates.parse(sent)!!.toEpochMilli(),
+                                )
+                            }
                         } else {
                             val created = remote.createTask(wire)
                             index[item.taskId] = RemoteEntry(
                                 created.id, created.clientUpdatedAt, PbDates.parse(created.clientUpdatedAt),
                             )
+                            writtenThisPush[item.taskId] = created.clientUpdatedAt
                         }
                         if (payload.notifyBefore == null && current != null && current.notifyBefore == null) {
                             local.settleNotifyBefore(item.taskId, defaultReminder) // the row now matches the server
@@ -357,7 +369,8 @@ class SyncEngine(
                     SyncOp.DELETE -> {
                         val listed = index[item.taskId]
                         val remoteStamp = listed?.stamp
-                        if (remoteEditedAfterArchive(item, remoteStamp, now) || remoteEditedAfterQueued(item, remoteStamp, now)) {
+                        val ownWrite = listed != null && writtenThisPush[item.taskId] == listed.version
+                        if (!ownWrite && (remoteEditedAfterArchive(item, remoteStamp, now) || remoteEditedAfterQueued(item, remoteStamp, now))) {
                             local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-42, B-47)
                             continue
                         }

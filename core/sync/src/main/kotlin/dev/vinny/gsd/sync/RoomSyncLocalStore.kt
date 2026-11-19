@@ -129,6 +129,9 @@ class RoomSyncLocalStore(private val db: GsdDatabase) : SyncLocalStore {
 
     override suspend fun settleNotifyBefore(id: String, minutes: Int) = db.taskDao().settleNotifyBefore(id, minutes)
 
+    override suspend fun restampIfUnchanged(id: String, fromMs: Long, toMs: Long): Boolean =
+        db.taskDao().restampIfUnchanged(id, fromMs, toMs) > 0
+
     override suspend fun isArchived(id: String): Boolean = db.archivedTaskDao().byId(id) != null
 
     override suspend fun buriedTask(id: String): Task? = db.buriedTask(id)
