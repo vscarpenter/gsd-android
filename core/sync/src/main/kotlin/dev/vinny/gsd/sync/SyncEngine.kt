@@ -229,7 +229,7 @@ class SyncEngine(
      * The push runs after the step, so a step that threw used to skip it, and a listing that kept failing blocked
      * every upload while any id was remembered. Now only a session problem ends the run: a session that ended, a
      * token the identity check confirmed for another account, which the push would write to, or a dead one, which the
-     * push would spend retries on. Only reconciliation checks identity again, after the push. Anything else is
+     * push would spend retries on. The push and reconciliation check identity again themselves. Anything else is
      * reported and forgets nothing, and the run goes on to push, as web does (AND-RESURRECT-2).
      */
     private suspend fun resurrectOnSightOrReport(owner: String): Int = try {
@@ -306,6 +306,7 @@ class SyncEngine(
             if (index[item.taskId] == null && !identityConfirmed) {
                 remote.confirmIdentity(owner)
                 identityConfirmed = true
+                fence(owner) // the call waited on the network: a sign-out or account switch in that window ends the push
             }
             try {
                 when (item.operation) {
@@ -361,7 +362,7 @@ class SyncEngine(
                             continue
                         }
                         if (listed != null) {
-                            // a missing or malformed version can't be sent as expected_version, and never licenses a delete
+                            // the staleness guards can't run without a parseable stamp, so the delete is charged and not sent, as on web
                             if (remoteStamp == null) throw MalformedRemoteVersion()
                             remote.deleteTaskGuarded(listed.recordId, listed.version)
                         }
@@ -400,8 +401,8 @@ class SyncEngine(
      * An archive's delete carries the task as it was archived (spec §9.5). A remote newer than that
      * version means another device edited the task after this copy last synced: a pull missed the
      * edit, or it landed between the pull and the archive. Archiving the stale copy must not delete it
-     * (parity backlog B-47). A delete with no payload (trash) and a remote with no usable version keep
-     * the plain delete.
+     * (parity backlog B-47). A delete with no payload (trash) skips this check. A listed remote with no
+     * usable version is charged and not sent, because the staleness guards can't run without a stamp.
      */
     private fun remoteEditedAfterArchive(item: SyncQueueEntity, remoteStamp: Instant?, now: Instant): Boolean {
         if (remoteStamp == null) return false

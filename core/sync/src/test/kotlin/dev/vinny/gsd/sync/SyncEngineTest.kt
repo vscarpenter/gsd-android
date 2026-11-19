@@ -124,8 +124,8 @@ internal class FakeRemote : SyncRemote {
         if (incomplete) incompleteEpochListings--
         return TaskListPage(
             page = 1, totalPages = 1, totalItems = items.size + if (incomplete) 1 else 0,
-            items = items.map { it.value.copy(id = it.key) },
-            updatedStamps = items.map { PbDates.formatSpace(PbDates.parse(it.value.clientUpdatedAt) ?: Instant.EPOCH) },
+            items = items.map { it.value.copy(id = it.key, clientUpdatedAt = versionOf(it.key) ?: it.value.clientUpdatedAt) },
+            updatedStamps = items.map { PbDates.formatSpace(PbDates.parse(versionOf(it.key)) ?: Instant.EPOCH) },
         )
     }
 
@@ -151,6 +151,7 @@ internal class FakeRemote : SyncRemote {
     /** What another device does between this push's listing and its write: the version changes before the next guarded call. */
     fun changeAfterListing(recordId: String, version: String) { changesAfterListing[recordId] = version }
 
+    /** The one version the listing shows and the guard compares, so a later run lists what an earlier one changed. */
     private fun versionOf(recordId: String): String? = versions[recordId] ?: records[recordId]?.clientUpdatedAt
 
     /** The hook's checks, in its order: record exists (404), version matches byte for byte (412). */
@@ -444,8 +445,8 @@ class SyncEngineTest {
         local.queue += queueItem(2, second)
         val result = engine(remote, local).runSync(false)
         assertTrue(result.notSignedIn)
+        // The fake's gate throws before it logs a call, so the retry counts carry this test: neither row was charged.
         assertEquals(listOf(0, 0), local.queue.map { it.retryCount })
-        assertTrue("update" !in remote.calls)
     }
 
     @Test
@@ -1113,8 +1114,9 @@ class SyncEngineTest {
 
     /**
      * A2's first limit (the Lead's review of iOS #97, matching its test). Android pulls, runs the step, then pushes,
-     * and only reconciliation checks identity again, after the push. So a step that confirmed another account must
-     * stop the run, or the push writes this device's edits to an account it just failed to confirm.
+     * and the push and reconciliation check identity again. So a step that confirmed another account must stop the
+     * run, or the push writes this device's edits to an account it just failed to confirm. The edited task is
+     * unlisted, so the push would make its own identity call: exactly one call proves the step ended the run.
      */
     @Test
     fun `a step whose identity check fails stops the run before the push`() = runTest {
@@ -1133,6 +1135,7 @@ class SyncEngineTest {
         assertEquals(0, result.pushed)
         assertTrue(remote.records.isEmpty(), "the push wrote to an unconfirmed account")
         assertEquals(setOf("trashed-task"), local.resurrect)
+        assertEquals(1, remote.calls.count { it == "confirmIdentity" }, "the push ran its own identity check")
     }
 
     /** A2's second limit: a dead session the step's identity check finds still ends the run, so the push spends no retry. */
@@ -1154,6 +1157,7 @@ class SyncEngineTest {
         assertEquals(0, local.queue.single().retryCount)
         assertTrue(remote.records.isEmpty())
         assertTrue(reported.isEmpty())
+        assertEquals(1, remote.calls.count { it == "confirmIdentity" }, "the push ran its own identity check")
     }
 
     /** A2's other limit: a session that ends during the step stops the run, and isn't reported as a step failure. */
@@ -1459,5 +1463,70 @@ class SyncEngineTest {
         guardedEngine(remote, local).runSync(false)
 
         assertEquals(1, local.queue.single().retryCount)
+        assertTrue("create" !in remote.calls, "a 404 must not fall back to a create (D1)")
+    }
+
+    @Test
+    fun `a 412, then the next run lands with the fresh version`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.changeAfterListing("rec1", "2026-11-19T17:00:00.500Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+        val engine = guardedEngine(remote, local)
+
+        engine.runSync(false)
+        assertEquals("server", remote.records["rec1"]?.title)
+        val second = engine.runSync(false)
+
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertEquals("2026-11-19T17:30:00.000Z", remote.versions["rec1"])
+        assertEquals(1, second.pushed)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a 412, then the next run drops the row as stale`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.changeAfterListing("rec1", "2026-11-19T17:45:00.000Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+        val engine = guardedEngine(remote, local)
+
+        engine.runSync(false)
+        assertEquals(1, local.queue.size)
+        engine.runSync(false)
+
+        assertEquals("server", remote.records["rec1"]?.title)
+        assertTrue(local.queue.isEmpty())
+        assertEquals(1, remote.calls.count { it == "update" }, "the second run sent a write the other client's stamp outranks")
+    }
+
+    @Test
+    fun `a session that ends during the push's identity check sends nothing`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        var owner: String? = "user-1"
+        remote.duringIdentityCheck = { owner = null }
+        guardedQueue(local, 1, guardedTask("new", "2026-11-19T17:30:00.000Z"))
+        val engine = SyncEngine(remote, local, Clock.fixed(guardedNow, ZoneOffset.UTC), throttleMs = 0, ownerId = { owner })
+
+        engine.runSync(false)
+
+        assertTrue("create" !in remote.calls)
+        assertEquals(0, local.queue.single().retryCount)
+    }
+
+    @Test
+    fun `an account switch during the push's identity check keeps an unlisted delete queued`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        var owner = "user-1"
+        remote.duringIdentityCheck = { owner = "user-2" }
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+        val engine = SyncEngine(remote, local, Clock.fixed(guardedNow, ZoneOffset.UTC), throttleMs = 0, ownerId = { owner })
+
+        engine.runSync(false)
+
+        assertEquals(listOf(1L), local.queue.map { it.id })
     }
 }
