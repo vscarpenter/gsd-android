@@ -144,19 +144,39 @@ internal class FakeRemote : SyncRemote {
         return stored
     }
 
-    override suspend fun updateTask(recordId: String, wire: WireTask): WireTask {
-        gate(wire.taskId)
-        calls += "update"
-        records[recordId] = wire.copy(id = recordId)
-        return records[recordId]!!
+    /** Server-side `client_updated_at` by record id. A record with no entry here holds its wire stamp. */
+    val versions = mutableMapOf<String, String>()
+    private val changesAfterListing = mutableMapOf<String, String>()
+
+    /** What another device does between this push's listing and its write: the version changes before the next guarded call. */
+    fun changeAfterListing(recordId: String, version: String) { changesAfterListing[recordId] = version }
+
+    private fun versionOf(recordId: String): String? = versions[recordId] ?: records[recordId]?.clientUpdatedAt
+
+    /** The hook's checks, in its order: record exists (404), version matches byte for byte (412). */
+    private fun guard(recordId: String, expectedVersion: String): WireTask {
+        versions += changesAfterListing
+        changesAfterListing.clear()
+        val record = records[recordId] ?: throw PocketBaseApi.HttpError(404, "")
+        if (versionOf(recordId) != expectedVersion) throw PocketBaseApi.VersionConflict()
+        return record
     }
 
     override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) {
-        calls += "update-guarded"
+        gate(wire.taskId)
+        calls += "update"
+        guard(recordId, expectedVersion)
+        if (wire.clientUpdatedAt == expectedVersion) throw PocketBaseApi.HttpError(400, "")
+        records[recordId] = wire.copy(id = recordId)
+        versions[recordId] = wire.clientUpdatedAt
     }
 
     override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) {
-        calls += "delete-guarded"
+        gate(records[recordId]?.taskId ?: "")
+        calls += "delete"
+        guard(recordId, expectedVersion)
+        records.remove(recordId)
+        versions.remove(recordId)
     }
 
     override suspend fun deleteTask(recordId: String) {
@@ -1230,5 +1250,180 @@ class SyncEngineTest {
 
         assertEquals(edited, local.tasks[edited.id])
         assertTrue(local.trashed.isEmpty())
+    }
+
+    // The guarded route (ADR 0021): every update and delete of a listed record carries the version the listing showed.
+    private val guardedNow = Instant.parse("2026-11-19T18:00:00.000Z")
+    private val v0 = "2026-11-19T17:00:00.000Z"
+
+    private fun guardedEngine(remote: FakeRemote, local: FakeLocal) =
+        SyncEngine(remote, local, Clock.fixed(guardedNow, ZoneOffset.UTC), throttleMs = 0, ownerId = { "user-1" })
+
+    private fun guardedTask(title: String, updatedAt: String) =
+        Task(id = "task-1", title = title, urgent = false, important = false,
+            createdAt = Instant.parse("2026-11-19T10:00:00.000Z"), updatedAt = Instant.parse(updatedAt), notifyBefore = 15)
+
+    private fun listed(remote: FakeRemote, version: String, title: String = "server") {
+        remote.records["rec1"] = WireMapper.push(guardedTask(title, v0), "other", "user-1", defaultReminder = 15)
+            .copy(clientUpdatedAt = version)
+    }
+
+    private fun guardedQueue(local: FakeLocal, id: Long, task: Task, op: SyncOp = SyncOp.UPDATE) {
+        local.tasks[task.id] = task
+        local.queue += SyncQueueEntity(
+            id = id, taskId = task.id, operation = op, timestamp = task.updatedAt.toEpochMilli(),
+            payloadJson = TaskJson.encode(task),
+        )
+    }
+
+    @Test
+    fun `an update writes through the guarded route with the listed version`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertEquals("2026-11-19T17:30:00.000Z", remote.versions["rec1"])
+        assertEquals(1, result.pushed)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a version changed after the listing gets 412 and the row stays uncharged`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.changeAfterListing("rec1", "2026-11-19T17:00:00.500Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals("server", remote.records["rec1"]?.title)
+        val row = local.queue.single()
+        assertEquals(0, row.retryCount)
+        assertNull(row.lastAttemptAt)
+        assertEquals("pending", row.status)
+        assertEquals(0, result.pushed)
+        assertEquals(0, result.failedItems)
+    }
+
+    @Test
+    fun `a 412 on one row lets the next row push`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.records["rec2"] = WireMapper.push(guardedTask("other", v0).copy(id = "task-2"), "other", "user-1", defaultReminder = 15)
+        remote.changeAfterListing("rec1", "2026-11-19T17:00:00.500Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+        guardedQueue(local, 2, guardedTask("edit2", "2026-11-19T17:30:00.000Z").copy(id = "task-2"))
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals("edit2", remote.records["rec2"]?.title)
+        assertEquals(1, result.pushed)
+        assertEquals(listOf(1L), local.queue.map { it.id })
+    }
+
+    @Test
+    fun `an equal stamp sends one millisecond more`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        guardedQueue(local, 1, guardedTask("edit", v0))
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals("2026-11-19T17:00:00.001Z", remote.records["rec1"]?.clientUpdatedAt)
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `two queued updates to one task both land in one push`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val first = guardedTask("first", "2026-11-19T17:10:00.000Z")
+        val second = guardedTask("second", "2026-11-19T17:20:00.000Z")
+        guardedQueue(local, 1, first)
+        guardedQueue(local, 2, second)
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals("second", remote.records["rec1"]?.title)
+        assertEquals(2, result.pushed)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `an update then a delete of one task both land in one push`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val edit = guardedTask("edit", "2026-11-19T17:10:00.000Z")
+        guardedQueue(local, 1, edit)
+        local.tasks.remove(edit.id)
+        local.queue += SyncQueueEntity(
+            id = 2, taskId = edit.id, operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertTrue(remote.records.isEmpty())
+        assertEquals(2, result.pushed)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a far-future listed version is sent unclamped`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val farFuture = "2099-01-01T00:00:00.000Z"
+        listed(remote, farFuture)
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        guardedEngine(remote, local).runSync(false)
+
+        // the fake 412s on any other string, so a landed edit proves the raw version was the one sent
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a non-canonical listed version is sent as listed`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "2026-11-19 17:00:00Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a listed delete with no version is charged, not sent`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "")
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(1, local.queue.single().retryCount)
+        assertTrue("delete" !in remote.calls)
+        assertTrue("rec1" in remote.records)
+    }
+
+    @Test
+    fun `a 404 from the guarded route is charged`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        // listed but gone by the time of the write: the listing names a record the store no longer holds
+        remote.listResponder = { _, _ ->
+            val wire = WireMapper.push(guardedTask("server", v0), "other", "user-1", defaultReminder = 15).copy(id = "rec1")
+            TaskListPage(page = 1, totalPages = 1, items = listOf(wire), updatedStamps = listOf(PbDates.formatSpace(Instant.parse(v0))))
+        }
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(1, local.queue.single().retryCount)
     }
 }

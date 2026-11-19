@@ -42,9 +42,9 @@ private class ReminderRecordingRemote : SyncRemote {
     }
     override suspend fun createTask(wire: WireTask): WireTask =
         wire.copy(id = "rec${nextId++}").also { records[wire.taskId] = it }
-    override suspend fun updateTask(recordId: String, wire: WireTask): WireTask =
-        wire.copy(id = recordId).also { records[wire.taskId] = it }
-    override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) = Unit
+    override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) {
+        records[wire.taskId] = wire.copy(id = recordId)
+    }
 
     override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) = Unit
 

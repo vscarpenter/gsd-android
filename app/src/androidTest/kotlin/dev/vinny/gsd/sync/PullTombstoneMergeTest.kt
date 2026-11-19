@@ -23,7 +23,6 @@ private class OneRecordRemote(private val record: WireTask) : SyncRemote {
     override suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage =
         TaskListPage(page = 1, totalPages = 1, items = listOf(record), updatedStamps = listOf(""))
     override suspend fun createTask(wire: WireTask): WireTask = wire.copy(id = "rec-new")
-    override suspend fun updateTask(recordId: String, wire: WireTask): WireTask = wire.copy(id = recordId)
     override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) = Unit
 
     override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) = Unit

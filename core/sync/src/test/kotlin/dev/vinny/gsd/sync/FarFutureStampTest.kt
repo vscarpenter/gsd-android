@@ -64,6 +64,15 @@ class FarFutureStampTest {
     // The helper: same constant and boundary as the web
 
     @Test
+    fun `guardedVersion bumps only an equal stamp`() {
+        val stamp = "2026-11-19T17:00:00.000Z"
+        assertEquals("2026-11-19T17:00:00.001Z", RemoteStamp.guardedVersion(stamp, stamp))
+        assertEquals("2026-11-19T17:30:00.000Z", RemoteStamp.guardedVersion("2026-11-19T17:30:00.000Z", stamp))
+        // a listed string the server wrote in its own form is not equal to the outgoing form, so nothing bumps
+        assertEquals(stamp, RemoteStamp.guardedVersion(stamp, "2026-11-19 17:00:00.000Z"))
+    }
+
+    @Test
     fun `a stamp at the ceiling is left alone`() {
         assertFalse(RemoteStamp.isPastCeiling(ceiling, now))
         assertEquals(ceiling, RemoteStamp.capped(ceiling, now))

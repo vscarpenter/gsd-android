@@ -273,9 +273,14 @@ class SyncEngine(
         savedAt = if (SavedPlacement.canSave(this)) merged.savedAt else savedAt,
     )
 
-    private suspend fun fetchRemoteIndex(): MutableMap<String, Pair<String, Instant?>> =
+    /** [version] is the listed `client_updated_at` as the server wrote it: the guarded route compares it byte for byte. */
+    private data class RemoteEntry(val recordId: String, val version: String, val stamp: Instant?)
+
+    private suspend fun fetchRemoteIndex(): MutableMap<String, RemoteEntry> =
         BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks)
-            .associateTo(mutableMapOf()) { wire -> wire.taskId to (wire.id to PbDates.parse(wire.clientUpdatedAt)) }
+            .associateTo(mutableMapOf()) { wire ->
+                wire.taskId to RemoteEntry(wire.id, wire.clientUpdatedAt, PbDates.parse(wire.clientUpdatedAt))
+            }
 
     /** Returns pushed count to permanently-failed-this-drain count. */
     private suspend fun push(owner: String): Pair<Int, Int> {
@@ -313,11 +318,11 @@ class SyncEngine(
                             continue
                         }
                         val remoteEntry = index[item.taskId]
-                        if (remoteEntry != null && remoteEntry.second == null) {
+                        if (remoteEntry != null && remoteEntry.stamp == null) {
                             // a missing or malformed remote version may protect, never authorize overwrite (S§8.2)
                             throw MalformedRemoteVersion()
                         }
-                        val remoteStamp = remoteEntry?.second
+                        val remoteStamp = remoteEntry?.stamp
                         if (remoteStamp != null && RemoteStamp.isNewer(remoteStamp, payload.updatedAt.toEpochMilli(), now)) {
                             local.markQueueItemDone(item.id) // LWW payload guard: pull delivers remote (spec §9.3)
                             continue
@@ -333,10 +338,14 @@ class SyncEngine(
                             WireMapper.push(payload, deviceId, owner, offsetDefault, hasCurrentRow = false)
                         }
                         if (remoteEntry != null) {
-                            remote.updateTask(remoteEntry.first, wire)
+                            val sent = RemoteStamp.guardedVersion(wire.clientUpdatedAt, remoteEntry.version)
+                            remote.updateTaskGuarded(remoteEntry.recordId, remoteEntry.version, wire.copy(clientUpdatedAt = sent))
+                            index[item.taskId] = RemoteEntry(remoteEntry.recordId, sent, PbDates.parse(sent))
                         } else {
                             val created = remote.createTask(wire)
-                            index[item.taskId] = created.id to PbDates.parse(created.clientUpdatedAt)
+                            index[item.taskId] = RemoteEntry(
+                                created.id, created.clientUpdatedAt, PbDates.parse(created.clientUpdatedAt),
+                            )
                         }
                         if (payload.notifyBefore == null && current != null && current.notifyBefore == null) {
                             local.settleNotifyBefore(item.taskId, defaultReminder) // the row now matches the server
@@ -345,12 +354,17 @@ class SyncEngine(
                         pushed++
                     }
                     SyncOp.DELETE -> {
-                        val remoteStamp = index[item.taskId]?.second
+                        val listed = index[item.taskId]
+                        val remoteStamp = listed?.stamp
                         if (remoteEditedAfterArchive(item, remoteStamp, now) || remoteEditedAfterQueued(item, remoteStamp, now)) {
                             local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-42, B-47)
                             continue
                         }
-                        index[item.taskId]?.let { remote.deleteTask(it.first) }
+                        if (listed != null) {
+                            // a missing or malformed version can't be sent as expected_version, and never licenses a delete
+                            if (remoteStamp == null) throw MalformedRemoteVersion()
+                            remote.deleteTaskGuarded(listed.recordId, listed.version)
+                        }
                         index.remove(item.taskId)
                         local.markQueueItemDone(item.id)
                         pushed++
@@ -359,6 +373,8 @@ class SyncEngine(
                 if (throttleMs > 0) delay(throttleMs)
             } catch (rateLimit: PocketBaseApi.RateLimited) {
                 return pushed to failures // abort the whole push loop; items stay pending (spec §9.5)
+            } catch (_: PocketBaseApi.VersionConflict) {
+                continue // another device wrote since the listing: the row stays queued, uncharged, and the next sync's LWW decides
             } catch (refused: PocketBaseApi.Unauthorized) {
                 throw refused // a dead session ends the push and charges no row; runSync reports notSignedIn
             } catch (failure: Exception) {

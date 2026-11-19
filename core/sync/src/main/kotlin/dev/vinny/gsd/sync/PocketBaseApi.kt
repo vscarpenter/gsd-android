@@ -110,15 +110,6 @@ class PocketBaseApi(
         return WireJson.decodeOrNull(raw) ?: throw HttpError(200, "unparseable create response")
     }
 
-    override suspend fun updateTask(recordId: String, wire: WireTask): WireTask {
-        // the body's id must match the record — "" reads as a primary-key change (400)
-        val raw = execute(
-            request("/api/collections/tasks/records/$recordId")
-                .patch(WireJson.encode(wire.copy(id = recordId)).toRequestBody(jsonType)).build(),
-        )
-        return WireJson.decodeOrNull(raw) ?: wire
-    }
-
     override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) {
         // the server rejects keys off its allow-list, so the record id and autodates stay out of data
         val data = Json.parseToJsonElement(WireJson.encode(wire)).jsonObject
