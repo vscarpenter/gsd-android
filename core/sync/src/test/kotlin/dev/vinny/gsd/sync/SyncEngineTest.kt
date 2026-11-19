@@ -173,7 +173,7 @@ internal class FakeRemote : SyncRemote {
 
     override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) {
         gate(records[recordId]?.taskId ?: "")
-        calls += "delete"
+        calls += "deleteGuarded"
         guard(recordId, expectedVersion)
         records.remove(recordId)
         versions.remove(recordId)
@@ -371,7 +371,7 @@ class SyncEngineTest {
         val result = engine(remote, local).runSync(false)
         assertTrue(result.notSignedIn)
         assertEquals(0, local.queue.single().retryCount)
-        assertTrue("delete" !in remote.calls)
+        assertTrue("delete" !in remote.calls && "deleteGuarded" !in remote.calls)
     }
 
     @Test
@@ -1408,8 +1408,42 @@ class SyncEngineTest {
         guardedEngine(remote, local).runSync(false)
 
         assertEquals(1, local.queue.single().retryCount)
-        assertTrue("delete" !in remote.calls)
+        assertTrue("delete" !in remote.calls && "deleteGuarded" !in remote.calls)
         assertTrue("rec1" in remote.records)
+    }
+
+    @Test
+    fun `a listed delete goes through the guarded route`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertTrue("deleteGuarded" in remote.calls)
+        assertTrue("delete" !in remote.calls)
+        assertTrue(remote.records.isEmpty())
+    }
+
+    @Test
+    fun `a listed delete that races an edit gets 412 and the row stays uncharged`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.changeAfterListing("rec1", "2026-11-19T17:00:00.500Z")
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertTrue("rec1" in remote.records)
+        val row = local.queue.single()
+        assertEquals(0, row.retryCount)
+        assertNull(row.lastAttemptAt)
+        assertEquals(0, result.pushed)
+        assertEquals(0, result.failedItems)
     }
 
     @Test

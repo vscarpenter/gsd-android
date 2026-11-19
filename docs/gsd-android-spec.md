@@ -476,8 +476,6 @@ All entities must be representable in the Room store, in the JSON import/export 
 
 ### 7.2 Task (the core entity)
 
-> Amended 2026-11-19: updates and deletes go through the guarded route, gsd-taskmanager ADR 0021
->
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
 >
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)
@@ -1104,6 +1102,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 ### 9.5 Push & the sync queue
 
+> Amended 2026-11-19: updates and deletes go through the guarded route, gsd-taskmanager ADR 0021
+>
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
 >
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-notify-before.md` (D-10, B-36)

@@ -77,7 +77,7 @@ private class AccountsRemote : SyncRemote {
         rows += Row(wire.copy(id = recordId), Instant.now())
     }
 
-    override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) = Unit
+    override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) = deleteTask(recordId)
 
     override suspend fun deleteTask(recordId: String) {
         rows.removeAll { it.wire.id == recordId }
