@@ -72,11 +72,12 @@ private class AccountsRemote : SyncRemote {
         return stored
     }
 
-    override suspend fun updateTask(recordId: String, wire: WireTask): WireTask {
+    override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) {
         rows.removeAll { it.wire.id == recordId }
         rows += Row(wire.copy(id = recordId), Instant.now())
-        return wire.copy(id = recordId)
     }
+
+    override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) = deleteTask(recordId)
 
     override suspend fun deleteTask(recordId: String) {
         rows.removeAll { it.wire.id == recordId }

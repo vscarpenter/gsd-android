@@ -7,7 +7,9 @@ import dev.vinny.gsd.store.SyncQueueEntity
 interface SyncRemote {
     suspend fun listTasks(page: Int, updatedCursor: String): TaskListPage
     suspend fun createTask(wire: WireTask): WireTask
-    suspend fun updateTask(recordId: String, wire: WireTask): WireTask
+    suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask)
+    suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String)
+    /** The unconditional collection delete, for Erase Everywhere and account deletion only (ADR 0021). */
     suspend fun deleteTask(recordId: String)
 
     /**

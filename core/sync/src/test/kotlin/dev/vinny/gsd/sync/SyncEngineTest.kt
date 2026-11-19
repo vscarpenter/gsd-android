@@ -98,6 +98,8 @@ internal class FakeRemote : SyncRemote {
     var rejectIdentity = false
     /** True models a token the server confirms for another account, as `PocketBaseApi.confirmIdentity` reports it. */
     var otherAccount = false
+    /** Thrown by every create, update, and delete, as a server that refuses a write models a 401 or 403. */
+    var writeFailure: Exception? = null
     var listCalls = 0
     /** Every list, create, and update in order, so a test can check that a pull came before a push. */
     val calls = mutableListOf<String>()
@@ -107,6 +109,7 @@ internal class FakeRemote : SyncRemote {
     var incompleteEpochListings = 0
 
     override suspend fun confirmIdentity(ownerId: String) {
+        calls += "confirmIdentity"
         if (rejectIdentity) throw PocketBaseApi.Unauthorized(401)
         if (otherAccount) throw IdentityMismatch()
         duringIdentityCheck()
@@ -121,12 +124,13 @@ internal class FakeRemote : SyncRemote {
         if (incomplete) incompleteEpochListings--
         return TaskListPage(
             page = 1, totalPages = 1, totalItems = items.size + if (incomplete) 1 else 0,
-            items = items.map { it.value.copy(id = it.key) },
-            updatedStamps = items.map { PbDates.formatSpace(PbDates.parse(it.value.clientUpdatedAt) ?: Instant.EPOCH) },
+            items = items.map { it.value.copy(id = it.key, clientUpdatedAt = versionOf(it.key) ?: it.value.clientUpdatedAt) },
+            updatedStamps = items.map { PbDates.formatSpace(PbDates.parse(versionOf(it.key)) ?: Instant.EPOCH) },
         )
     }
 
     private fun gate(taskId: String) {
+        writeFailure?.let { throw it }
         if (++writes > rateLimitAfter) throw PocketBaseApi.RateLimited()
         if (taskId in failOnTaskIds) throw PocketBaseApi.HttpError(500, "boom")
     }
@@ -140,15 +144,45 @@ internal class FakeRemote : SyncRemote {
         return stored
     }
 
-    override suspend fun updateTask(recordId: String, wire: WireTask): WireTask {
+    /** Server-side `client_updated_at` by record id. A record with no entry here holds its wire stamp. */
+    val versions = mutableMapOf<String, String>()
+    private val changesAfterListing = mutableMapOf<String, String>()
+
+    /** What another device does between this push's listing and its write: the version changes before the next guarded call. */
+    fun changeAfterListing(recordId: String, version: String) { changesAfterListing[recordId] = version }
+
+    /** The one version the listing shows and the guard compares, so a later run lists what an earlier one changed. */
+    private fun versionOf(recordId: String): String? = versions[recordId] ?: records[recordId]?.clientUpdatedAt
+
+    /** The hook's checks, in its order: record exists (404), version matches byte for byte (412). */
+    private fun guard(recordId: String, expectedVersion: String): WireTask {
+        versions += changesAfterListing
+        changesAfterListing.clear()
+        val record = records[recordId] ?: throw PocketBaseApi.HttpError(404, "")
+        if (versionOf(recordId) != expectedVersion) throw PocketBaseApi.VersionConflict()
+        return record
+    }
+
+    override suspend fun updateTaskGuarded(recordId: String, expectedVersion: String, wire: WireTask) {
         gate(wire.taskId)
         calls += "update"
+        guard(recordId, expectedVersion)
+        if (wire.clientUpdatedAt == expectedVersion) throw PocketBaseApi.HttpError(400, "")
         records[recordId] = wire.copy(id = recordId)
-        return records[recordId]!!
+        versions[recordId] = wire.clientUpdatedAt
+    }
+
+    override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) {
+        gate(records[recordId]?.taskId ?: "")
+        calls += "deleteGuarded"
+        guard(recordId, expectedVersion)
+        records.remove(recordId)
+        versions.remove(recordId)
     }
 
     override suspend fun deleteTask(recordId: String) {
         gate(records[recordId]?.taskId ?: "")
+        calls += "delete"
         records.remove(recordId)
     }
 }
@@ -326,6 +360,100 @@ class SyncEngineTest {
         assertEquals(2, fullListings) // one for the push, and a fresh one for reconciliation
         assertEquals(1, remote.records.size)
     }
+
+    private fun deleteRow(id: Long, taskId: String) = SyncQueueEntity(
+        id = id, taskId = taskId, operation = SyncOp.DELETE, timestamp = now.toEpochMilli(), payloadJson = null,
+    )
+
+    @Test
+    fun `a refused token keeps a queued delete for an unlisted task`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { rejectIdentity = true }
+        local.queue += deleteRow(1, "gone")
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+        assertEquals(0, local.queue.single().retryCount)
+        assertTrue("delete" !in remote.calls && "deleteGuarded" !in remote.calls)
+    }
+
+    @Test
+    fun `a refused token keeps a queued update for an unlisted task`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { rejectIdentity = true }
+        val t = task("unlisted")
+        local.tasks[t.id] = t
+        local.queue += queueItem(1, t)
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+        assertEquals(0, local.queue.single().retryCount)
+        assertTrue(remote.records.isEmpty())
+        assertTrue("create" !in remote.calls && "update" !in remote.calls)
+    }
+
+    @Test
+    fun `another account's token keeps every queued row`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { otherAccount = true }
+        val t = task("unlisted")
+        local.tasks[t.id] = t
+        local.queue += queueItem(1, t)
+        local.queue += deleteRow(2, "gone")
+        val result = engine(remote, local).runSync(false)
+        assertEquals("error", result.status)
+        assertEquals(listOf(0, 0), local.queue.map { it.retryCount })
+        assertEquals(2, local.queue.size)
+        assertTrue(remote.records.isEmpty())
+    }
+
+    @Test
+    fun `a confirmed session drops a delete for an unlisted task`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        local.queue += deleteRow(1, "gone")
+        val result = engine(remote, local).runSync(false)
+        assertEquals("success", result.status)
+        assertTrue(local.queue.isEmpty())
+        assertEquals(1, remote.calls.count { it == "confirmIdentity" })
+    }
+
+    @Test
+    fun `one push confirms identity once across several absences`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        local.queue += deleteRow(1, "gone-1")
+        local.queue += deleteRow(2, "gone-2")
+        local.queue += deleteRow(3, "gone-3")
+        engine(remote, local).runSync(false)
+        assertTrue(local.queue.isEmpty())
+        assertEquals(1, remote.calls.count { it == "confirmIdentity" })
+    }
+
+    @Test
+    fun `a push with every task listed makes no auth-refresh`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val t = task("listed", updatedAt = now.minusSeconds(100))
+        local.tasks[t.id] = t
+        remote.records["r1"] = WireMapper.push(task("listed", updatedAt = now.minusSeconds(500)), "other", "user-1", defaultReminder = 15)
+        local.queue += queueItem(1, t)
+        engine(remote, local).runSync(false)
+        assertTrue("update" in remote.calls)
+        assertTrue("confirmIdentity" !in remote.calls)
+    }
+
+    private fun refusedWriteEndsThePush(code: Int) = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { writeFailure = PocketBaseApi.Unauthorized(code) }
+        val first = task("first"); val second = task("second")
+        remote.records["r1"] = WireMapper.push(task("first", updatedAt = now.minusSeconds(500)), "other", "user-1", defaultReminder = 15)
+        remote.records["r2"] = WireMapper.push(task("second", updatedAt = now.minusSeconds(500)), "other", "user-1", defaultReminder = 15)
+        local.tasks[first.id] = first; local.tasks[second.id] = second
+        local.queue += queueItem(1, first)
+        local.queue += queueItem(2, second)
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+        // The fake's gate throws before it logs a call, so the retry counts carry this test: neither row was charged.
+        assertEquals(listOf(0, 0), local.queue.map { it.retryCount })
+    }
+
+    @Test
+    fun `a 401 from a write ends the push without charging the row`() = refusedWriteEndsThePush(401)
+
+    @Test
+    fun `a 403 from a write ends the push without charging the row`() = refusedWriteEndsThePush(403)
 
     /**
      * Review follow-up S1: a token the server rejects is a dead session, even with more than 7 days
@@ -986,8 +1114,9 @@ class SyncEngineTest {
 
     /**
      * A2's first limit (the Lead's review of iOS #97, matching its test). Android pulls, runs the step, then pushes,
-     * and only reconciliation checks identity again, after the push. So a step that confirmed another account must
-     * stop the run, or the push writes this device's edits to an account it just failed to confirm.
+     * and the push and reconciliation check identity again. So a step that confirmed another account must stop the
+     * run, or the push writes this device's edits to an account it just failed to confirm. The edited task is
+     * unlisted, so the push would make its own identity call: exactly one call proves the step ended the run.
      */
     @Test
     fun `a step whose identity check fails stops the run before the push`() = runTest {
@@ -1006,6 +1135,7 @@ class SyncEngineTest {
         assertEquals(0, result.pushed)
         assertTrue(remote.records.isEmpty(), "the push wrote to an unconfirmed account")
         assertEquals(setOf("trashed-task"), local.resurrect)
+        assertEquals(1, remote.calls.count { it == "confirmIdentity" }, "the push ran its own identity check")
     }
 
     /** A2's second limit: a dead session the step's identity check finds still ends the run, so the push spends no retry. */
@@ -1027,6 +1157,7 @@ class SyncEngineTest {
         assertEquals(0, local.queue.single().retryCount)
         assertTrue(remote.records.isEmpty())
         assertTrue(reported.isEmpty())
+        assertEquals(1, remote.calls.count { it == "confirmIdentity" }, "the push ran its own identity check")
     }
 
     /** A2's other limit: a session that ends during the step stops the run, and isn't reported as a step failure. */
@@ -1123,5 +1254,279 @@ class SyncEngineTest {
 
         assertEquals(edited, local.tasks[edited.id])
         assertTrue(local.trashed.isEmpty())
+    }
+
+    // The guarded route (ADR 0021): every update and delete of a listed record carries the version the listing showed.
+    private val guardedNow = Instant.parse("2026-11-19T18:00:00.000Z")
+    private val v0 = "2026-11-19T17:00:00.000Z"
+
+    private fun guardedEngine(remote: FakeRemote, local: FakeLocal) =
+        SyncEngine(remote, local, Clock.fixed(guardedNow, ZoneOffset.UTC), throttleMs = 0, ownerId = { "user-1" })
+
+    private fun guardedTask(title: String, updatedAt: String) =
+        Task(id = "task-1", title = title, urgent = false, important = false,
+            createdAt = Instant.parse("2026-11-19T10:00:00.000Z"), updatedAt = Instant.parse(updatedAt), notifyBefore = 15)
+
+    private fun listed(remote: FakeRemote, version: String, title: String = "server") {
+        remote.records["rec1"] = WireMapper.push(guardedTask(title, v0), "other", "user-1", defaultReminder = 15)
+            .copy(clientUpdatedAt = version)
+    }
+
+    private fun guardedQueue(local: FakeLocal, id: Long, task: Task, op: SyncOp = SyncOp.UPDATE) {
+        local.tasks[task.id] = task
+        local.queue += SyncQueueEntity(
+            id = id, taskId = task.id, operation = op, timestamp = task.updatedAt.toEpochMilli(),
+            payloadJson = TaskJson.encode(task),
+        )
+    }
+
+    @Test
+    fun `an update writes through the guarded route with the listed version`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertEquals("2026-11-19T17:30:00.000Z", remote.versions["rec1"])
+        assertEquals(1, result.pushed)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a version changed after the listing gets 412 and the row stays uncharged`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.changeAfterListing("rec1", "2026-11-19T17:00:00.500Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals("server", remote.records["rec1"]?.title)
+        val row = local.queue.single()
+        assertEquals(0, row.retryCount)
+        assertNull(row.lastAttemptAt)
+        assertEquals("pending", row.status)
+        assertEquals(0, result.pushed)
+        assertEquals(0, result.failedItems)
+    }
+
+    @Test
+    fun `a 412 on one row lets the next row push`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.records["rec2"] = WireMapper.push(guardedTask("other", v0).copy(id = "task-2"), "other", "user-1", defaultReminder = 15)
+        remote.changeAfterListing("rec1", "2026-11-19T17:00:00.500Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+        guardedQueue(local, 2, guardedTask("edit2", "2026-11-19T17:30:00.000Z").copy(id = "task-2"))
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals("edit2", remote.records["rec2"]?.title)
+        assertEquals(1, result.pushed)
+        assertEquals(listOf(1L), local.queue.map { it.id })
+    }
+
+    @Test
+    fun `an equal stamp sends one millisecond more`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        guardedQueue(local, 1, guardedTask("edit", v0))
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals("2026-11-19T17:00:00.001Z", remote.records["rec1"]?.clientUpdatedAt)
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `two queued updates to one task both land in one push`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val first = guardedTask("first", "2026-11-19T17:10:00.000Z")
+        val second = guardedTask("second", "2026-11-19T17:20:00.000Z")
+        guardedQueue(local, 1, first)
+        guardedQueue(local, 2, second)
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals("second", remote.records["rec1"]?.title)
+        assertEquals(2, result.pushed)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `an update then a delete of one task both land in one push`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val edit = guardedTask("edit", "2026-11-19T17:10:00.000Z")
+        guardedQueue(local, 1, edit)
+        local.tasks.remove(edit.id)
+        local.queue += SyncQueueEntity(
+            id = 2, taskId = edit.id, operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertTrue(remote.records.isEmpty())
+        assertEquals(2, result.pushed)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a far-future listed version is sent unclamped`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val farFuture = "2099-01-01T00:00:00.000Z"
+        listed(remote, farFuture)
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        guardedEngine(remote, local).runSync(false)
+
+        // the fake 412s on any other string, so a landed edit proves the raw version was the one sent
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a non-canonical listed version is sent as listed`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "2026-11-19 17:00:00Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a listed delete with no version is charged, not sent`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "")
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(1, local.queue.single().retryCount)
+        assertTrue("delete" !in remote.calls && "deleteGuarded" !in remote.calls)
+        assertTrue("rec1" in remote.records)
+    }
+
+    @Test
+    fun `a listed delete goes through the guarded route`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertTrue("deleteGuarded" in remote.calls)
+        assertTrue("delete" !in remote.calls)
+        assertTrue(remote.records.isEmpty())
+    }
+
+    @Test
+    fun `a listed delete that races an edit gets 412 and the row stays uncharged`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.changeAfterListing("rec1", "2026-11-19T17:00:00.500Z")
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertTrue("rec1" in remote.records)
+        val row = local.queue.single()
+        assertEquals(0, row.retryCount)
+        assertNull(row.lastAttemptAt)
+        assertEquals(0, result.pushed)
+        assertEquals(0, result.failedItems)
+    }
+
+    @Test
+    fun `a 404 from the guarded route is charged`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        // listed but gone by the time of the write: the listing names a record the store no longer holds
+        remote.listResponder = { _, _ ->
+            val wire = WireMapper.push(guardedTask("server", v0), "other", "user-1", defaultReminder = 15).copy(id = "rec1")
+            TaskListPage(page = 1, totalPages = 1, items = listOf(wire), updatedStamps = listOf(PbDates.formatSpace(Instant.parse(v0))))
+        }
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals(1, local.queue.single().retryCount)
+        assertTrue("create" !in remote.calls, "a 404 must not fall back to a create (D1)")
+    }
+
+    @Test
+    fun `a 412, then the next run lands with the fresh version`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.changeAfterListing("rec1", "2026-11-19T17:00:00.500Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+        val engine = guardedEngine(remote, local)
+
+        engine.runSync(false)
+        assertEquals("server", remote.records["rec1"]?.title)
+        val second = engine.runSync(false)
+
+        assertEquals("edit", remote.records["rec1"]?.title)
+        assertEquals("2026-11-19T17:30:00.000Z", remote.versions["rec1"])
+        assertEquals(1, second.pushed)
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a 412, then the next run drops the row as stale`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        remote.changeAfterListing("rec1", "2026-11-19T17:45:00.000Z")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+        val engine = guardedEngine(remote, local)
+
+        engine.runSync(false)
+        assertEquals(1, local.queue.size)
+        engine.runSync(false)
+
+        assertEquals("server", remote.records["rec1"]?.title)
+        assertTrue(local.queue.isEmpty())
+        assertEquals(1, remote.calls.count { it == "update" }, "the second run sent a write the other client's stamp outranks")
+    }
+
+    @Test
+    fun `a session that ends during the push's identity check sends nothing`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        var owner: String? = "user-1"
+        remote.duringIdentityCheck = { owner = null }
+        guardedQueue(local, 1, guardedTask("new", "2026-11-19T17:30:00.000Z"))
+        val engine = SyncEngine(remote, local, Clock.fixed(guardedNow, ZoneOffset.UTC), throttleMs = 0, ownerId = { owner })
+
+        engine.runSync(false)
+
+        assertTrue("create" !in remote.calls)
+        assertEquals(0, local.queue.single().retryCount)
+    }
+
+    @Test
+    fun `an account switch during the push's identity check keeps an unlisted delete queued`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        var owner = "user-1"
+        remote.duringIdentityCheck = { owner = "user-2" }
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+        val engine = SyncEngine(remote, local, Clock.fixed(guardedNow, ZoneOffset.UTC), throttleMs = 0, ownerId = { owner })
+
+        engine.runSync(false)
+
+        assertEquals(listOf(1L), local.queue.map { it.id })
     }
 }
