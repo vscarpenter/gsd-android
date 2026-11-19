@@ -326,13 +326,13 @@ class SyncEngineTest {
     fun `the drain sends the payload's offset, else the row's, else this device's default`() = runTest {
         val local = FakeLocal(); val remote = FakeRemote()
         local.defaultReminder = 30
-        data class Case(val id: String, val payload: Int?, val row: Int?, val rowGone: Boolean, val wire: Int, val after: Int?)
+        data class Case(val id: String, val payload: Int?, val row: Int?, val rowGone: Boolean, val wire: Int?, val after: Int?)
         val cases = listOf(
             Case("both-numbers", payload = 20, row = 45, rowGone = false, wire = 20, after = 45),
             Case("payload-null", payload = null, row = 45, rowGone = false, wire = 45, after = 45),
             Case("both-null", payload = null, row = null, rowGone = false, wire = 30, after = 30),
             Case("row-null", payload = 20, row = null, rowGone = false, wire = 20, after = null),
-            Case("row-gone", payload = null, row = null, rowGone = true, wire = 30, after = null),
+            Case("row-gone", payload = null, row = null, rowGone = true, wire = null, after = null) // F4: nothing is created for a task this device no longer holds,
         )
         cases.forEachIndexed { index, case ->
             val payload = task(case.id, updatedAt = now.minusSeconds(60)).copy(notifyBefore = case.payload)
@@ -661,7 +661,10 @@ class SyncEngineTest {
     /** Parity backlog B-46: the auto-archive sweep waits for a clean run, which means its pull completed. */
     @Test
     fun `a run is clean when it finished without an error, push failures included`() = runTest {
-        val partialLocal = FakeLocal().apply { queue += queueItem(1, task("doomed"), retryCount = 4, lastAttemptAt = 0L) }
+        val partialLocal = FakeLocal().apply {
+            tasks["doomed"] = task("doomed")
+            queue += queueItem(1, task("doomed"), retryCount = 4, lastAttemptAt = 0L)
+        }
         val failingRemote = FakeRemote().apply { failOnTaskIds += "doomed" }
         val downRemote = FakeRemote().apply { listResponder = { _, _ -> throw PocketBaseApi.HttpError(500, "down") } }
 
@@ -694,6 +697,9 @@ class SyncEngineTest {
         val local = FakeLocal()
         val remote = FakeRemote()
         remote.failOnTaskIds += "doomed"
+        // listed, so the failure is the update's and reconciliation doesn't abandon the live row to Trash
+        remote.records["rec1"] = WireMapper.push(task("doomed", updatedAt = now.minusSeconds(120)), "other", "user-1", defaultReminder = 15)
+        local.tasks["doomed"] = task("doomed")
         local.queue += queueItem(1, task("doomed"), retryCount = 4, lastAttemptAt = 0L)
         val result = engine(remote, local).runSync(false)
         assertEquals("failed", local.queue.single().status)
@@ -707,9 +713,10 @@ class SyncEngineTest {
         val local = FakeLocal()
         val remote = FakeRemote()
         remote.rateLimitAfter = 1
-        local.queue += queueItem(1, task("first-ok"), SyncOp.CREATE)
-        local.queue += queueItem(2, task("second-blocked"), SyncOp.CREATE)
-        local.queue += queueItem(3, task("third-blocked"), SyncOp.CREATE)
+        listOf("first-ok", "second-blocked", "third-blocked").forEachIndexed { i, id ->
+            local.tasks[id] = task(id)
+            local.queue += queueItem(i + 1L, task(id), SyncOp.CREATE)
+        }
         engine(remote, local).runSync(false)
         assertEquals(1, remote.records.size)
         assertEquals(2, local.queue.count { it.status == "pending" }) // untouched, no retry bumps
@@ -1689,8 +1696,7 @@ class SyncEngineTest {
     fun `a delete of a task this push created is not stale`() = runTest {
         val local = FakeLocal(); val remote = FakeRemote()
         val created = guardedTask("new", "2026-11-19T17:30:00.000Z")
-        guardedQueue(local, 1, created, SyncOp.CREATE)
-        local.tasks.remove(created.id)
+        guardedQueue(local, 1, created, SyncOp.CREATE) // the row stays until the push has sent the create
         local.queue += archiveDelete(2, created.copy(updatedAt = Instant.parse("2026-11-19T17:10:00.000Z")))
 
         val result = guardedEngine(remote, local).runSync(false)
@@ -1724,5 +1730,81 @@ class SyncEngineTest {
         assertEquals(0, next.pulled)
         assertEquals(0, next.conflicts)
         assertEquals("edit", local.tasks["task-1"]?.title)
+    }
+
+    @Test
+    fun `this device's id at two milliseconds past the archived version still makes the delete stale`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "2026-11-19T17:00:00.002Z")
+        remote.records["rec1"] = remote.records.getValue("rec1").copy(deviceId = "this-device")
+        val archived = guardedTask("done", v0)
+        local.queue += archiveDelete(1, archived)
+        local.tombstones[archived.id] = guardedNow.toEpochMilli()
+        local.archived += archived.id
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertEquals("server", remote.records["rec1"]?.title)
+        assertTrue("deleteGuarded" !in remote.calls)
+    }
+
+    // F4: a charged update row left queued for a task this device no longer holds comes due after the delete landed.
+    private fun chargedUpdate(local: FakeLocal, task: Task) {
+        local.queue += SyncQueueEntity(
+            id = 1, taskId = task.id, operation = SyncOp.UPDATE, timestamp = task.updatedAt.toEpochMilli(),
+            payloadJson = TaskJson.encode(task), retryCount = 1, lastAttemptAt = guardedNow.toEpochMilli(),
+        )
+    }
+
+    private fun laterEngine(remote: FakeRemote, local: FakeLocal) =
+        SyncEngine(remote, local, Clock.fixed(guardedNow.plusSeconds(60), ZoneOffset.UTC), throttleMs = 0, ownerId = { "user-1" })
+
+    @Test
+    fun `a charged update for a task moved to Trash never re-creates it`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val edit = guardedTask("edit", "2026-11-19T17:30:00.000Z")
+        chargedUpdate(local, edit)
+        // TaskStore.delete queues a tombstone and leaves the task's other rows alone
+        local.queue += SyncQueueEntity(id = 2, taskId = edit.id, operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null)
+        local.trashed[edit.id] = guardedNow.toEpochMilli()
+        local.tombstones[edit.id] = guardedNow.toEpochMilli()
+        guardedEngine(remote, local).runSync(false) // the delete lands; the update is still backing off
+        assertTrue(remote.records.isEmpty())
+
+        laterEngine(remote, local).runSync(false)
+
+        assertTrue("create" !in remote.calls)
+        assertTrue(remote.records.isEmpty())
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `a charged update for an archived task never re-creates it`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val edit = guardedTask("edit", v0)
+        local.tasks[edit.id] = edit
+        chargedUpdate(local, edit)
+        archive(local, 2) // ArchiveStore clears the task's queued rows, so only the delete remains
+        guardedEngine(remote, local).runSync(false)
+
+        laterEngine(remote, local).runSync(false)
+
+        assertTrue("create" !in remote.calls)
+        assertTrue(remote.records.isEmpty())
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `an update for a live task with no listed record still creates it`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val live = guardedTask("live", "2026-11-19T17:30:00.000Z")
+        guardedQueue(local, 1, live)
+
+        val result = guardedEngine(remote, local).runSync(false)
+
+        assertEquals(listOf("create"), remote.calls.filter { it == "create" })
+        assertEquals(1, result.pushed)
     }
 }

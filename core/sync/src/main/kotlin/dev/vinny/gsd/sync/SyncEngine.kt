@@ -333,6 +333,12 @@ class SyncEngine(
                         // Placement and the pick come from the current row: a payload queued by an older build has
                         // neither (C4-6)
                         val current = local.taskById(item.taskId)
+                        if (remoteEntry == null && current == null) {
+                            // F4: the delete already landed and this device no longer holds the task (archived,
+                            // Trash, or gone), so a create from this snapshot would bring it back
+                            local.markQueueItemDone(item.id)
+                            continue
+                        }
                         // D-10: payload ?? current row ?? this device's default, so an older null sends a number
                         val offsetDefault = current?.notifyBefore ?: defaultReminder
                         val wire = if (current != null) {
