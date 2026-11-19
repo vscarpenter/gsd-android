@@ -287,6 +287,7 @@ class SyncEngine(
         val index = fetchRemoteIndex()
         var pushed = 0
         var failures = 0
+        var identityConfirmed = false
         val now = clock.instant()
         for (item in pending) {
             fence(owner) // outside the item's try: a session that ended must not spend this item's retries
@@ -294,6 +295,12 @@ class SyncEngine(
                 val waitMs = backoffMs[(item.retryCount - 1).coerceAtMost(backoffMs.lastIndex)]
                 val lastAttempt = item.lastAttemptAt ?: 0L
                 if (now.toEpochMilli() < lastAttempt + waitMs) continue // backoff gate
+            }
+            // A refused token lists as a guest, so an unlisted task proves nothing until the server names this
+            // account. Once per push, outside the item's try: a refusal ends the push and charges no row.
+            if (index[item.taskId] == null && !identityConfirmed) {
+                remote.confirmIdentity(owner)
+                identityConfirmed = true
             }
             try {
                 when (item.operation) {
@@ -352,6 +359,8 @@ class SyncEngine(
                 if (throttleMs > 0) delay(throttleMs)
             } catch (rateLimit: PocketBaseApi.RateLimited) {
                 return pushed to failures // abort the whole push loop; items stay pending (spec §9.5)
+            } catch (refused: PocketBaseApi.Unauthorized) {
+                throw refused // a dead session ends the push and charges no row; runSync reports notSignedIn
             } catch (failure: Exception) {
                 val newCount = item.retryCount + 1
                 val nowFailed = newCount >= 5

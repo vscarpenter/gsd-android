@@ -98,6 +98,8 @@ internal class FakeRemote : SyncRemote {
     var rejectIdentity = false
     /** True models a token the server confirms for another account, as `PocketBaseApi.confirmIdentity` reports it. */
     var otherAccount = false
+    /** Thrown by every create, update, and delete, as a server that refuses a write models a 401 or 403. */
+    var writeFailure: Exception? = null
     var listCalls = 0
     /** Every list, create, and update in order, so a test can check that a pull came before a push. */
     val calls = mutableListOf<String>()
@@ -107,6 +109,7 @@ internal class FakeRemote : SyncRemote {
     var incompleteEpochListings = 0
 
     override suspend fun confirmIdentity(ownerId: String) {
+        calls += "confirmIdentity"
         if (rejectIdentity) throw PocketBaseApi.Unauthorized(401)
         if (otherAccount) throw IdentityMismatch()
         duringIdentityCheck()
@@ -127,6 +130,7 @@ internal class FakeRemote : SyncRemote {
     }
 
     private fun gate(taskId: String) {
+        writeFailure?.let { throw it }
         if (++writes > rateLimitAfter) throw PocketBaseApi.RateLimited()
         if (taskId in failOnTaskIds) throw PocketBaseApi.HttpError(500, "boom")
     }
@@ -149,6 +153,7 @@ internal class FakeRemote : SyncRemote {
 
     override suspend fun deleteTask(recordId: String) {
         gate(records[recordId]?.taskId ?: "")
+        calls += "delete"
         records.remove(recordId)
     }
 }
@@ -326,6 +331,100 @@ class SyncEngineTest {
         assertEquals(2, fullListings) // one for the push, and a fresh one for reconciliation
         assertEquals(1, remote.records.size)
     }
+
+    private fun deleteRow(id: Long, taskId: String) = SyncQueueEntity(
+        id = id, taskId = taskId, operation = SyncOp.DELETE, timestamp = now.toEpochMilli(), payloadJson = null,
+    )
+
+    @Test
+    fun `a refused token keeps a queued delete for an unlisted task`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { rejectIdentity = true }
+        local.queue += deleteRow(1, "gone")
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+        assertEquals(0, local.queue.single().retryCount)
+        assertTrue("delete" !in remote.calls)
+    }
+
+    @Test
+    fun `a refused token keeps a queued update for an unlisted task`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { rejectIdentity = true }
+        val t = task("unlisted")
+        local.tasks[t.id] = t
+        local.queue += queueItem(1, t)
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+        assertEquals(0, local.queue.single().retryCount)
+        assertTrue(remote.records.isEmpty())
+        assertTrue("create" !in remote.calls && "update" !in remote.calls)
+    }
+
+    @Test
+    fun `another account's token keeps every queued row`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { otherAccount = true }
+        val t = task("unlisted")
+        local.tasks[t.id] = t
+        local.queue += queueItem(1, t)
+        local.queue += deleteRow(2, "gone")
+        val result = engine(remote, local).runSync(false)
+        assertEquals("error", result.status)
+        assertEquals(listOf(0, 0), local.queue.map { it.retryCount })
+        assertEquals(2, local.queue.size)
+        assertTrue(remote.records.isEmpty())
+    }
+
+    @Test
+    fun `a confirmed session drops a delete for an unlisted task`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        local.queue += deleteRow(1, "gone")
+        val result = engine(remote, local).runSync(false)
+        assertEquals("success", result.status)
+        assertTrue(local.queue.isEmpty())
+        assertEquals(1, remote.calls.count { it == "confirmIdentity" })
+    }
+
+    @Test
+    fun `one push confirms identity once across several absences`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        local.queue += deleteRow(1, "gone-1")
+        local.queue += deleteRow(2, "gone-2")
+        local.queue += deleteRow(3, "gone-3")
+        engine(remote, local).runSync(false)
+        assertTrue(local.queue.isEmpty())
+        assertEquals(1, remote.calls.count { it == "confirmIdentity" })
+    }
+
+    @Test
+    fun `a push with every task listed makes no auth-refresh`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        val t = task("listed", updatedAt = now.minusSeconds(100))
+        local.tasks[t.id] = t
+        remote.records["r1"] = WireMapper.push(task("listed", updatedAt = now.minusSeconds(500)), "other", "user-1", defaultReminder = 15)
+        local.queue += queueItem(1, t)
+        engine(remote, local).runSync(false)
+        assertTrue("update" in remote.calls)
+        assertTrue("confirmIdentity" !in remote.calls)
+    }
+
+    private fun refusedWriteEndsThePush(code: Int) = runTest {
+        val local = FakeLocal(); val remote = FakeRemote().apply { writeFailure = PocketBaseApi.Unauthorized(code) }
+        val first = task("first"); val second = task("second")
+        remote.records["r1"] = WireMapper.push(task("first", updatedAt = now.minusSeconds(500)), "other", "user-1", defaultReminder = 15)
+        remote.records["r2"] = WireMapper.push(task("second", updatedAt = now.minusSeconds(500)), "other", "user-1", defaultReminder = 15)
+        local.tasks[first.id] = first; local.tasks[second.id] = second
+        local.queue += queueItem(1, first)
+        local.queue += queueItem(2, second)
+        val result = engine(remote, local).runSync(false)
+        assertTrue(result.notSignedIn)
+        assertEquals(listOf(0, 0), local.queue.map { it.retryCount })
+        assertTrue("update" !in remote.calls)
+    }
+
+    @Test
+    fun `a 401 from a write ends the push without charging the row`() = refusedWriteEndsThePush(401)
+
+    @Test
+    fun `a 403 from a write ends the push without charging the row`() = refusedWriteEndsThePush(403)
 
     /**
      * Review follow-up S1: a token the server rejects is a dead session, even with more than 7 days
