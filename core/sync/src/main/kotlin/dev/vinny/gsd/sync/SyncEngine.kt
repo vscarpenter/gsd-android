@@ -389,6 +389,8 @@ class SyncEngine(
                 return pushed to failures // abort the whole push loop; items stay pending (spec §9.5)
             } catch (_: PocketBaseApi.VersionConflict) {
                 continue // another device wrote since the listing: the row stays queued, uncharged, and the next sync's LWW decides
+            } catch (ended: StaleSyncSession) {
+                throw ended // a session that ended charges no row; runSync reports the error
             } catch (refused: PocketBaseApi.Unauthorized) {
                 throw refused // a dead session ends the push and charges no row; runSync reports notSignedIn
             } catch (failure: Exception) {

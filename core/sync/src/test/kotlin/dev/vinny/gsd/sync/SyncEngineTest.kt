@@ -1614,10 +1614,13 @@ class SyncEngineTest {
         guardedQueue(local, 1, edit)
         val engine = SyncEngine(remote, local, Clock.fixed(guardedNow, ZoneOffset.UTC), throttleMs = 0, ownerId = { owner })
 
-        engine.runSync(false)
+        val result = engine.runSync(false)
 
         assertEquals(listOf("update"), remote.calls.filter { it == "update" })
         assertEquals(edit, local.tasks["task-1"])
+        assertEquals(0, local.queue.single().retryCount, "the row was charged for a session that ended")
+        assertEquals("error", result.status)
+        assertEquals("Sync session ended before this write", result.error)
     }
 
     @Test
