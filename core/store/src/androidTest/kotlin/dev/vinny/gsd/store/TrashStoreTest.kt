@@ -117,14 +117,16 @@ class TrashStoreTest {
     fun restoreRemovesTheWaitingDelete() = runTest {
         val task = seedTask("trash-task-06")
         db.syncQueueDao().deleteForTask(task.id) // the add's create already pushed, so the task is on the server
+        taskStore.change(task.id) { it.copy(title = "edited") } // a leftover update, which Trash keeps
         taskStore.delete(task.id)
-        val delete = db.syncQueueDao().pending().single { it.taskId == task.id }
+        val delete = db.syncQueueDao().pending().single { it.taskId == task.id && it.operation == SyncOp.DELETE }
         db.syncQueueDao().bumpRetry(delete.id, 1, "boom", clock.millis(), SyncQueueEntity.STATUS_PENDING, null)
 
         trashStore.restore(task.id)
 
+        // only the delete goes: the edit's update stays, ahead of the restore's create
         val rows = (db.syncQueueDao().pending() + db.syncQueueDao().failed()).filter { it.taskId == task.id }
-        assertEquals(listOf(SyncOp.CREATE), rows.map { it.operation })
+        assertEquals(listOf(SyncOp.UPDATE, SyncOp.CREATE), rows.map { it.operation })
         assertEquals(task.id, db.taskDao().byId(task.id)?.id)
         assertNull(db.deletedTaskDao().byId(task.id))
     }
