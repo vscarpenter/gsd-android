@@ -274,12 +274,12 @@ class SyncEngine(
     )
 
     /** [version] is the listed `client_updated_at` as the server wrote it: the guarded route compares it byte for byte. */
-    private data class RemoteEntry(val recordId: String, val version: String, val stamp: Instant?)
+    private data class RemoteEntry(val recordId: String, val version: String, val stamp: Instant?, val deviceId: String)
 
     private suspend fun fetchRemoteIndex(): MutableMap<String, RemoteEntry> =
         BoundedListing.collect("1970-01-01 00:00:00.000Z", remote::listTasks)
             .associateTo(mutableMapOf()) { wire ->
-                wire.taskId to RemoteEntry(wire.id, wire.clientUpdatedAt, PbDates.parse(wire.clientUpdatedAt))
+                wire.taskId to RemoteEntry(wire.id, wire.clientUpdatedAt, PbDates.parse(wire.clientUpdatedAt), wire.deviceId)
             }
 
     /** Returns pushed count to permanently-failed-this-drain count. */
@@ -333,6 +333,13 @@ class SyncEngine(
                         // Placement and the pick come from the current row: a payload queued by an older build has
                         // neither (C4-6)
                         val current = local.taskById(item.taskId)
+                        if (remoteEntry == null && current == null) {
+                            // F4: the server lists no record and this device no longer holds the task (archived,
+                            // Trash, or gone), either because its delete landed or because it never uploaded, so a
+                            // create from this snapshot would bring back a task the user removed
+                            local.markQueueItemDone(item.id)
+                            continue
+                        }
                         // D-10: payload ?? current row ?? this device's default, so an older null sends a number
                         val offsetDefault = current?.notifyBefore ?: defaultReminder
                         val wire = if (current != null) {
@@ -343,7 +350,7 @@ class SyncEngine(
                         if (remoteEntry != null) {
                             val sent = RemoteStamp.guardedVersion(wire.clientUpdatedAt, remoteEntry.version)
                             remote.updateTaskGuarded(remoteEntry.recordId, remoteEntry.version, wire.copy(clientUpdatedAt = sent))
-                            index[item.taskId] = RemoteEntry(remoteEntry.recordId, sent, PbDates.parse(sent))
+                            index[item.taskId] = RemoteEntry(remoteEntry.recordId, sent, PbDates.parse(sent), wire.deviceId)
                             writtenThisPush[item.taskId] = sent
                             if (sent != wire.clientUpdatedAt) {
                                 // The server holds the bumped stamp, so the row takes it too: an archive queued next
@@ -356,7 +363,7 @@ class SyncEngine(
                         } else {
                             val created = remote.createTask(wire)
                             index[item.taskId] = RemoteEntry(
-                                created.id, created.clientUpdatedAt, PbDates.parse(created.clientUpdatedAt),
+                                created.id, created.clientUpdatedAt, PbDates.parse(created.clientUpdatedAt), created.deviceId,
                             )
                             writtenThisPush[item.taskId] = created.clientUpdatedAt
                         }
@@ -369,8 +376,11 @@ class SyncEngine(
                     SyncOp.DELETE -> {
                         val listed = index[item.taskId]
                         val remoteStamp = listed?.stamp
-                        val ownWrite = listed != null && writtenThisPush[item.taskId] == listed.version
-                        if (!ownWrite && (remoteEditedAfterArchive(item, remoteStamp, now) || remoteEditedAfterQueued(item, remoteStamp, now))) {
+                        val ownWrite = listed != null &&
+                            (writtenThisPush[item.taskId] == listed.version || isOwnBump(item, listed, deviceId))
+                        // An own write relaxes the archived-version check only. The queued-after check always applies: with a
+                        // skewed writer clock the pull reads this delete as stale and keeps the task live, and the push must agree.
+                        if ((!ownWrite && remoteEditedAfterArchive(item, remoteStamp, now)) || remoteEditedAfterQueued(item, remoteStamp, now)) {
                             local.markQueueItemDone(item.id) // resolved: the newer remote edit stays (B-42, B-47)
                             continue
                         }
@@ -389,6 +399,8 @@ class SyncEngine(
                 return pushed to failures // abort the whole push loop; items stay pending (spec §9.5)
             } catch (_: PocketBaseApi.VersionConflict) {
                 continue // another device wrote since the listing: the row stays queued, uncharged, and the next sync's LWW decides
+            } catch (ended: StaleSyncSession) {
+                throw ended // a session that ended charges no row; runSync reports the error
             } catch (refused: PocketBaseApi.Unauthorized) {
                 throw refused // a dead session ends the push and charges no row; runSync reports notSignedIn
             } catch (failure: Exception) {
@@ -404,6 +416,17 @@ class SyncEngine(
             }
         }
         return pushed to failures
+    }
+
+    /**
+     * This device's own bump from an earlier push or a push that was cut short (F3): the listed record carries this
+     * device's id and sits exactly one millisecond past the archived version, which only the equal-stamp bump produces.
+     * Another device's edit at that stamp carries its own id, so it still reads as newer.
+     */
+    private fun isOwnBump(item: SyncQueueEntity, listed: RemoteEntry, deviceId: String): Boolean {
+        val archived = item.payloadJson?.let { raw -> TaskJson.decodeOrNull(TaskJson.json.parseToJsonElement(raw)) }
+            ?: return false
+        return listed.deviceId == deviceId && listed.stamp?.toEpochMilli() == archived.updatedAt.toEpochMilli() + 1
     }
 
     /** Any delete, Trash or manual, is stale once the server copy changed after it was queued (B-42). */
