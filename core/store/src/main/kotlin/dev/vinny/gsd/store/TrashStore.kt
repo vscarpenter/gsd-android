@@ -56,6 +56,10 @@ class TrashStore(private val db: GsdDatabase, private val clock: Clock) {
         val row = db.deletedTaskDao().byId(id) ?: return null
         val task = row.toTask() // timestamps preserved — faithful undo (P§3.1, matches web+iOS)
         db.withTransaction {
+            // A delete still queued, such as one waiting out a failed attempt's backoff, would land after the
+            // create's PATCH. Undo keeps the stamps, so the PATCH can't make that delete look stale, and reconcile
+            // would then drop the task. Only deletes go. The task is live again, so its other writes push as usual.
+            db.syncQueueDao().deleteOpForTask(id, SyncOp.DELETE)
             db.syncQueueDao().insert(SyncQueueEntity.forTask(SyncOp.CREATE, task, clock.instant()))
             db.taskDao().upsert(task.toEntity())
             db.deletedTaskDao().deleteById(id)

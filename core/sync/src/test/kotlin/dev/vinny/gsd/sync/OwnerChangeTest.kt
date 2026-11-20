@@ -24,7 +24,7 @@ class OwnerChangeTest {
             createdAt = now.minusSeconds(7200), updatedAt = updatedAt)
 
     /** Two tasks already on the old account (no queue rows) and one that never left the device. */
-    private fun localAfterAccountA() = FakeLocal().apply {
+    private fun localAfterAccountA(local: FakeLocal = FakeLocal()) = local.apply {
         savedCursor = staleCursor
         tasks["synced-1"] = task("synced-1")
         tasks["synced-2"] = task("synced-2")
@@ -110,5 +110,43 @@ class OwnerChangeTest {
         assertTrue(local.remoteDeletes.isEmpty())
         assertEquals(setOf("synced-1", "synced-2", "unsent"), accountB.records.values.map { it.taskId }.toSet())
         assertTrue(accountB.records.values.all { it.owner == "user-b" })
+    }
+
+    /** `ArchiveStore.archive`: the task's queue rows go, a delete carries the task as archived, and the archive row exists. */
+    private fun FakeLocal.archive(id: String, atMs: Long) {
+        val task = tasks.remove(id)!!
+        queue.removeAll { it.taskId == id }
+        queue += SyncQueueEntity(id = queue.maxOf { it.id } + 1, taskId = id, operation = SyncOp.DELETE, timestamp = atMs,
+            payloadJson = TaskJson.encode(task))
+        tombstones[id] = atMs
+        archived += id
+    }
+
+    // Pin for M1, expected green on main. The seed reads its snapshot, then queues, so a task archived in between gets
+    // a seeded update behind the archive's delete. The push drops that update (F4): the task isn't live and the account
+    // lists no record.
+    @Test
+    fun seedThenArchiveDoesNotPostTheTaskBack() = runTest {
+        val archivedAt = now.toEpochMilli()
+        val local = localAfterAccountA(object : FakeLocal() {
+            var archiveAfterSnapshot = true
+            override suspend fun activeTasks(): List<Task> = super.activeTasks().also {
+                if (archiveAfterSnapshot) {
+                    archiveAfterSnapshot = false
+                    archive("synced-1", archivedAt)
+                }
+            }
+        })
+        OwnerChange.adopt(local, previousOwner = "user-a", newOwner = "user-b", keepLocalTasks = true, nowMs = archivedAt)
+        assertEquals(listOf(SyncOp.DELETE, SyncOp.UPDATE), local.queue.filter { it.taskId == "synced-1" }.map { it.operation })
+        val accountB = FakeRemote()
+
+        SyncEngine(accountB, local, Clock.fixed(now, ZoneOffset.UTC), throttleMs = 0, ownerId = { "user-b" })
+            .runSync(triggeredByUser = true)
+
+        assertTrue("synced-1" !in accountB.records.values.map { it.taskId })
+        assertEquals(setOf("synced-2", "unsent"), accountB.records.values.map { it.taskId }.toSet())
+        assertTrue("synced-1" in local.archived && "synced-1" !in local.tasks)
+        assertTrue(local.queue.isEmpty())
     }
 }

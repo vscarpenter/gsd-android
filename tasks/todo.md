@@ -9,7 +9,8 @@ and ADR 0021 are the source. Not pushed.
   (an unlisted create, update, or delete). A refusal or another account ends the push and charges no row.
 - [x] Phase B, `fix/guarded-task-writes` (stacked on A): updates and deletes go through `/api/gsd/tasks/{id}` with
   `expected_version`. A 412 stays queued and uncharged (D2). An equal stamp sends one millisecond more (D5). A listed
-  delete with no parseable version is charged and not sent, as on web. Commits `3db635f`, `df2f77e`, `77424d0`, then
+  delete with no parseable version was charged and not sent at first. Since 2026-11-20 (R15) it's sent with the raw
+  listed value on all three clients, and upserts over such a record stay refused. Commits `3db635f`, `df2f77e`, `77424d0`, then
   the final-review fixes (session fence after the push's identity call, test teeth, FakeRemote's single version,
   accurate comments and spec).
 - [x] Real server, local PocketBase with web's hooks, Phase A red on `fabf6f5` and green on `6ea9ff1`, Phase B red on
