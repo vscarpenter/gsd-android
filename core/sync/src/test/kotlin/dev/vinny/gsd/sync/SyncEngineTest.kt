@@ -1905,4 +1905,86 @@ class SyncEngineTest {
         assertEquals("server", remote.records["rec1"]?.title)
         assertTrue("deleteGuarded" !in remote.calls)
     }
+
+    // I2 and its archive twin. A delete that failed once waits out its 5 s backoff, so the run 2 s after the undo pushes
+    // the undo's create alone, and the run at 60 s finds any delete still queued due.
+    private fun engineAfter(remote: FakeRemote, local: FakeLocal, seconds: Long) =
+        SyncEngine(remote, local, Clock.fixed(guardedNow.plusSeconds(seconds), ZoneOffset.UTC), throttleMs = 0, ownerId = { "user-1" })
+
+    /** `TaskStore.delete`: a tombstone row with no payload and a Trash row. The task's other queue rows stay. */
+    private fun trash(local: FakeLocal, queueId: Long, taskId: String = "task-1") {
+        local.tasks.remove(taskId)
+        local.queue += SyncQueueEntity(
+            id = queueId, taskId = taskId, operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+        local.trashed[taskId] = guardedNow.toEpochMilli()
+        local.tombstones[taskId] = guardedNow.toEpochMilli()
+    }
+
+    /** Back in the live table with its Trash or archive row gone, and a create queued for it. */
+    private fun bringBack(local: FakeLocal, queueId: Long, task: Task, queuedAt: Instant) {
+        local.queue += SyncQueueEntity(
+            id = queueId, taskId = task.id, operation = SyncOp.CREATE, timestamp = queuedAt.toEpochMilli(),
+            payloadJson = TaskJson.encode(task),
+        )
+        local.tasks[task.id] = task
+        local.trashed.remove(task.id)
+        local.archived.remove(task.id)
+        local.tombstones.remove(task.id)
+    }
+
+    // The engine half of I2. TrashStore.restore now removes the waiting delete in the transaction that queues the
+    // create (androidTest restoreRemovesTheWaitingDelete), so this models the queue it leaves. Undo keeps the task's
+    // stamps, so a delete left queued would not look stale after the PATCH: it would land, and reconcile would drop
+    // the task.
+    @Test
+    fun undoAfterAFailedTrashDeleteKeepsTheTask() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val synced = guardedTask("server", v0)
+        trash(local, 1)
+        remote.failOnTaskIds += synced.id
+        guardedEngine(remote, local).runSync(false)
+        assertEquals(1, local.queue.single().retryCount, "the delete was not charged")
+        remote.failOnTaskIds.clear()
+        remote.calls.clear()
+
+        // TrashStore.restore: the delete goes, and the create carries the task with its stamps kept
+        local.queue.removeAll { it.taskId == synced.id && it.operation == SyncOp.DELETE }
+        bringBack(local, 2, synced, queuedAt = guardedNow.plusSeconds(1))
+        engineAfter(remote, local, 2).runSync(false)
+        laterEngine(remote, local).runSync(false)
+
+        assertTrue("update" in remote.calls)
+        assertTrue("deleteGuarded" !in remote.calls)
+        assertEquals(synced.id, remote.records["rec1"]?.taskId)
+        assertTrue(synced.id in local.tasks, "the restored task was removed")
+        assertTrue(local.queue.isEmpty())
+    }
+
+    // Pin, expected green on main. ArchiveStore.restore stamps a fresh updatedAt and leaves the waiting delete queued.
+    // Once the PATCH lands that stamp, the delete reads as stale and is dropped, so archive needs no store change.
+    @Test
+    fun archiveRestoreAfterAFailedDeleteKeepsTheTask() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        local.tasks["task-1"] = guardedTask("done", v0)
+        val archived = archive(local, 1)
+        remote.failOnTaskIds += archived.id
+        guardedEngine(remote, local).runSync(false)
+        assertEquals(1, local.queue.single().retryCount, "the delete was not charged")
+        remote.failOnTaskIds.clear()
+        remote.calls.clear()
+
+        val restoredAt = guardedNow.plusSeconds(1)
+        bringBack(local, 2, archived.copy(updatedAt = restoredAt), queuedAt = restoredAt)
+        engineAfter(remote, local, 2).runSync(false)
+        laterEngine(remote, local).runSync(false)
+
+        assertTrue("update" in remote.calls)
+        assertTrue("deleteGuarded" !in remote.calls)
+        assertEquals(archived.id, remote.records["rec1"]?.taskId)
+        assertTrue(archived.id in local.tasks, "the restored task was removed")
+        assertTrue(local.queue.isEmpty())
+    }
 }

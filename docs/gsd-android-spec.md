@@ -1102,6 +1102,8 @@ Compare `client_updated_at` vs local `updatedAt` as **millisecond integers**: re
 
 ### 9.5 Push & the sync queue
 
+> Amended 2026-11-20: Undo from Trash removes the waiting delete (sync queue leftovers, I2)
+>
 > Amended 2026-11-19: updates and deletes go through the guarded route, gsd-taskmanager ADR 0021
 >
 > Amended 2026-11-07: see gsd-taskmanager `tasks/spec-top-three.md` (top three, pull contract 4)
@@ -1125,6 +1127,8 @@ Push algorithm:
 5. **Confirm the account before acting on an absence** (amended 2026-11-19; web gsd-taskmanager #717). A refused or revoked token is answered as a guest, so `tasks` lists as 200 with no items, and a queued delete would look already done. The first time a push meets a create, an update, or a delete whose task has no entry in the index, it calls `confirmIdentity` once, and not again that push. A push with every task listed makes no such call. A refusal (or another account) ends the push before that row's error handling, so no row is charged and nothing is dropped. A 401 or 403 from any write ends the push the same way (`PocketBaseApi.Unauthorized`, reported as notSignedIn) and charges no row.
 6. **Throttle ~100 ms between operations.** On HTTP **429, abort the entire push loop** immediately (items stay pending for the next cycle).
 7. Other errors bump `retryCount` + `lastError`; at **5 failures** the item becomes `failed` — kept, surfaced for retry, and never dropped, except that F4 (step 4) drops a re-armed row for a task that is no longer live and not listed. Failed items auto-requeue (reset to pending) on **launch, foreground, network-regained, and manual sync** — deliberately *not* on the periodic cadence or post-mutation pushes, so a poison item can't hammer a rejecting server every two minutes.
+
+**Trash and Undo** (amended 2026-11-20, sync queue leftovers I2). Trash keeps the task's queued creates and updates on purpose. After the identity check, the push drops one only when the task isn't live and the server lists no record (F4, step 4). So once the Trash delete lands, a leftover can't create the task again. Keeping them carries an edit made while signed out through sign-in. The sign-in drops the Trash delete, and resurrect on sight brings the task back (§9.4). The kept update then uploads the edit (§8.21). Archive differs, because it removes the task's older rows when it queues its delete (step 4). Undo from Trash (`TrashStore.restore`) removes the task's queued delete in the transaction that queues its create. Its other rows stay and push as usual, since the task is live again. Undo keeps the task's stamps, so a delete left waiting out a failed attempt's backoff wouldn't read as stale after the create's PATCH. It would land, and reconciliation would then drop the restored task on this device too. Restore from the archive needs no such step. It stamps a fresh `updatedAt`, so once its PATCH lands, a waiting archive delete reads as stale and is dropped. Pinned by `SyncEngineTest` and `TrashStoreTest`.
 
 ### 9.6 Realtime (SSE) + cadence safety net
 

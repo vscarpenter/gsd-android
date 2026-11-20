@@ -109,6 +109,26 @@ class TrashStoreTest {
         assertEquals(SyncOp.CREATE, db.syncQueueDao().pending().last { it.taskId == original.id }.operation)
     }
 
+    /**
+     * I2: Undo while the Trash's delete waits out its backoff. Undo keeps the task's stamps, so a delete left
+     * queued would not look stale after the create's PATCH. It would land, and reconcile would drop the task.
+     */
+    @Test
+    fun restoreRemovesTheWaitingDelete() = runTest {
+        val task = seedTask("trash-task-06")
+        db.syncQueueDao().deleteForTask(task.id) // the add's create already pushed, so the task is on the server
+        taskStore.delete(task.id)
+        val delete = db.syncQueueDao().pending().single { it.taskId == task.id }
+        db.syncQueueDao().bumpRetry(delete.id, 1, "boom", clock.millis(), SyncQueueEntity.STATUS_PENDING, null)
+
+        trashStore.restore(task.id)
+
+        val rows = (db.syncQueueDao().pending() + db.syncQueueDao().failed()).filter { it.taskId == task.id }
+        assertEquals(listOf(SyncOp.CREATE), rows.map { it.operation })
+        assertEquals(task.id, db.taskDao().byId(task.id)?.id)
+        assertNull(db.deletedTaskDao().byId(task.id))
+    }
+
     @Test
     fun purgeDropsStrictlyOlderThanStartOfDayCutoffAndKeepsOnCutoff() = runTest {
         val zone = ZoneId.systemDefault()
