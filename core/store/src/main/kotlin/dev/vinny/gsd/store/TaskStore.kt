@@ -172,7 +172,8 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
     /**
      * Replace-mode import (spec §8.16): the imported set becomes the store —
      * UPDATE enqueued per imported task, DELETE per existing id missing from
-     * the import, table swapped in one transaction.
+     * the import, table swapped in one transaction. A removed task's queued
+     * writes go with it (spec §9.5).
      */
     suspend fun replaceAll(imported: List<Task>) {
         val now = clock.instant()
@@ -180,6 +181,9 @@ class TaskStore(private val db: GsdDatabase, private val clock: Clock) {
         val importedIds = stamped.map { it.id }.toSet()
         db.withTransaction {
             db.taskDao().all().filter { it.id !in importedIds }.forEach { row ->
+                // Replace leaves no tombstone, so a pull can put the task back as live, and then F4 doesn't drop a
+                // leftover write. It would keep reconcile from removing the task, then POST it back after the delete.
+                db.syncQueueDao().deleteForTask(row.id)
                 db.syncQueueDao().insert(SyncQueueEntity.tombstone(row.id, now))
                 db.taskDao().deleteById(row.id)
             }

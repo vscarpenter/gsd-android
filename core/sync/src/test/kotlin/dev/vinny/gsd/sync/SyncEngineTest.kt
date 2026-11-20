@@ -1987,4 +1987,28 @@ class SyncEngineTest {
         assertTrue(archived.id in local.tasks, "the restored task was removed")
         assertTrue(local.queue.isEmpty())
     }
+
+    // I3. Import Replace clears a removed task's queued writes in the transaction that queues its delete (androidTest
+    // replaceClearsRemovedTasksWrites), so this models the queue it leaves. Replace leaves no tombstone, and this pull
+    // lists the record again, so the task comes back live. A leftover update would then escape F4 and POST it back.
+    @Test
+    fun replaceLeftoverUpdateForARemovedTaskIsDropped() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, v0)
+        val edit = guardedTask("edit", "2026-11-19T17:30:00.000Z")
+        chargedUpdate(local, edit)
+        // TaskStore.replaceAll: the task's queued writes and its row go, and a tombstone row is queued, with no Trash row
+        local.queue.removeAll { it.taskId == edit.id }
+        local.queue += SyncQueueEntity(
+            id = 2, taskId = edit.id, operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+        guardedEngine(remote, local).runSync(false) // the delete lands, and reconcile removes the pulled copy
+
+        laterEngine(remote, local).runSync(false)
+
+        assertEquals(listOf("deleteGuarded"), remote.calls.filter { it == "create" || it == "update" || it == "deleteGuarded" })
+        assertTrue(remote.records.isEmpty())
+        assertTrue(edit.id !in local.tasks)
+        assertTrue(local.queue.isEmpty())
+    }
 }

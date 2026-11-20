@@ -50,6 +50,27 @@ class ReplaceEraseTest {
         assertTrue(ops.any { it.operation == SyncOp.UPDATE && it.taskId == "brand-new-0000000000" })
     }
 
+    /**
+     * I3: a removed task's queued writes go with it. Replace leaves no tombstone, so a pull can put the task
+     * back as live, and a leftover update would then POST it to the server again after the delete.
+     */
+    @Test
+    fun replaceClearsRemovedTasksWrites() = runTest {
+        store.add(draft("keep-me-000000000000", "kept"))
+        val dropped = store.add(draft("drop-me-000000000000", "dropped"))
+        store.change(dropped.id) { it.copy(title = "edited") } // an update beside the add's create
+
+        store.replaceAll(listOf(draft("keep-me-000000000000", "kept v2")))
+
+        val rows = db.syncQueueDao().pending() + db.syncQueueDao().failed()
+        assertEquals(listOf(SyncOp.DELETE), rows.filter { it.taskId == dropped.id }.map { it.operation })
+        // an imported task keeps its rows: the add's create and the import's update
+        assertEquals(
+            listOf(SyncOp.CREATE, SyncOp.UPDATE),
+            rows.filter { it.taskId == "keep-me-000000000000" }.map { it.operation },
+        )
+    }
+
     @Test
     fun eraseLocalClearsTasksArchiveQueueAndCustomViews() = runTest {
         store.add(draft("task-a-0000000000000", "a"))
