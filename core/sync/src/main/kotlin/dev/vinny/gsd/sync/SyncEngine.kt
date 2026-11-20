@@ -385,8 +385,8 @@ class SyncEngine(
                             continue
                         }
                         if (listed != null) {
-                            // the staleness guards can't run without a parseable stamp, so the delete is charged and not sent, as on web
-                            if (remoteStamp == null) throw MalformedRemoteVersion()
+                            // A delete carries no payload to compare, and the user asked for the record to go. With no
+                            // parseable stamp the staleness checks pass, and the raw listed version is the guard (R15).
                             remote.deleteTaskGuarded(listed.recordId, listed.version)
                         }
                         index.remove(item.taskId)
@@ -438,7 +438,7 @@ class SyncEngine(
      * version means another device edited the task after this copy last synced: a pull missed the
      * edit, or it landed between the pull and the archive. Archiving the stale copy must not delete it
      * (parity backlog B-47). A delete with no payload (trash) skips this check. A listed remote with no
-     * usable version is charged and not sent, because the staleness guards can't run without a stamp.
+     * usable version passes this check and is sent with its raw version (R15).
      */
     private fun remoteEditedAfterArchive(item: SyncQueueEntity, remoteStamp: Instant?, now: Instant): Boolean {
         if (remoteStamp == null) return false

@@ -183,6 +183,7 @@ internal class FakeRemote : SyncRemote {
     override suspend fun deleteTaskGuarded(recordId: String, expectedVersion: String) {
         gate(records[recordId]?.taskId ?: "")
         calls += "deleteGuarded"
+        if (expectedVersion.length > 64) throw PocketBaseApi.HttpError(400, "") // the hook caps expected_version at 64
         guard(recordId, expectedVersion)
         records.remove(recordId)
         versions.remove(recordId)
@@ -1444,19 +1445,70 @@ class SyncEngineTest {
         assertTrue(local.queue.isEmpty())
     }
 
-    @Test
-    fun `a listed delete with no version is charged, not sent`() = runTest {
-        val local = FakeLocal(); val remote = FakeRemote()
-        listed(remote, "")
+    private fun queuedTrashDelete(local: FakeLocal) {
         local.queue += SyncQueueEntity(
             id = 1, taskId = "task-1", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
+        )
+    }
+
+    /** R15: a delete carries no payload to compare, so an unusable listed version is sent as listed. */
+    @Test
+    fun `deleteOverAMissingVersionIsSentWithAnEmptyExpectedVersion`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "")
+        queuedTrashDelete(local)
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertTrue("deleteGuarded" in remote.calls)
+        assertTrue(remote.records.isEmpty())
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `deleteOverAGarbledVersionSendsTheRawValue`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "not-a-date")
+        queuedTrashDelete(local)
+
+        guardedEngine(remote, local).runSync(false)
+
+        assertTrue("deleteGuarded" in remote.calls)
+        assertTrue(remote.records.isEmpty())
+        assertTrue(local.queue.isEmpty())
+    }
+
+    @Test
+    fun `upsertOverAMissingVersionIsStillRefused`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        listed(remote, "")
+        guardedQueue(local, 1, guardedTask("edit", "2026-11-19T17:30:00.000Z"))
+
+        guardedEngine(remote, local).runSync(false)
+
+        val row = local.queue.single()
+        assertEquals(1, row.retryCount)
+        assertEquals("Remote task version is missing or malformed", row.lastError)
+        assertTrue("update" !in remote.calls)
+    }
+
+    /** The hook 400s an expected_version over 64 characters: an ordinary charged failure, and the push goes on. */
+    @Test
+    fun `deleteOverAnOverlongVersionIsChargedAndThePushContinues`() = runTest {
+        val local = FakeLocal(); val remote = FakeRemote()
+        remote.records["rec1"] = WireTask(taskId = "task-1", clientUpdatedAt = "x".repeat(65))
+        remote.records["rec2"] = WireTask(taskId = "task-2", clientUpdatedAt = v0)
+        queuedTrashDelete(local)
+        local.queue += SyncQueueEntity(
+            id = 2, taskId = "task-2", operation = SyncOp.DELETE, timestamp = guardedNow.toEpochMilli(), payloadJson = null,
         )
 
         guardedEngine(remote, local).runSync(false)
 
+        assertEquals(listOf(1L), local.queue.map { it.id })
         assertEquals(1, local.queue.single().retryCount)
-        assertTrue("delete" !in remote.calls && "deleteGuarded" !in remote.calls)
         assertTrue("rec1" in remote.records)
+        assertTrue("rec2" !in remote.records)
     }
 
     @Test
